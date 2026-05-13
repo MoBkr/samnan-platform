@@ -24,6 +24,11 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
   const [contractFile, setContractFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Coordinators can only assign themselves; admins/others see everyone
+  const visibleCoordinators = currentProfile.role === 'coordinator'
+    ? coordinators.filter((c) => c.id === currentProfile.id)
+    : coordinators
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
@@ -149,16 +154,25 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="coordinator_id">الكوردنيتر</Label>
-              <Select
-                id="coordinator_id"
-                name="coordinator_id"
-                placeholder="اختر الكوردنيتر"
-                defaultValue={currentProfile.role === 'coordinator' ? currentProfile.id : ''}
-              >
-                {coordinators.map((c) => (
-                  <option key={c.id} value={c.id}>{c.full_name}</option>
-                ))}
-              </Select>
+              {currentProfile.role === 'coordinator' ? (
+                <>
+                  <input type="hidden" name="coordinator_id" value={currentProfile.id} />
+                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
+                    {currentProfile.full_name}
+                  </div>
+                </>
+              ) : (
+                <Select
+                  id="coordinator_id"
+                  name="coordinator_id"
+                  placeholder="اختر الكوردنيتر"
+                  defaultValue=""
+                >
+                  {visibleCoordinators.map((c) => (
+                    <option key={c.id} value={c.id}>{c.full_name}</option>
+                  ))}
+                </Select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sales_engineer_id">مهندس المبيعات</Label>
