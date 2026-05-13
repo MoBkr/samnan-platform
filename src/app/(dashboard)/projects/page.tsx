@@ -1,17 +1,51 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 import { getProjects } from '@/lib/actions/projects'
 import { getCurrentProfile } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/page-header'
-import { EmptyState } from '@/components/shared/empty-state'
-import { ProjectStatusBadge } from '@/components/shared/status-badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmpty } from '@/components/ui/table'
-import { formatCurrency, formatDateShort } from '@/lib/utils'
+import { ProjectsList } from '@/components/projects/projects-list'
+import type { QueryResultMany } from '@/lib/supabase/typed'
 
 export default async function ProjectsPage() {
   const [projects, profile] = await Promise.all([getProjects(), getCurrentProfile()])
-  const canCreate = profile?.role === 'coordinator' || profile?.role === 'sales_engineer' || profile?.role === 'admin'
+  if (!profile) return null
+
+  const canCreate = ['coordinator', 'sales_engineer', 'admin'].includes(profile.role)
+
+  // Compute which projects belong to the current user
+  const myProjectIds = new Set<string>()
+
+  if (profile.role === 'coordinator') {
+    for (const p of projects) {
+      if ((p as { coordinator_id?: string }).coordinator_id === profile.id || p.coordinator?.id === profile.id) {
+        myProjectIds.add(p.id)
+      }
+    }
+  } else if (profile.role === 'sales_engineer') {
+    for (const p of projects) {
+      if ((p as { sales_engineer_id?: string }).sales_engineer_id === profile.id || p.sales_engineer?.id === profile.id) {
+        myProjectIds.add(p.id)
+      }
+    }
+  } else if (profile.role === 'supply') {
+    // "my projects" = projects that have active material requests
+    const supabase = await createClient()
+    const result = (await supabase
+      .from('materials')
+      .select('project_id')
+      .in('status', ['pending', 'preparing', 'ready'])) as QueryResultMany<{ project_id: string }>
+    for (const m of result.data ?? []) myProjectIds.add(m.project_id)
+  } else if (profile.role === 'installation') {
+    // "my projects" = projects that have active installations
+    const supabase = await createClient()
+    const result = (await supabase
+      .from('installations')
+      .select('project_id')
+      .not('status', 'eq', 'completed')) as QueryResultMany<{ project_id: string }>
+    for (const i of result.data ?? []) myProjectIds.add(i.project_id)
+  }
 
   return (
     <div className="space-y-6">
@@ -29,64 +63,12 @@ export default async function ProjectsPage() {
           ) : undefined
         }
       />
-
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>اسم المشروع</TableHead>
-              <TableHead>العميل</TableHead>
-              <TableHead>الحالة</TableHead>
-              <TableHead>القيمة الإجمالية</TableHead>
-              <TableHead>تاريخ البداية</TableHead>
-              <TableHead>الكوردنيتر</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projects.length === 0 ? (
-              <TableEmpty message="لا توجد مشاريع بعد" />
-            ) : (
-              projects.map((project) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-medium text-gray-900">
-                    {project.project_name}
-                  </TableCell>
-                  <TableCell>{project.client_name}</TableCell>
-                  <TableCell>
-                    <ProjectStatusBadge status={project.status} />
-                  </TableCell>
-                  <TableCell>{formatCurrency(project.total_amount)}</TableCell>
-                  <TableCell>{formatDateShort(project.start_date)}</TableCell>
-                  <TableCell>
-                    {project.coordinator?.full_name ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Link href={`/projects/${project.id}`}>
-                      <Button variant="ghost" size="sm">عرض</Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {projects.length === 0 && canCreate && (
-        <EmptyState
-          message="لا توجد مشاريع بعد"
-          description="أنشئ مشروعاً جديداً للبدء"
-          action={
-            <Link href="/projects/new">
-              <Button>
-                <Plus className="h-4 w-4" />
-                مشروع جديد
-              </Button>
-            </Link>
-          }
-        />
-      )}
+      <ProjectsList
+        projects={projects}
+        myProjectIds={myProjectIds}
+        currentProfile={profile}
+        canCreate={canCreate}
+      />
     </div>
   )
 }
