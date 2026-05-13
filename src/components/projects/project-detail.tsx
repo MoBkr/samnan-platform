@@ -1,19 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Building2, User, Calendar, DollarSign, FileText, TrendingUp } from 'lucide-react'
+import { ArrowRight, Building2, User, Calendar, DollarSign, FileText, TrendingUp, CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { PaymentsTab } from '@/components/payments/payments-tab'
 import { MaterialsTab } from '@/components/supply/materials-tab'
 import { InstallationTab } from '@/components/installation/installation-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
+import { updateProjectStatus } from '@/lib/actions/projects'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Material, SupplyOrder, Installation, ActivityLog, Profile } from '@/types/database'
 
 type Tab = 'payments' | 'materials' | 'installation' | 'activity'
+type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | null
 
 interface ProjectDetailProps {
   project: Project
@@ -77,12 +83,60 @@ export function ProjectDetail({
   currentProfile,
 }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('payments')
+  const [dialog, setDialog] = useState<ActionDialog>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [isPending, startTransition] = useTransition()
 
   const totalPaid = payments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
   const totalDue = payments.reduce((sum, p) => sum + (p.amount ?? 0), 0)
   const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
 
   const { stage, label: stageLabel } = getLifecycleStage(payments, materials, supplyOrders, installations)
+
+  const canManage = currentProfile.role === 'coordinator' || currentProfile.role === 'admin'
+  const isActive = project.status === 'active'
+  const isOnHold = project.status === 'on_hold'
+  const isFinished = project.status === 'completed' || project.status === 'cancelled'
+
+  const hasPendingPayments = payments.some(p => p.status === 'pending' || p.status === 'partial')
+
+  function handleAction(action: ActionDialog) {
+    if (action === 'cancel') setCancelReason('')
+    setDialog(action)
+  }
+
+  function handleConfirm() {
+    startTransition(async () => {
+      let result: { error?: string } | undefined
+
+      if (dialog === 'complete') {
+        result = await updateProjectStatus(project.id, 'completed')
+      } else if (dialog === 'hold') {
+        result = await updateProjectStatus(project.id, 'on_hold')
+      } else if (dialog === 'reactivate') {
+        result = await updateProjectStatus(project.id, 'active')
+      } else if (dialog === 'cancel') {
+        if (!cancelReason.trim()) {
+          toast.error('يرجى إدخال سبب الإلغاء')
+          return
+        }
+        result = await updateProjectStatus(project.id, 'cancelled', cancelReason.trim())
+      }
+
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        const labels: Record<string, string> = {
+          complete: 'تم إغلاق المشروع بنجاح',
+          hold: 'تم تعليق المشروع',
+          reactivate: 'تم إعادة تفعيل المشروع',
+          cancel: 'تم إلغاء المشروع',
+        }
+        toast.success(labels[dialog!] ?? 'تم تحديث حالة المشروع')
+        setDialog(null)
+      }
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -142,6 +196,14 @@ export function ProjectDetail({
                 </a>
               )}
             </div>
+
+            {/* Cancellation reason */}
+            {project.status === 'cancelled' && project.cancellation_reason && (
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-700">
+                <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span><strong>سبب الإلغاء:</strong> {project.cancellation_reason}</span>
+              </div>
+            )}
           </div>
 
           {/* Financial summary */}
@@ -175,6 +237,54 @@ export function ProjectDetail({
                 style={{ width: `${collectionPct}%` }}
               />
             </div>
+          </div>
+        )}
+
+        {/* Project action buttons */}
+        {canManage && !isFinished && (
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
+            {isActive && (
+              <>
+                <Button
+                  size="sm"
+                  variant="success"
+                  onClick={() => handleAction('complete')}
+                  className="gap-1.5"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  إغلاق المشروع
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAction('hold')}
+                  className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
+                >
+                  <PauseCircle className="h-4 w-4" />
+                  تعليق المشروع
+                </Button>
+              </>
+            )}
+            {isOnHold && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAction('reactivate')}
+                className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50"
+              >
+                <PlayCircle className="h-4 w-4" />
+                إعادة تفعيل
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleAction('cancel')}
+              className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+            >
+              <XCircle className="h-4 w-4" />
+              إلغاء المشروع
+            </Button>
           </div>
         )}
       </div>
@@ -270,6 +380,122 @@ export function ProjectDetail({
         )}
         {activeTab === 'activity' && <ActivityTab activityLog={activityLog} />}
       </div>
+
+      {/* ── Close project dialog ── */}
+      <Dialog open={dialog === 'complete'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>إغلاق المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-4">
+            {hasPendingPayments && (
+              <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>يوجد دفعات لم تُسدَّد بعد. لا يمكن إغلاق المشروع حتى تُحصَّل جميع الدفعات.</span>
+              </div>
+            )}
+            {!hasPendingPayments && (
+              <p className="text-sm text-gray-600">
+                هل أنت متأكد من إغلاق المشروع <strong>{project.project_name}</strong> وتحديد حالته إلى &ldquo;مكتمل&rdquo;؟
+                لن تتمكن من إجراء تغييرات بعد الإغلاق.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button
+            variant="success"
+            loading={isPending}
+            onClick={handleConfirm}
+            disabled={hasPendingPayments}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            تأكيد الإغلاق
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Hold project dialog ── */}
+      <Dialog open={dialog === 'hold'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>تعليق المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <p className="text-sm text-gray-600">
+            سيتم تعليق مشروع <strong>{project.project_name}</strong> مؤقتاً. يمكنك إعادة تفعيله في أي وقت.
+          </p>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button
+            loading={isPending}
+            onClick={handleConfirm}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            <PauseCircle className="h-4 w-4" />
+            تعليق المشروع
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Reactivate dialog ── */}
+      <Dialog open={dialog === 'reactivate'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>إعادة تفعيل المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <p className="text-sm text-gray-600">
+            هل تريد إعادة تفعيل مشروع <strong>{project.project_name}</strong> والعودة لحالة &ldquo;نشط&rdquo;؟
+          </p>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleConfirm}>
+            <PlayCircle className="h-4 w-4" />
+            إعادة التفعيل
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Cancel project dialog ── */}
+      <Dialog open={dialog === 'cancel'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>إلغاء المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-4">
+            <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>هذا الإجراء لا يُمكن التراجع عنه. سيتم أرشفة المشروع ولن يُحذف من النظام.</span>
+            </div>
+            <div className="space-y-1.5">
+              <Label>سبب الإلغاء *</Label>
+              <Input
+                placeholder="مثال: العميل ألغى الطلب / توقف التمويل..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+            </div>
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>رجوع</Button>
+          <Button
+            loading={isPending}
+            onClick={handleConfirm}
+            disabled={!cancelReason.trim()}
+            className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-40"
+          >
+            <XCircle className="h-4 w-4" />
+            تأكيد الإلغاء
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   )
 }
