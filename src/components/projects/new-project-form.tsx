@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
-import { Upload, X, FileText } from 'lucide-react'
+import { Upload, X, FileText, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,19 +15,57 @@ import type { Profile } from '@/types/database'
 interface NewProjectFormProps {
   coordinators: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   salesEngineers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
+  coordinatorWorkload: Record<string, number>
+  salesWorkload: Record<string, number>
   currentProfile: Profile
 }
 
-export function NewProjectForm({ coordinators, salesEngineers, currentProfile }: NewProjectFormProps) {
+function workloadLabel(count: number): string {
+  if (count === 0) return 'لا مشاريع نشطة'
+  if (count === 1) return 'مشروع نشط واحد'
+  return `${count} مشاريع نشطة`
+}
+
+function WorkloadBadge({ count }: { count: number }) {
+  const color = count === 0
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : count <= 2
+    ? 'bg-amber-50 text-amber-700 border-amber-200'
+    : 'bg-red-50 text-red-700 border-red-200'
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${color}`}>
+      <Briefcase className="h-3 w-3" />
+      {workloadLabel(count)}
+    </span>
+  )
+}
+
+export function NewProjectForm({
+  coordinators,
+  salesEngineers,
+  coordinatorWorkload,
+  salesWorkload,
+  currentProfile,
+}: NewProjectFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string>(
+    currentProfile.role === 'coordinator' ? currentProfile.id : ''
+  )
+  const [selectedSalesId, setSelectedSalesId] = useState<string>(
+    currentProfile.role === 'sales_engineer' ? currentProfile.id : ''
+  )
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // Coordinators can only assign themselves; admins/others see everyone
-  const visibleCoordinators = currentProfile.role === 'coordinator'
-    ? coordinators.filter((c) => c.id === currentProfile.id)
-    : coordinators
+  const isAdmin = currentProfile.role === 'admin'
+  const isCoordinator = currentProfile.role === 'coordinator'
+  const isSalesEngineer = currentProfile.role === 'sales_engineer'
+
+  // Coordinator assignment: admin picks freely, coordinator is locked to self, sales_engineer sees placeholder
+  // Sales engineer assignment: admin and coordinator can pick, sales_engineer is locked to self
+  const canAssignSales = isAdmin || isCoordinator
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -37,7 +75,6 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
     startTransition(async () => {
       const formData = new FormData(form)
 
-      // Upload contract if provided
       if (contractFile) {
         const upForm = new FormData()
         upForm.set('file', contractFile)
@@ -58,6 +95,9 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
       }
     })
   }
+
+  const selectedCoordinator = coordinators.find((c) => c.id === selectedCoordinatorId)
+  const selectedSales = salesEngineers.find((s) => s.id === selectedSalesId)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -152,42 +192,87 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Coordinator field */}
             <div className="space-y-1.5">
               <Label htmlFor="coordinator_id">الكوردنيتر</Label>
-              {currentProfile.role === 'coordinator' ? (
+              {isCoordinator ? (
                 <>
                   <input type="hidden" name="coordinator_id" value={currentProfile.id} />
                   <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
                     {currentProfile.full_name}
                   </div>
+                  <WorkloadBadge count={coordinatorWorkload[currentProfile.id] ?? 0} />
+                </>
+              ) : isSalesEngineer ? (
+                <>
+                  <input type="hidden" name="coordinator_id" value="" />
+                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">
+                    سيتم التعيين من الإدارة
+                  </div>
                 </>
               ) : (
-                <Select
-                  id="coordinator_id"
-                  name="coordinator_id"
-                  placeholder="اختر الكوردنيتر"
-                  defaultValue=""
-                >
-                  {visibleCoordinators.map((c) => (
-                    <option key={c.id} value={c.id}>{c.full_name}</option>
-                  ))}
-                </Select>
+                /* admin */
+                <>
+                  <Select
+                    id="coordinator_id"
+                    name="coordinator_id"
+                    placeholder="اختر الكوردنيتر"
+                    defaultValue=""
+                    onChange={(e) => setSelectedCoordinatorId(e.target.value)}
+                  >
+                    {coordinators.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}
+                      </option>
+                    ))}
+                  </Select>
+                  {selectedCoordinator && (
+                    <WorkloadBadge count={coordinatorWorkload[selectedCoordinator.id] ?? 0} />
+                  )}
+                </>
               )}
             </div>
+
+            {/* Sales engineer field */}
             <div className="space-y-1.5">
               <Label htmlFor="sales_engineer_id">مهندس المبيعات</Label>
-              <Select
-                id="sales_engineer_id"
-                name="sales_engineer_id"
-                placeholder="اختر المهندس"
-                defaultValue={currentProfile.role === 'sales_engineer' ? currentProfile.id : ''}
-              >
-                {salesEngineers.map((s) => (
-                  <option key={s.id} value={s.id}>{s.full_name}</option>
-                ))}
-              </Select>
+              {isSalesEngineer ? (
+                <>
+                  <input type="hidden" name="sales_engineer_id" value={currentProfile.id} />
+                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
+                    {currentProfile.full_name}
+                  </div>
+                  <WorkloadBadge count={salesWorkload[currentProfile.id] ?? 0} />
+                </>
+              ) : canAssignSales ? (
+                <>
+                  <Select
+                    id="sales_engineer_id"
+                    name="sales_engineer_id"
+                    placeholder="اختر المهندس"
+                    defaultValue={selectedSalesId}
+                    onChange={(e) => setSelectedSalesId(e.target.value)}
+                  >
+                    {salesEngineers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.full_name} — {workloadLabel(salesWorkload[s.id] ?? 0)}
+                      </option>
+                    ))}
+                  </Select>
+                  {selectedSales && (
+                    <WorkloadBadge count={salesWorkload[selectedSales.id] ?? 0} />
+                  )}
+                </>
+              ) : null}
             </div>
           </div>
+
+          {/* Permission note for sales engineers */}
+          {isSalesEngineer && (
+            <p className="text-xs text-gray-400 border-t border-gray-100 pt-3">
+              سيتم تعيين الكوردنيتر المسؤول من قِبل الإدارة بعد إنشاء المشروع.
+            </p>
+          )}
         </CardContent>
       </Card>
 
