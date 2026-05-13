@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
+import { Upload, X, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createProject } from '@/lib/actions/projects'
+import { uploadFile } from '@/lib/actions/upload'
 import type { Profile } from '@/types/database'
 
 interface NewProjectFormProps {
@@ -19,13 +21,31 @@ interface NewProjectFormProps {
 export function NewProjectForm({ coordinators, salesEngineers, currentProfile }: NewProjectFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [contractFile, setContractFile] = useState<File | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    const formData = new FormData(e.currentTarget)
+    const form = e.currentTarget
 
     startTransition(async () => {
+      const formData = new FormData(form)
+
+      // Upload contract if provided
+      if (contractFile) {
+        const upForm = new FormData()
+        upForm.set('file', contractFile)
+        upForm.set('folder', 'contracts')
+        const upResult = await uploadFile(upForm)
+        if ('error' in upResult) {
+          setError(upResult.error)
+          toast.error(upResult.error)
+          return
+        }
+        formData.set('contract_url', upResult.url)
+      }
+
       const result = await createProject(formData)
       if (result?.error) {
         setError(result.error)
@@ -36,6 +56,7 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Project info */}
       <Card>
         <CardHeader>
           <CardTitle>معلومات المشروع</CardTitle>
@@ -72,6 +93,54 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
         </CardContent>
       </Card>
 
+      {/* Contract upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle>العقد</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <input type="hidden" name="contract_url" />
+          {contractFile ? (
+            <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 shrink-0">
+                <FileText className="h-5 w-5 text-brand-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{contractFile.name}</p>
+                <p className="text-xs text-gray-500">{(contractFile.size / 1024).toFixed(0)} KB</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setContractFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex w-full flex-col items-center gap-2.5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors"
+            >
+              <Upload className="h-7 w-7 text-gray-400" />
+              <div>
+                <p className="text-sm font-semibold text-gray-700">ارفع العقد هنا</p>
+                <p className="text-xs text-gray-400 mt-1">PDF — حتى 10 ميجابايت</p>
+              </div>
+            </button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            className="hidden"
+            onChange={(e) => setContractFile(e.target.files?.[0] ?? null)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Team */}
       <Card>
         <CardHeader>
           <CardTitle>الفريق</CardTitle>
@@ -109,15 +178,15 @@ export function NewProjectForm({ coordinators, salesEngineers, currentProfile }:
       </Card>
 
       {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
+          {error}
+        </div>
       )}
 
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={() => history.back()}>
-          إلغاء
-        </Button>
+        <Button type="button" variant="outline" onClick={() => history.back()}>إلغاء</Button>
         <Button type="submit" loading={isPending}>
-          إنشاء المشروع
+          {isPending ? 'جاري الإنشاء...' : 'إنشاء المشروع'}
         </Button>
       </div>
     </form>
