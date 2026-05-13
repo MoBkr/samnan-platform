@@ -26,6 +26,17 @@ export async function getAllPendingMaterials() {
   return result.data ?? []
 }
 
+async function isFinalPaymentPaid(service: ReturnType<typeof createServiceClient>, projectId: string): Promise<boolean> {
+  const result = (await service
+    .from('payments')
+    .select('status')
+    .eq('project_id', projectId)
+    .eq('type', 'final')
+    .eq('status', 'paid')
+    .limit(1)) as unknown as { data: { status: string }[] | null }
+  return (result.data?.length ?? 0) > 0
+}
+
 export async function createMaterialRequest(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -44,6 +55,22 @@ export async function createMaterialRequest(formData: FormData) {
   }
 
   const service = createServiceClient()
+
+  // Require upfront payment (or final payment as full prepay)
+  const finalPaid = await isFinalPaymentPaid(service, projectId)
+  if (!finalPaid) {
+    const upfrontPayment = (await service
+      .from('payments')
+      .select('status')
+      .eq('project_id', projectId)
+      .eq('type', 'upfront')
+      .eq('status', 'paid')
+      .limit(1)) as unknown as { data: { status: string }[] | null }
+    if ((upfrontPayment.data?.length ?? 0) === 0) {
+      return { error: 'لا يمكن طلب المواد — يجب تحصيل الدفعة الأولى أولاً' }
+    }
+  }
+
   const { error } = (await service.from('materials').insert({
     project_id: projectId,
     requested_by: user.id,
@@ -113,17 +140,22 @@ export async function scheduleSupplyOrder(formData: FormData) {
   const materialId = formData.get('material_id') as string
   const scheduledDate = formData.get('scheduled_date') as string
 
-  // Check supply payment is paid
   const service = createServiceClient()
-  const supplyPayment = (await service
-    .from('payments')
-    .select('status')
-    .eq('project_id', projectId)
-    .eq('type', 'supply')
-    .single()) as QueryResult<{ status: string }>
 
-  if (!supplyPayment.data || supplyPayment.data.status !== 'paid') {
-    return { error: 'لا يمكن جدولة التوريد — دفعة التوريد غير مكتملة' }
+  // Allow if final payment already covers everything
+  const finalPaid = await isFinalPaymentPaid(service, projectId)
+  if (!finalPaid) {
+    // Otherwise require dedicated supply payment
+    const supplyPayment = (await service
+      .from('payments')
+      .select('status')
+      .eq('project_id', projectId)
+      .eq('type', 'supply')
+      .single()) as QueryResult<{ status: string }>
+
+    if (!supplyPayment.data || supplyPayment.data.status !== 'paid') {
+      return { error: 'لا يمكن جدولة التوريد — دفعة التوريد غير مكتملة (أو أضف دفعة نهائية شاملة)' }
+    }
   }
 
   const { error } = (await service.from('supply_orders').insert({

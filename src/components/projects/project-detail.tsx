@@ -108,8 +108,9 @@ export function ProjectDetail({
   )
   const [isPending, startTransition] = useTransition()
 
-  const totalPaid = payments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
-  const totalDue = payments.reduce((sum, p) => sum + (p.amount ?? 0), 0)
+  const activePayments = payments.filter(p => p.status !== 'cancelled')
+  const totalPaid = activePayments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
+  const totalDue = activePayments.reduce((sum, p) => sum + (p.amount ?? 0), 0)
   const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
 
   const { stage, label: stageLabel } = getLifecycleStage(payments, materials, supplyOrders, installations)
