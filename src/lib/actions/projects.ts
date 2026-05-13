@@ -135,6 +135,36 @@ export async function updateProjectStatus(
   return { success: true }
 }
 
+export async function updateProjectTeam(
+  projectId: string,
+  coordinatorId: string | null,
+  salesEngineerId: string | null
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('projects')
+    .update({
+      coordinator_id: coordinatorId || null,
+      sales_engineer_id: salesEngineerId || null,
+    } as never)
+    .eq('id', projectId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل تحديث الفريق' }
+
+  await logActivity(service, projectId, user.id, 'تحديث فريق المشروع', {
+    coordinator_id: coordinatorId,
+    sales_engineer_id: salesEngineerId,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/projects')
+  return { success: true }
+}
+
 export async function uploadContractUrl(projectId: string, url: string) {
   const service = createServiceClient()
   const { error } = (await service

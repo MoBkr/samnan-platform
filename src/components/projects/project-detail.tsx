@@ -2,24 +2,31 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Building2, User, Calendar, DollarSign, FileText, TrendingUp, CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle } from 'lucide-react'
+import { ArrowRight, Building2, User, Calendar, DollarSign, FileText, TrendingUp, CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { PaymentsTab } from '@/components/payments/payments-tab'
 import { MaterialsTab } from '@/components/supply/materials-tab'
 import { InstallationTab } from '@/components/installation/installation-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
-import { updateProjectStatus } from '@/lib/actions/projects'
+import { updateProjectStatus, updateProjectTeam } from '@/lib/actions/projects'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Material, SupplyOrder, Installation, ActivityLog, Profile } from '@/types/database'
 
 type Tab = 'payments' | 'materials' | 'installation' | 'activity'
-type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | null
+type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | null
+
+function workloadLabel(count: number) {
+  if (count === 0) return 'لا مشاريع نشطة'
+  if (count === 1) return 'مشروع نشط واحد'
+  return `${count} مشاريع نشطة`
+}
 
 interface ProjectDetailProps {
   project: Project
@@ -29,6 +36,10 @@ interface ProjectDetailProps {
   installations: Installation[]
   activityLog: ActivityLog[]
   currentProfile: Profile
+  coordinators: Pick<Profile, 'id' | 'full_name' | 'role'>[]
+  salesEngineers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
+  coordinatorWorkload: Record<string, number>
+  salesWorkload: Record<string, number>
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -81,10 +92,20 @@ export function ProjectDetail({
   installations,
   activityLog,
   currentProfile,
+  coordinators,
+  salesEngineers,
+  coordinatorWorkload,
+  salesWorkload,
 }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('payments')
   const [dialog, setDialog] = useState<ActionDialog>(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [teamCoordinatorId, setTeamCoordinatorId] = useState(
+    (project as { coordinator_id?: string }).coordinator_id ?? ''
+  )
+  const [teamSalesId, setTeamSalesId] = useState(
+    (project as { sales_engineer_id?: string }).sales_engineer_id ?? ''
+  )
   const [isPending, startTransition] = useTransition()
 
   const totalPaid = payments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
@@ -94,6 +115,7 @@ export function ProjectDetail({
   const { stage, label: stageLabel } = getLifecycleStage(payments, materials, supplyOrders, installations)
 
   const canManage = currentProfile.role === 'coordinator' || currentProfile.role === 'admin'
+  const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'
   const isFinished = project.status === 'completed' || project.status === 'cancelled'
@@ -121,6 +143,12 @@ export function ProjectDetail({
           return
         }
         result = await updateProjectStatus(project.id, 'cancelled', cancelReason.trim())
+      } else if (dialog === 'team') {
+        result = await updateProjectTeam(
+          project.id,
+          teamCoordinatorId || null,
+          teamSalesId || null
+        )
       }
 
       if (result?.error) {
@@ -131,8 +159,9 @@ export function ProjectDetail({
           hold: 'تم تعليق المشروع',
           reactivate: 'تم إعادة تفعيل المشروع',
           cancel: 'تم إلغاء المشروع',
+          team: 'تم تحديث الفريق',
         }
-        toast.success(labels[dialog!] ?? 'تم تحديث حالة المشروع')
+        toast.success(labels[dialog!] ?? 'تم التحديث')
         setDialog(null)
       }
     })
@@ -241,50 +270,67 @@ export function ProjectDetail({
         )}
 
         {/* Project action buttons */}
-        {canManage && !isFinished && (
+        {canManage && (
           <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
-            {isActive && (
-              <>
-                <Button
-                  size="sm"
-                  variant="success"
-                  onClick={() => handleAction('complete')}
-                  className="gap-1.5"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  إغلاق المشروع
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAction('hold')}
-                  className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
-                >
-                  <PauseCircle className="h-4 w-4" />
-                  تعليق المشروع
-                </Button>
-              </>
-            )}
-            {isOnHold && (
+            {/* Team edit — admin always, coordinator only if project is not finished */}
+            {(currentProfile.role === 'admin' || (isCoordinator && !isFinished)) && (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => handleAction('reactivate')}
-                className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50"
+                onClick={() => handleAction('team')}
+                className="gap-1.5"
               >
-                <PlayCircle className="h-4 w-4" />
-                إعادة تفعيل
+                <Users className="h-4 w-4" />
+                تعديل الفريق
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleAction('cancel')}
-              className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
-            >
-              <XCircle className="h-4 w-4" />
-              إلغاء المشروع
-            </Button>
+
+            {!isFinished && (
+              <>
+                {isActive && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="success"
+                      onClick={() => handleAction('complete')}
+                      className="gap-1.5"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      إغلاق المشروع
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAction('hold')}
+                      className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
+                    >
+                      <PauseCircle className="h-4 w-4" />
+                      تعليق المشروع
+                    </Button>
+                  </>
+                )}
+                {isOnHold && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleAction('reactivate')}
+                    className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50"
+                  >
+                    <PlayCircle className="h-4 w-4" />
+                    إعادة تفعيل
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAction('cancel')}
+                  className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  <XCircle className="h-4 w-4" />
+                  إلغاء المشروع
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -457,6 +503,84 @@ export function ProjectDetail({
           <Button loading={isPending} onClick={handleConfirm}>
             <PlayCircle className="h-4 w-4" />
             إعادة التفعيل
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Edit team dialog ── */}
+      <Dialog open={dialog === 'team'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>تعديل فريق المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-5">
+            {/* Coordinator — admin only */}
+            {currentProfile.role === 'admin' && (
+              <div className="space-y-1.5">
+                <Label>الكوردنيتر</Label>
+                <Select
+                  value={teamCoordinatorId}
+                  onChange={(e) => setTeamCoordinatorId(e.target.value)}
+                  placeholder="اختر الكوردنيتر"
+                >
+                  <option value="">— بدون كوردنيتر —</option>
+                  {coordinators.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}
+                    </option>
+                  ))}
+                </Select>
+                {teamCoordinatorId && (
+                  <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                    (coordinatorWorkload[teamCoordinatorId] ?? 0) === 0
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : (coordinatorWorkload[teamCoordinatorId] ?? 0) <= 2
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}>
+                    <Briefcase className="h-3 w-3" />
+                    {workloadLabel(coordinatorWorkload[teamCoordinatorId] ?? 0)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sales engineer — admin and coordinator */}
+            <div className="space-y-1.5">
+              <Label>مهندس المبيعات</Label>
+              <Select
+                value={teamSalesId}
+                onChange={(e) => setTeamSalesId(e.target.value)}
+                placeholder="اختر المهندس"
+              >
+                <option value="">— بدون مهندس —</option>
+                {salesEngineers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name} — {workloadLabel(salesWorkload[s.id] ?? 0)}
+                  </option>
+                ))}
+              </Select>
+              {teamSalesId && (
+                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                  (salesWorkload[teamSalesId] ?? 0) === 0
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : (salesWorkload[teamSalesId] ?? 0) <= 2
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
+                }`}>
+                  <Briefcase className="h-3 w-3" />
+                  {workloadLabel(salesWorkload[teamSalesId] ?? 0)}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleConfirm}>
+            <Users className="h-4 w-4" />
+            حفظ التغييرات
           </Button>
         </DialogFooter>
       </Dialog>
