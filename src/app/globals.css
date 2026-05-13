@@ -1,10 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --brand: #1841A0;
+    --brand-dark: #122E78;
+    --brand-light: #EEF2FF;
+  }
+
   *,
   *::before,
   *::after {
@@ -20,9 +26,25 @@
 
   body {
     font-family: 'Cairo', sans-serif;
-    background-color: #F8FAFC;
+    background-color: #F5F7FB;
     color: #111827;
     min-height: 100vh;
+  }
+
+  /* Smooth scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
   }
 }
 

@@ -16,7 +16,7 @@ function getInitials(name: string) {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  coordinator: 'bg-blue-600',
+  coordinator: 'bg-brand-600',
   sales_engineer: 'bg-green-600',
   supply: 'bg-amber-600',
   installation: 'bg-purple-600',

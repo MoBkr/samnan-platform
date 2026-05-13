@@ -144,7 +144,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
                   className={cn(
                     'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                     isActive
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/30'
+                      ? 'bg-brand-600 text-white shadow-sm shadow-brand-900/30'
                       : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   )}
                 >

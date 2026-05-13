@@ -25,92 +25,100 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Branding Panel — Right side (RTL) */}
-      <div className="hidden lg:flex lg:w-[42%] flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 p-12 relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute inset-0 overflow-hidden opacity-10">
-          <div className="absolute -top-10 -right-10 h-80 w-80 rounded-full bg-blue-500 blur-3xl" />
-          <div className="absolute bottom-10 left-0 h-60 w-60 rounded-full bg-indigo-600 blur-3xl" />
-          <div className="absolute top-1/2 left-1/4 h-40 w-40 rounded-full bg-sky-400 blur-2xl" />
+    <div className="flex min-h-screen">
+      {/* === Brand Panel (Right in RTL) === */}
+      <div className="hidden lg:flex lg:w-[45%] flex-col items-center justify-between bg-brand-700 p-12 relative overflow-hidden">
+        {/* Background pattern */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-brand-600/40 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-brand-800/60 blur-2xl" />
+          <div className="absolute top-1/2 right-1/2 h-56 w-56 rounded-full bg-white/5 blur-2xl" />
+          {/* Hex grid pattern */}
+          <svg className="absolute inset-0 h-full w-full opacity-5" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hexgrid" width="60" height="52" patternUnits="userSpaceOnUse">
+                <polygon points="30,2 58,17 58,47 30,62 2,47 2,17" fill="none" stroke="white" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hexgrid)"/>
+          </svg>
         </div>
 
-        <div className="relative z-10 flex flex-col items-center text-center">
-          {/* Logo container */}
-          <div className="mb-8 relative">
-            <div className="flex h-32 w-32 items-center justify-center rounded-3xl bg-white/10 shadow-2xl backdrop-blur-sm border border-white/20 p-3">
+        {/* Top: Main logo */}
+        <div className="relative z-10 w-full">
+          <div className="flex justify-center">
+            <div className="bg-white rounded-2xl px-8 py-5 shadow-2xl">
               <Image
                 src="/logo.png"
-                alt="سمنان"
-                width={88}
-                height={88}
+                alt="مجموعة سمنان القابضة"
+                width={220}
+                height={80}
                 className="object-contain"
+                priority
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
               />
             </div>
           </div>
+        </div>
 
-          <h1 className="text-4xl font-bold text-white tracking-wide mb-2">منصة سمنان</h1>
-          <p className="text-blue-300 text-lg font-medium mb-2">مجموعة سمنان القابضة</p>
-
-          <div className="flex items-center gap-3 mt-4 mb-10">
-            <div className="h-px w-16 bg-blue-500/40" />
-            <div className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-            <div className="h-px w-16 bg-blue-500/40" />
+        {/* Center: Title + stats */}
+        <div className="relative z-10 text-center">
+          <div className="mb-8">
+            <h2 className="text-4xl font-bold text-white leading-tight">منصة الإدارة</h2>
+            <h2 className="text-4xl font-bold text-brand-300 leading-tight">الداخلية</h2>
           </div>
+          <p className="text-brand-200 text-base leading-relaxed max-w-xs mx-auto">
+            نظام متكامل لإدارة دورة حياة المشاريع — من التعاقد حتى التسليم النهائي
+          </p>
 
-          {/* Stats or features */}
-          <div className="grid grid-cols-3 gap-4 mb-10 w-full max-w-xs">
+          {/* Stats row */}
+          <div className="mt-10 flex items-center justify-center gap-6">
             {[
-              { num: '5', label: 'أدوار' },
-              { num: '8', label: 'مراحل' },
-              { num: '١٠٠٪', label: 'متكامل' },
-            ].map(({ num, label }) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center backdrop-blur-sm">
-                <p className="text-2xl font-bold text-white">{num}</p>
-                <p className="text-xs text-blue-300 mt-0.5">{label}</p>
+              { n: '5', label: 'أدوار وظيفية' },
+              { n: '8', label: 'مراحل تنفيذ' },
+              { n: '١٠٠٪', label: 'رقمي' },
+            ].map(({ n, label }) => (
+              <div key={label} className="text-center">
+                <p className="text-3xl font-bold text-white">{n}</p>
+                <p className="text-xs text-brand-300 mt-1 whitespace-nowrap">{label}</p>
               </div>
             ))}
           </div>
+        </div>
 
-          <p className="text-slate-400 text-sm leading-relaxed max-w-[260px]">
-            نظام إدارة المشاريع الداخلي لمتابعة دورة حياة كل مشروع من التعاقد حتى التسليم
-          </p>
-
-          {/* Second logo */}
-          <div className="mt-10 opacity-40">
+        {/* Bottom: subsidiary logos strip */}
+        <div className="relative z-10 w-full">
+          <div className="border-t border-white/10 pt-6">
             <Image
-              src="/logo-white.jpg"
-              alt="سمنان"
-              width={100}
-              height={40}
-              className="object-contain brightness-200"
+              src="/logo2.jpg"
+              alt="مجموعات سمنان"
+              width={340}
+              height={60}
+              className="object-contain opacity-70 mx-auto rounded-lg"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
           </div>
         </div>
       </div>
 
-      {/* Form Panel — Left side (RTL) */}
-      <div className="flex flex-1 flex-col items-center justify-center p-6 lg:p-12 bg-gray-50/50">
+      {/* === Form Panel (Left in RTL) === */}
+      <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-6 lg:p-16">
         {/* Mobile logo */}
-        <div className="mb-8 flex flex-col items-center lg:hidden">
-          <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-900 shadow-lg p-2">
-            <Image src="/logo.png" alt="سمنان" width={60} height={60} className="object-contain"
+        <div className="mb-10 lg:hidden">
+          <div className="bg-white rounded-2xl px-6 py-4 shadow-md border border-gray-100">
+            <Image src="/logo.png" alt="سمنان" width={180} height={65} className="object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">منصة سمنان</h1>
-          <p className="text-sm text-gray-500">مجموعة سمنان القابضة</p>
         </div>
 
-        <div className="w-full max-w-md">
-          {/* Form header */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">أهلاً بك</h2>
-            <p className="mt-2 text-gray-500">سجّل دخولك للوصول إلى لوحة التحكم</p>
+        <div className="w-full max-w-sm">
+          {/* Header */}
+          <div className="mb-8 text-end">
+            <h1 className="text-3xl font-bold text-gray-900">أهلاً بك</h1>
+            <p className="mt-1.5 text-gray-500">سجّل دخولك للوصول إلى منصة سمنان</p>
           </div>
 
-          {/* Login card */}
+          {/* Form card */}
           <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
@@ -123,7 +131,7 @@ export default function LoginPage() {
                   required
                   autoComplete="email"
                   dir="ltr"
-                  className="text-start h-12"
+                  className="h-12 text-start"
                 />
               </div>
 
@@ -137,18 +145,18 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   dir="ltr"
-                  className="text-start h-12"
+                  className="h-12 text-start"
                 />
               </div>
 
               {error && (
-                <div className="flex items-start gap-3 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
-                  <span className="mt-0.5 text-red-500">⚠</span>
-                  {error}
+                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
+                  <span className="mt-px shrink-0">⚠</span>
+                  <span>{error}</span>
                 </div>
               )}
 
-              <Button type="submit" className="w-full h-12 text-base font-semibold" loading={loading}>
+              <Button type="submit" className="w-full h-12 text-base font-semibold rounded-xl" loading={loading}>
                 {loading ? 'جاري التحقق...' : 'تسجيل الدخول'}
               </Button>
             </form>
@@ -156,18 +164,17 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-sm text-gray-500">
             موظف جديد؟{' '}
-            <Link href="/signup" className="font-semibold text-blue-600 hover:underline">
-              إنشاء حساب جديد
+            <Link href="/signup" className="font-semibold text-brand-600 hover:underline">
+              إنشاء حساب
             </Link>
           </p>
-
-          <p className="mt-10 text-center text-xs text-gray-400">
-            بناء بواسطة{' '}
-            <a href="mailto:ai@tfco.sa" className="font-medium text-gray-500 hover:text-gray-700">
-              Thakaa Flow
-            </a>
-          </p>
         </div>
+
+        {/* Footer */}
+        <p className="mt-12 text-center text-xs text-gray-400">
+          تصميم وتطوير بواسطة{' '}
+          <a href="mailto:ai@tfco.sa" className="font-medium text-gray-500 hover:text-gray-700">Thakaa Flow</a>
+        </p>
       </div>
     </div>
   )

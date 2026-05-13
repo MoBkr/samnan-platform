@@ -183,7 +183,7 @@ export function ProjectDetail({
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-700">مرحلة المشروع</h3>
-          <span className="text-xs font-semibold text-blue-600 bg-blue-50 rounded-full px-3 py-1">
+          <span className="text-xs font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1">
             {stageLabel}
           </span>
         </div>
@@ -201,7 +201,7 @@ export function ProjectDetail({
                       isDone
                         ? 'bg-emerald-500 border-emerald-500 text-white'
                         : isCurrent
-                        ? 'bg-blue-600 border-blue-600 text-white'
+                        ? 'bg-brand-600 border-brand-600 text-white'
                         : 'bg-white border-gray-200 text-gray-400'
                     )}
                   >
@@ -209,7 +209,7 @@ export function ProjectDetail({
                   </div>
                   <span className={cn(
                     'text-[10px] font-medium whitespace-nowrap',
-                    isDone ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-gray-400'
+                    isDone ? 'text-emerald-600' : isCurrent ? 'text-brand-600' : 'text-gray-400'
                   )}>
                     {step}
                   </span>
@@ -236,7 +236,7 @@ export function ProjectDetail({
               className={cn(
                 'px-5 py-3 text-sm font-medium transition-all border-b-2',
                 activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
+                  ? 'border-brand-600 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >

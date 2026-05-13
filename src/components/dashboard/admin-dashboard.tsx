@@ -27,7 +27,7 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-slate-800 to-slate-900 p-6 text-white shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-brand-800 to-brand-900 p-6 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-8 -left-8 h-48 w-48 rounded-full bg-blue-400 blur-2xl" />
           <div className="absolute bottom-0 right-10 h-32 w-32 rounded-full bg-indigo-500 blur-xl" />

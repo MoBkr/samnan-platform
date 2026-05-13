@@ -40,19 +40,19 @@ export function CoordinatorDashboard({
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-blue-700 to-blue-900 p-6 text-white shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-brand-700 to-brand-800 p-6 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-8 -left-8 h-48 w-48 rounded-full bg-white blur-2xl" />
           <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-blue-300 blur-xl" />
         </div>
         <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-blue-200 text-sm font-medium">{greeting}،</p>
+            <p className="text-brand-200 text-sm font-medium">{greeting}،</p>
             <h1 className="text-2xl font-bold mt-1">{profile.full_name}</h1>
             <p className="text-blue-300 text-sm mt-1">{dayName}</p>
           </div>
           <Link href="/projects/new">
-            <Button variant="secondary" className="gap-2 bg-white text-blue-700 hover:bg-blue-50 font-semibold">
+            <Button variant="secondary" className="gap-2 bg-white text-brand-700 hover:bg-brand-50 font-semibold">
               <Plus className="h-4 w-4" />
               مشروع جديد
             </Button>
