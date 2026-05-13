@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { signUp } from '@/lib/actions/auth'
 import { ROLE_LABELS } from '@/lib/constants'
 
-const ROLES = ['coordinator', 'sales_engineer', 'supply', 'installation'] as const
+const ROLES = ['coordinator', 'sales_engineer', 'supply', 'installation', 'admin'] as const
 
 export default function SignupPage() {
   const [error, setError] = useState<string | null>(null)
