@@ -98,6 +98,49 @@ export async function updateUserRole(userId: string, role: UserRole) {
   return { success: true }
 }
 
+export async function signUp(formData: FormData) {
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  const fullName = formData.get('full_name') as string
+  const role = formData.get('role') as UserRole
+
+  if (!email || !password || !fullName || !role) {
+    return { error: 'يرجى ملء جميع الحقول المطلوبة' }
+  }
+
+  if (password.length < 6) {
+    return { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }
+  }
+
+  const service = createServiceClient()
+
+  const { data, error } = await service.auth.admin.createUser({
+    email,
+    password,
+    user_metadata: { full_name: fullName, role },
+    email_confirm: true,
+  })
+
+  if (error) {
+    if (error.message.includes('already registered')) {
+      return { error: 'هذا البريد الإلكتروني مسجل مسبقاً' }
+    }
+    return { error: 'فشل إنشاء الحساب. حاول مرة أخرى' }
+  }
+
+  if (data.user) {
+    await (service
+      .from('profiles')
+      .upsert({ id: data.user.id, full_name: fullName, role } as never) as unknown as Promise<{ error: Error | null }>)
+  }
+
+  const supabase = await createClient()
+  await supabase.auth.signInWithPassword({ email, password })
+
+  revalidatePath('/', 'layout')
+  redirect(ROLE_REDIRECTS[role] ?? '/dashboard')
+}
+
 export async function getCurrentProfile(): Promise<Profile | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -10,7 +10,7 @@ import {
   Hammer,
   Users,
   LogOut,
-  ChevronLeft,
+  X,
   Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -64,6 +64,18 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
+const AVATAR_COLORS: Record<string, string> = {
+  coordinator: 'bg-blue-500',
+  sales_engineer: 'bg-emerald-500',
+  supply: 'bg-amber-500',
+  installation: 'bg-purple-500',
+  admin: 'bg-rose-500',
+}
+
+function getInitials(name: string) {
+  return name.split(' ').slice(0, 2).map((n) => n[0]).join('')
+}
+
 interface SidebarProps {
   profile: Profile
   onClose?: () => void
@@ -75,69 +87,74 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
 
   return (
     <div className="flex h-full w-64 flex-col bg-sidebar">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-700 p-4">
+      {/* Logo Header */}
+      <div className="flex items-center justify-between p-5 border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 border border-white/10 p-1.5">
             <Image
               src="/logo.png"
               alt="سمنان"
               width={28}
               height={28}
               className="object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.style.display = 'none'
-              }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
           </div>
           <div>
-            <p className="text-sm font-bold text-white">منصة سمنان</p>
-            <p className="text-xs text-slate-400">سمنان القابضة</p>
+            <p className="text-sm font-bold text-white leading-tight">منصة سمنان</p>
+            <p className="text-xs text-slate-500 leading-tight">سمنان القابضة</p>
           </div>
         </div>
         {onClose && (
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-700 hover:text-white lg:hidden"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-white transition-colors lg:hidden"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* User info */}
-      <div className="border-b border-slate-700 p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-            {profile.full_name[0]}
+      {/* User Profile Card */}
+      <div className="p-3">
+        <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/5 px-3 py-3">
+          <div
+            className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shrink-0 ${AVATAR_COLORS[profile.role] ?? 'bg-slate-600'}`}
+          >
+            {getInitials(profile.full_name)}
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-white">{profile.full_name}</p>
-            <p className="text-xs text-slate-400">{ROLE_LABELS[profile.role]}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white leading-tight">{profile.full_name}</p>
+            <p className="text-xs text-slate-400 leading-tight mt-0.5">{ROLE_LABELS[profile.role]}</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3">
-        <ul className="space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-600">القائمة</p>
+        <ul className="space-y-0.5">
           {visibleItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   onClick={onClose}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/30'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   )}
                 >
-                  {item.icon}
+                  <span className={cn('transition-transform', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')}>
+                    {item.icon}
+                  </span>
                   {item.label}
+                  {isActive && (
+                    <span className="ms-auto h-1.5 w-1.5 rounded-full bg-blue-300" />
+                  )}
                 </Link>
               </li>
             )
@@ -146,13 +163,13 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
       </nav>
 
       {/* Sign out */}
-      <div className="border-t border-slate-700 p-3">
+      <div className="p-3 border-t border-white/5">
         <form action={signOut}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-red-600/20 hover:text-red-400"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-4 w-4" />
             تسجيل الخروج
           </button>
         </form>
