@@ -64,6 +64,7 @@ export async function createProject(formData: FormData) {
   const expectedEndDate = formData.get('expected_end_date') as string
   const coordinatorId = formData.get('coordinator_id') as string
   const salesEngineerId = formData.get('sales_engineer_id') as string
+  const contractUrl = formData.get('contract_url') as string
 
   if (!clientName || !projectName) {
     return { error: 'يرجى ملء اسم العميل واسم المشروع' }
@@ -78,6 +79,7 @@ export async function createProject(formData: FormData) {
     expected_end_date: expectedEndDate || null,
     coordinator_id: coordinatorId || null,
     sales_engineer_id: salesEngineerId || null,
+    contract_url: contractUrl || null,
     status: 'active',
   } as never).select().single()) as unknown as { data: Project | null; error: Error | null }
 

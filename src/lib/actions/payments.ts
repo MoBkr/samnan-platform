@@ -94,6 +94,11 @@ export async function recordPayment(formData: FormData) {
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
 
+  const remaining = payment.amount - payment.paid_amount
+  if (paidAmount > remaining) {
+    return { error: `المبلغ المُدخل (${paidAmount}) يتجاوز المتبقي (${remaining})` }
+  }
+
   const newPaidAmount = payment.paid_amount + paidAmount
   const newStatus = newPaidAmount >= payment.amount ? 'paid' : 'partial'
 

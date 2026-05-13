@@ -122,7 +122,7 @@ export async function scheduleSupplyOrder(formData: FormData) {
     .eq('type', 'supply')
     .single()) as QueryResult<{ status: string }>
 
-  if (supplyPayment.data && supplyPayment.data.status !== 'paid') {
+  if (!supplyPayment.data || supplyPayment.data.status !== 'paid') {
     return { error: 'لا يمكن جدولة التوريد — دفعة التوريد غير مكتملة' }
   }
 
