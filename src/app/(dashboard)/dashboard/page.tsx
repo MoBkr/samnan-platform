@@ -26,8 +26,6 @@ export default async function DashboardPage() {
   const usersResult = (await supabase.from('profiles').select('*').eq('is_active', true)) as QueryResultMany<Profile>
   const users = usersResult.data ?? []
 
-  const activeProjects = projects.filter((p) => p.status === 'active')
-
   if (profile.role === 'coordinator') {
     const myProjects = projects.filter((p) => p.coordinator_id === profile.id)
     return (
