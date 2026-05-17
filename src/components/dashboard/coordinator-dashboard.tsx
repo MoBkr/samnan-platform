@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import {
   FolderKanban, AlertTriangle, Hammer,
-  Plus, TrendingUp, Clock, CheckCircle2, ArrowLeft, Eye,
+  Plus, TrendingUp, CheckCircle2, ArrowLeft, Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

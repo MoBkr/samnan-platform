@@ -53,7 +53,7 @@ export async function uploadAttachment(formData: FormData) {
   const filePath = `${docType}/${fileName}`
 
   const service = createServiceClient()
-  const { data: uploadData, error: uploadError } = await service.storage
+  const { error: uploadError } = await service.storage
     .from('documents')
     .upload(filePath, file, { upsert: false })
 
