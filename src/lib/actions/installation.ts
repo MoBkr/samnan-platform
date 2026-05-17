@@ -38,30 +38,6 @@ export async function scheduleInstallation(formData: FormData) {
 
   const service = createServiceClient()
 
-  // Require installation payment (or final payment as full prepay)
-  const finalPayment = (await service
-    .from('payments')
-    .select('status')
-    .eq('project_id', projectId)
-    .eq('type', 'final')
-    .eq('status', 'paid')
-    .limit(1)) as unknown as { data: { status: string }[] | null }
-
-  const finalPaid = (finalPayment.data?.length ?? 0) > 0
-
-  if (!finalPaid) {
-    const installationPayment = (await service
-      .from('payments')
-      .select('status')
-      .eq('project_id', projectId)
-      .eq('type', 'installation')
-      .single()) as unknown as { data: { status: string } | null }
-
-    if (!installationPayment.data || installationPayment.data.status !== 'paid') {
-      return { error: 'لا يمكن جدولة التركيب — دفعة التركيب غير مكتملة (أو أضف دفعة نهائية شاملة)' }
-    }
-  }
-
   const { error } = (await service.from('installations').insert({
     project_id: projectId,
     scheduled_date: scheduledDate,

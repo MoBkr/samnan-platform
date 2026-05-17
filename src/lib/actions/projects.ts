@@ -23,7 +23,7 @@ export async function getProjects(filters?: { status?: ProjectStatus; search?: s
 
   let query = supabase
     .from('projects')
-    .select('*, coordinator:profiles!coordinator_id(id,full_name,role), sales_engineer:profiles!sales_engineer_id(id,full_name,role)')
+    .select('*, coordinator:profiles!coordinator_id(id,full_name,role), sales_engineer:profiles!sales_engineer_id(id,full_name,role), installation_person:profiles!installation_id(id,full_name,role)')
     .order('created_at', { ascending: false })
 
   if (profile.role === 'sales_engineer') {
@@ -46,7 +46,7 @@ export async function getProject(id: string) {
   const supabase = await createClient()
   const result = (await supabase
     .from('projects')
-    .select('*, coordinator:profiles!coordinator_id(id,full_name,role), sales_engineer:profiles!sales_engineer_id(id,full_name,role)')
+    .select('*, coordinator:profiles!coordinator_id(id,full_name,role), sales_engineer:profiles!sales_engineer_id(id,full_name,role), installation_person:profiles!installation_id(id,full_name,role)')
     .eq('id', id)
     .single()) as QueryResult<Project>
   return result.data
@@ -64,6 +64,7 @@ export async function createProject(formData: FormData) {
   const expectedEndDate = formData.get('expected_end_date') as string
   const coordinatorId = formData.get('coordinator_id') as string
   const salesEngineerId = formData.get('sales_engineer_id') as string
+  const installationId = formData.get('installation_id') as string
   const contractUrl = formData.get('contract_url') as string
 
   if (!clientName || !projectName) {
@@ -79,6 +80,7 @@ export async function createProject(formData: FormData) {
     expected_end_date: expectedEndDate || null,
     coordinator_id: coordinatorId || null,
     sales_engineer_id: salesEngineerId || null,
+    installation_id: installationId || null,
     contract_url: contractUrl || null,
     status: 'active',
   } as never).select().single()) as unknown as { data: Project | null; error: Error | null }
@@ -138,7 +140,8 @@ export async function updateProjectStatus(
 export async function updateProjectTeam(
   projectId: string,
   coordinatorId: string | null,
-  salesEngineerId: string | null
+  salesEngineerId: string | null,
+  installationId: string | null
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -150,6 +153,7 @@ export async function updateProjectTeam(
     .update({
       coordinator_id: coordinatorId || null,
       sales_engineer_id: salesEngineerId || null,
+      installation_id: installationId || null,
     } as never)
     .eq('id', projectId)) as unknown as { error: Error | null }
 
@@ -158,6 +162,7 @@ export async function updateProjectTeam(
   await logActivity(service, projectId, user.id, 'تحديث فريق المشروع', {
     coordinator_id: coordinatorId,
     sales_engineer_id: salesEngineerId,
+    installation_id: installationId,
   })
 
   revalidatePath(`/projects/${projectId}`)

@@ -15,8 +15,10 @@ import type { Profile } from '@/types/database'
 interface NewProjectFormProps {
   coordinators: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   salesEngineers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
+  installationPersons: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   coordinatorWorkload: Record<string, number>
   salesWorkload: Record<string, number>
+  installationWorkload: Record<string, number>
   currentProfile: Profile
 }
 
@@ -32,7 +34,6 @@ function WorkloadBadge({ count }: { count: number }) {
     : count <= 2
     ? 'bg-amber-50 text-amber-700 border-amber-200'
     : 'bg-red-50 text-red-700 border-red-200'
-
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${color}`}>
       <Briefcase className="h-3 w-3" />
@@ -42,70 +43,52 @@ function WorkloadBadge({ count }: { count: number }) {
 }
 
 export function NewProjectForm({
-  coordinators,
-  salesEngineers,
-  coordinatorWorkload,
-  salesWorkload,
+  coordinators, salesEngineers, installationPersons,
+  coordinatorWorkload, salesWorkload, installationWorkload,
   currentProfile,
 }: NewProjectFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
-  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string>(
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState(
     currentProfile.role === 'coordinator' ? currentProfile.id : ''
   )
-  const [selectedSalesId, setSelectedSalesId] = useState<string>(
+  const [selectedSalesId, setSelectedSalesId] = useState(
     currentProfile.role === 'sales_engineer' ? currentProfile.id : ''
   )
+  const [selectedInstallationId, setSelectedInstallationId] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const isAdmin = currentProfile.role === 'admin'
   const isCoordinator = currentProfile.role === 'coordinator'
   const isSalesEngineer = currentProfile.role === 'sales_engineer'
-
-  // Coordinator assignment: admin picks freely, coordinator is locked to self, sales_engineer sees placeholder
-  // Sales engineer assignment: admin and coordinator can pick, sales_engineer is locked to self
   const canAssignSales = isAdmin || isCoordinator
+  const canAssignTeam = isAdmin || isCoordinator
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     const form = e.currentTarget
-
     startTransition(async () => {
       const formData = new FormData(form)
-
       if (contractFile) {
         const upForm = new FormData()
         upForm.set('file', contractFile)
         upForm.set('folder', 'contracts')
         const upResult = await uploadFile(upForm)
-        if ('error' in upResult) {
-          setError(upResult.error)
-          toast.error(upResult.error)
-          return
-        }
+        if ('error' in upResult) { setError(upResult.error); toast.error(upResult.error); return }
         formData.set('contract_url', upResult.url)
       }
-
       const result = await createProject(formData)
-      if (result?.error) {
-        setError(result.error)
-        toast.error(result.error)
-      }
+      if (result?.error) { setError(result.error); toast.error(result.error) }
     })
   }
-
-  const selectedCoordinator = coordinators.find((c) => c.id === selectedCoordinatorId)
-  const selectedSales = salesEngineers.find((s) => s.id === selectedSalesId)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Project info */}
       <Card>
-        <CardHeader>
-          <CardTitle>معلومات المشروع</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>معلومات المشروع</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -117,14 +100,12 @@ export function NewProjectForm({
               <Input id="client_name" name="client_name" placeholder="أحمد محمد" required />
             </div>
           </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="total_amount">القيمة الإجمالية (ريال)</Label>
               <Input id="total_amount" name="total_amount" type="number" min="0" step="0.01" placeholder="0.00" />
             </div>
           </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="start_date">تاريخ البداية</Label>
@@ -140,9 +121,7 @@ export function NewProjectForm({
 
       {/* Contract upload */}
       <Card>
-        <CardHeader>
-          <CardTitle>العقد</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>العقد</CardTitle></CardHeader>
         <CardContent>
           <input type="hidden" name="contract_url" />
           {contractFile ? (
@@ -154,20 +133,14 @@ export function NewProjectForm({
                 <p className="text-sm font-semibold text-gray-900 truncate">{contractFile.name}</p>
                 <p className="text-xs text-gray-500">{(contractFile.size / 1024).toFixed(0)} KB</p>
               </div>
-              <button
-                type="button"
-                onClick={() => { setContractFile(null); if (fileRef.current) fileRef.current.value = '' }}
-                className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-              >
+              <button type="button" onClick={() => { setContractFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center gap-2.5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors"
-            >
+            <button type="button" onClick={() => fileRef.current?.click()}
+              className="flex w-full flex-col items-center gap-2.5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
               <Upload className="h-7 w-7 text-gray-400" />
               <div>
                 <p className="text-sm font-semibold text-gray-700">ارفع العقد هنا</p>
@@ -175,111 +148,92 @@ export function NewProjectForm({
               </div>
             </button>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/pdf,image/jpeg,image/png"
-            className="hidden"
-            onChange={(e) => setContractFile(e.target.files?.[0] ?? null)}
-          />
+          <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png" className="hidden"
+            onChange={(e) => setContractFile(e.target.files?.[0] ?? null)} />
         </CardContent>
       </Card>
 
       {/* Team */}
       <Card>
-        <CardHeader>
-          <CardTitle>الفريق</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>الفريق</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+
+          {/* Row 1: Coordinator + Sales Engineer */}
           <div className="grid gap-4 sm:grid-cols-2">
-            {/* Coordinator field */}
             <div className="space-y-1.5">
               <Label htmlFor="coordinator_id">الكوردنيتر</Label>
               {isCoordinator ? (
                 <>
                   <input type="hidden" name="coordinator_id" value={currentProfile.id} />
-                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
-                    {currentProfile.full_name}
-                  </div>
+                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">{currentProfile.full_name}</div>
                   <WorkloadBadge count={coordinatorWorkload[currentProfile.id] ?? 0} />
                 </>
               ) : isSalesEngineer ? (
                 <>
                   <input type="hidden" name="coordinator_id" value="" />
-                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">
-                    سيتم التعيين من الإدارة
-                  </div>
+                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">سيتم التعيين من الإدارة</div>
                 </>
               ) : (
-                /* admin */
                 <>
-                  <Select
-                    id="coordinator_id"
-                    name="coordinator_id"
-                    placeholder="اختر الكوردنيتر"
-                    defaultValue=""
-                    onChange={(e) => setSelectedCoordinatorId(e.target.value)}
-                  >
+                  <Select id="coordinator_id" name="coordinator_id" placeholder="اختر الكوردنيتر" defaultValue=""
+                    onChange={(e) => setSelectedCoordinatorId(e.target.value)}>
                     {coordinators.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}</option>
                     ))}
                   </Select>
-                  {selectedCoordinator && (
-                    <WorkloadBadge count={coordinatorWorkload[selectedCoordinator.id] ?? 0} />
-                  )}
+                  {selectedCoordinatorId && <WorkloadBadge count={coordinatorWorkload[selectedCoordinatorId] ?? 0} />}
                 </>
               )}
             </div>
 
-            {/* Sales engineer field */}
             <div className="space-y-1.5">
               <Label htmlFor="sales_engineer_id">مهندس المبيعات</Label>
               {isSalesEngineer ? (
                 <>
                   <input type="hidden" name="sales_engineer_id" value={currentProfile.id} />
-                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
-                    {currentProfile.full_name}
-                  </div>
+                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">{currentProfile.full_name}</div>
                   <WorkloadBadge count={salesWorkload[currentProfile.id] ?? 0} />
                 </>
               ) : canAssignSales ? (
                 <>
-                  <Select
-                    id="sales_engineer_id"
-                    name="sales_engineer_id"
-                    placeholder="اختر المهندس"
-                    defaultValue={selectedSalesId}
-                    onChange={(e) => setSelectedSalesId(e.target.value)}
-                  >
+                  <Select id="sales_engineer_id" name="sales_engineer_id" placeholder="اختر المهندس" defaultValue={selectedSalesId}
+                    onChange={(e) => setSelectedSalesId(e.target.value)}>
                     {salesEngineers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.full_name} — {workloadLabel(salesWorkload[s.id] ?? 0)}
-                      </option>
+                      <option key={s.id} value={s.id}>{s.full_name} — {workloadLabel(salesWorkload[s.id] ?? 0)}</option>
                     ))}
                   </Select>
-                  {selectedSales && (
-                    <WorkloadBadge count={salesWorkload[selectedSales.id] ?? 0} />
-                  )}
+                  {selectedSalesId && <WorkloadBadge count={salesWorkload[selectedSalesId] ?? 0} />}
                 </>
               ) : null}
             </div>
           </div>
 
-          {/* Permission note for sales engineers */}
+          {/* Installation person */}
+          {canAssignTeam && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="installation_id">مسؤول التركيب</Label>
+                <Select id="installation_id" name="installation_id" placeholder="اختر مسؤول التركيب" defaultValue=""
+                  onChange={(e) => setSelectedInstallationId(e.target.value)}>
+                  {installationPersons.map((i) => (
+                    <option key={i.id} value={i.id}>{i.full_name} — {workloadLabel(installationWorkload[i.id] ?? 0)}</option>
+                  ))}
+                </Select>
+                {selectedInstallationId && <WorkloadBadge count={installationWorkload[selectedInstallationId] ?? 0} />}
+              </div>
+            </div>
+          )}
+
           {isSalesEngineer && (
             <p className="text-xs text-gray-400 border-t border-gray-100 pt-3">
-              سيتم تعيين الكوردنيتر المسؤول من قِبل الإدارة بعد إنشاء المشروع.
+              سيتم تعيين بقية الفريق من قِبل الكوردنيتر أو الإدارة بعد إنشاء المشروع.
             </p>
           )}
         </CardContent>
       </Card>
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
-          {error}
-        </div>
+        <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">{error}</div>
       )}
 
       <div className="flex justify-end gap-3">

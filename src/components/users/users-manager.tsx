@@ -49,7 +49,6 @@ export function UsersManager({ users }: UsersManagerProps) {
   const ROLE_BADGE_VARIANTS: Record<UserRole, 'default' | 'success' | 'warning' | 'danger' | 'secondary' | 'purple'> = {
     coordinator: 'default',
     sales_engineer: 'success',
-    supply: 'warning',
     installation: 'purple',
     admin: 'danger',
   }
@@ -101,7 +100,6 @@ export function UsersManager({ users }: UsersManagerProps) {
                     >
                       <option value="coordinator">الكوردنيتر</option>
                       <option value="sales_engineer">مهندس المبيعات</option>
-                      <option value="supply">التوريد</option>
                       <option value="installation">التركيبات</option>
                       <option value="admin">الإدارة</option>
                     </Select>

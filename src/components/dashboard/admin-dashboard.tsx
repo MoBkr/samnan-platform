@@ -175,7 +175,6 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
 const ROLE_DOT: Record<string, string> = {
   coordinator: 'bg-blue-500',
   sales_engineer: 'bg-green-500',
-  supply: 'bg-amber-500',
   installation: 'bg-purple-500',
   admin: 'bg-rose-500',
 }

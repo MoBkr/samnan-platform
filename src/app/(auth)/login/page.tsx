@@ -173,7 +173,7 @@ export default function LoginPage() {
         {/* Footer */}
         <p className="mt-12 text-center text-xs text-gray-400">
           تصميم وتطوير بواسطة{' '}
-          <a href="mailto:ai@tfco.sa" className="font-medium text-gray-500 hover:text-gray-700">Thakaa Flow</a>
+          <a href="https://tfco.sa/" target="_blank" rel="noreferrer" className="font-medium text-gray-500 hover:text-gray-700 transition-colors">Thakaa Flow</a>
         </p>
       </div>
     </div>

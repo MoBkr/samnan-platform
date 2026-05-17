@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { signUp } from '@/lib/actions/auth'
 import { ROLE_LABELS } from '@/lib/constants'
 
-const ROLES = ['coordinator', 'sales_engineer', 'supply', 'installation', 'admin'] as const
+const ROLES = ['coordinator', 'sales_engineer', 'installation', 'admin'] as const
 
 export default function SignupPage() {
   const [error, setError] = useState<string | null>(null)
@@ -147,7 +147,7 @@ export default function SignupPage() {
 
         <p className="mt-12 text-center text-xs text-gray-400">
           تصميم وتطوير بواسطة{' '}
-          <a href="mailto:ai@tfco.sa" className="font-medium text-gray-500">Thakaa Flow</a>
+          <a href="https://tfco.sa/" target="_blank" rel="noreferrer" className="font-medium text-gray-500 hover:text-gray-700 transition-colors">Thakaa Flow</a>
         </p>
       </div>
     </div>

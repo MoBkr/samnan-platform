@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(amount: number | null | undefined): string {
   if (amount == null) return '—'
-  return new Intl.NumberFormat('ar-SA', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'SAR',
     minimumFractionDigits: 0,
@@ -17,7 +17,7 @@ export function formatCurrency(amount: number | null | undefined): string {
 
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -26,7 +26,7 @@ export function formatDate(dateStr: string | null | undefined): string {
 
 export function formatDateShort(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

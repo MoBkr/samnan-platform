@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentProfile } from '@/lib/actions/auth'
 import { getProjects } from '@/lib/actions/projects'
 import { getAllOverduePayments } from '@/lib/actions/payments'
-import { getAllPendingMaterials } from '@/lib/actions/materials'
 import { getAllInstallations } from '@/lib/actions/installation'
 import { CoordinatorDashboard } from '@/components/dashboard/coordinator-dashboard'
 import { AdminDashboard } from '@/components/dashboard/admin-dashboard'
@@ -15,13 +14,11 @@ export default async function DashboardPage() {
   const profile = await getCurrentProfile()
   if (!profile) redirect('/login')
 
-  if (profile.role === 'supply') redirect('/supply')
   if (profile.role === 'installation') redirect('/installation')
 
-  const [projects, overduePayments, pendingMaterials, installations] = await Promise.all([
+  const [projects, overduePayments, installations] = await Promise.all([
     getProjects(),
     getAllOverduePayments(),
-    getAllPendingMaterials(),
     getAllInstallations(),
   ])
 
@@ -32,12 +29,13 @@ export default async function DashboardPage() {
   const activeProjects = projects.filter((p) => p.status === 'active')
 
   if (profile.role === 'coordinator') {
+    const myProjects = projects.filter((p) => p.coordinator_id === profile.id)
     return (
       <CoordinatorDashboard
         profile={profile}
-        activeProjects={activeProjects}
+        myProjects={myProjects}
+        allProjects={projects}
         overduePayments={overduePayments}
-        pendingMaterials={pendingMaterials}
         installations={installations}
       />
     )

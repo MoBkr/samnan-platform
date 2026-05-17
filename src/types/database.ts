@@ -1,11 +1,11 @@
-export type UserRole = 'coordinator' | 'sales_engineer' | 'supply' | 'installation' | 'admin'
+export type UserRole = 'coordinator' | 'sales_engineer' | 'installation' | 'admin'
 export type ProjectStatus = 'active' | 'completed' | 'cancelled' | 'on_hold'
-export type PaymentType = 'upfront' | 'supply' | 'installation' | 'final' | 'custom'
+export type PaymentType = 'upfront' | 'installation' | 'final' | 'custom'
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'cancelled'
 export type MaterialStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'partial'
 export type SupplyOrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'failed' | 'rescheduled'
 export type InstallationStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'delayed' | 'rescheduled'
-export type DocumentType = 'contract' | 'invoice' | 'receipt' | 'delivery_receipt' | 'completion_photo' | 'other'
+export type DocumentType = 'contract' | 'invoice' | 'receipt' | 'delivery_note' | 'completion_photo' | 'other'
 
 export interface Profile {
   id: string
@@ -21,6 +21,7 @@ export interface Project {
   project_name: string
   coordinator_id: string | null
   sales_engineer_id: string | null
+  installation_id: string | null
   contract_url: string | null
   status: ProjectStatus
   total_amount: number | null
@@ -31,6 +32,7 @@ export interface Project {
   updated_at: string
   coordinator?: Profile
   sales_engineer?: Profile
+  installation_person?: Profile
 }
 
 export interface Payment {
@@ -140,13 +142,13 @@ export type Database = {
         Relationships: []
       }
       projects: {
-        Row: Omit<Project, 'coordinator' | 'sales_engineer'>
-        Insert: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'coordinator' | 'sales_engineer'> & {
+        Row: Omit<Project, 'coordinator' | 'sales_engineer' | 'installation_person'>
+        Insert: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'coordinator' | 'sales_engineer' | 'installation_person'> & {
           id?: string
           created_at?: string
           updated_at?: string
         }
-        Update: Partial<Omit<Project, 'id' | 'coordinator' | 'sales_engineer'>>
+        Update: Partial<Omit<Project, 'id' | 'coordinator' | 'sales_engineer' | 'installation_person'>>
         Relationships: []
       }
       payments: {

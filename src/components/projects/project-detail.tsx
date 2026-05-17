@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Building2, User, Calendar, DollarSign, FileText, TrendingUp, CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase } from 'lucide-react'
+import {
+  ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
+  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,15 +14,15 @@ import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { PaymentsTab } from '@/components/payments/payments-tab'
-import { MaterialsTab } from '@/components/supply/materials-tab'
 import { InstallationTab } from '@/components/installation/installation-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
+import { AttachmentsTab } from '@/components/projects/attachments-tab'
 import { updateProjectStatus, updateProjectTeam } from '@/lib/actions/projects'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { Project, Payment, Material, SupplyOrder, Installation, ActivityLog, Profile } from '@/types/database'
+import type { Project, Payment, Installation, ActivityLog, Profile, Document } from '@/types/database'
 
-type Tab = 'payments' | 'materials' | 'installation' | 'activity'
+type Tab = 'payments' | 'installation' | 'attachments' | 'activity'
 type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | null
 
 function workloadLabel(count: number) {
@@ -28,84 +31,78 @@ function workloadLabel(count: number) {
   return `${count} مشاريع نشطة`
 }
 
+function WorkloadChip({ count }: { count: number }) {
+  const color = count === 0
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : count <= 2
+    ? 'bg-amber-50 text-amber-700 border-amber-200'
+    : 'bg-red-50 text-red-700 border-red-200'
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${color}`}>
+      <Briefcase className="h-3 w-3" />
+      {workloadLabel(count)}
+    </span>
+  )
+}
+
 interface ProjectDetailProps {
   project: Project
   payments: Payment[]
-  materials: Material[]
-  supplyOrders: SupplyOrder[]
   installations: Installation[]
+  attachments: Document[]
   activityLog: ActivityLog[]
   currentProfile: Profile
   coordinators: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   salesEngineers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
+  installationPersons: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   coordinatorWorkload: Record<string, number>
   salesWorkload: Record<string, number>
+  installationWorkload: Record<string, number>
 }
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'payments', label: 'الدفعات' },
-  { id: 'materials', label: 'المواد والتوريد' },
   { id: 'installation', label: 'التركيب' },
+  { id: 'attachments', label: 'المرفقات' },
   { id: 'activity', label: 'سجل النشاط' },
 ]
 
-function getLifecycleStage(
-  payments: Payment[],
-  materials: Material[],
-  supplyOrders: SupplyOrder[],
-  installations: Installation[]
-): { stage: number; label: string } {
+function getLifecycleStage(payments: Payment[], installations: Installation[]): { stage: number; label: string } {
   const hasUpfrontPaid = payments.some(p => p.type === 'upfront' && p.status === 'paid')
-  const hasSupplyPaid = payments.some(p => p.type === 'supply' && p.status === 'paid')
   const hasInstallationPaid = payments.some(p => p.type === 'installation' && p.status === 'paid')
   const hasFinalPaid = payments.some(p => p.type === 'final' && p.status === 'paid')
-  const hasMaterials = materials.length > 0
-  const supplyDone = supplyOrders.some(o => o.status === 'completed')
+  const hasScheduledInstall = installations.length > 0
   const installDone = installations.some(i => i.status === 'completed')
 
-  if (hasFinalPaid && installDone) return { stage: 8, label: 'مكتمل' }
-  if (installDone) return { stage: 7, label: 'التركيب منجز' }
-  if (hasInstallationPaid) return { stage: 6, label: 'دفعة التركيب محصّلة' }
-  if (supplyDone) return { stage: 5, label: 'التوريد مكتمل' }
-  if (hasSupplyPaid) return { stage: 4, label: 'دفعة التوريد محصّلة' }
-  if (hasMaterials) return { stage: 3, label: 'طلب المواد مُرسل' }
-  if (hasUpfrontPaid) return { stage: 2, label: 'الدفعة الأولى محصّلة' }
+  if (installDone && (hasFinalPaid || hasInstallationPaid)) return { stage: 5, label: 'مكتمل' }
+  if (installDone) return { stage: 4, label: 'التركيب منجز' }
+  if (hasScheduledInstall) return { stage: 3, label: 'التركيب مجدول' }
+  if (hasUpfrontPaid || hasFinalPaid) return { stage: 2, label: 'الدفعة الأولى محصّلة' }
   return { stage: 1, label: 'تم التعاقد' }
 }
 
-const LIFECYCLE_STEPS = [
-  'التعاقد',
-  'الدفعة الأولى',
-  'طلب المواد',
-  'دفعة التوريد',
-  'التوريد',
-  'دفعة التركيب',
-  'التركيب',
-  'الإغلاق',
-]
+const LIFECYCLE_STEPS = ['التعاقد', 'الدفعات', 'التركيب مجدول', 'التركيب منجز', 'الإغلاق']
 
 export function ProjectDetail({
   project,
   payments,
-  materials,
-  supplyOrders,
   installations,
+  attachments,
   activityLog,
   currentProfile,
   coordinators,
   salesEngineers,
+  installationPersons,
   coordinatorWorkload,
   salesWorkload,
+  installationWorkload,
 }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('payments')
   const [dialog, setDialog] = useState<ActionDialog>(null)
   const [cancelReason, setCancelReason] = useState('')
-  const [teamCoordinatorId, setTeamCoordinatorId] = useState(
-    (project as { coordinator_id?: string }).coordinator_id ?? ''
-  )
-  const [teamSalesId, setTeamSalesId] = useState(
-    (project as { sales_engineer_id?: string }).sales_engineer_id ?? ''
-  )
+  const [teamCoordinatorId, setTeamCoordinatorId] = useState(project.coordinator_id ?? '')
+  const [teamSalesId, setTeamSalesId] = useState(project.sales_engineer_id ?? '')
+  const [teamInstallationId, setTeamInstallationId] = useState(project.installation_id ?? '')
   const [isPending, startTransition] = useTransition()
 
   const activePayments = payments.filter(p => p.status !== 'cancelled')
@@ -113,14 +110,13 @@ export function ProjectDetail({
   const totalDue = activePayments.reduce((sum, p) => sum + (p.amount ?? 0), 0)
   const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
 
-  const { stage, label: stageLabel } = getLifecycleStage(payments, materials, supplyOrders, installations)
+  const { stage, label: stageLabel } = getLifecycleStage(payments, installations)
 
   const canManage = currentProfile.role === 'coordinator' || currentProfile.role === 'admin'
   const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'
   const isFinished = project.status === 'completed' || project.status === 'cancelled'
-
   const hasPendingPayments = payments.some(p => p.status === 'pending' || p.status === 'partial')
 
   function handleAction(action: ActionDialog) {
@@ -139,16 +135,14 @@ export function ProjectDetail({
       } else if (dialog === 'reactivate') {
         result = await updateProjectStatus(project.id, 'active')
       } else if (dialog === 'cancel') {
-        if (!cancelReason.trim()) {
-          toast.error('يرجى إدخال سبب الإلغاء')
-          return
-        }
+        if (!cancelReason.trim()) { toast.error('يرجى إدخال سبب الإلغاء'); return }
         result = await updateProjectStatus(project.id, 'cancelled', cancelReason.trim())
       } else if (dialog === 'team') {
         result = await updateProjectTeam(
           project.id,
           teamCoordinatorId || null,
-          teamSalesId || null
+          teamSalesId || null,
+          teamInstallationId || null
         )
       }
 
@@ -190,17 +184,12 @@ export function ProjectDetail({
               <h1 className="text-2xl font-bold text-gray-900">{project.project_name}</h1>
               <ProjectStatusBadge status={project.status} />
             </div>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+
+            <div className="flex flex-wrap gap-4 text-sm text-gray-500 mt-1">
               <span className="flex items-center gap-1.5">
                 <Building2 className="h-4 w-4 text-gray-400" />
                 {project.client_name}
               </span>
-              {project.coordinator && (
-                <span className="flex items-center gap-1.5">
-                  <User className="h-4 w-4 text-gray-400" />
-                  {project.coordinator.full_name}
-                </span>
-              )}
               {project.start_date && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-gray-400" />
@@ -209,23 +198,46 @@ export function ProjectDetail({
                 </span>
               )}
               {project.total_amount && (
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 font-semibold text-gray-700">
                   <DollarSign className="h-4 w-4 text-gray-400" />
                   {formatCurrency(project.total_amount)}
                 </span>
               )}
               {project.contract_url && (
-                <a
-                  href={project.contract_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-blue-600 hover:underline"
-                >
+                <a href={project.contract_url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1.5 text-brand-600 hover:text-brand-700 hover:underline font-medium">
                   <FileText className="h-4 w-4" />
                   العقد
                 </a>
               )}
             </div>
+
+            {/* Team chips */}
+            {(project.coordinator || project.sales_engineer || project.installation_person) && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {project.coordinator && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-1 text-xs">
+                    <span className="font-bold text-blue-500 shrink-0">الكوردنيتر</span>
+                    <span className="h-1 w-1 rounded-full bg-blue-300 shrink-0" />
+                    <span className="text-blue-800 font-medium">{project.coordinator.full_name}</span>
+                  </span>
+                )}
+                {project.sales_engineer && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-xs">
+                    <span className="font-bold text-emerald-600 shrink-0">المبيعات</span>
+                    <span className="h-1 w-1 rounded-full bg-emerald-300 shrink-0" />
+                    <span className="text-emerald-800 font-medium">{project.sales_engineer.full_name}</span>
+                  </span>
+                )}
+                {project.installation_person && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-100 px-2.5 py-1 text-xs">
+                    <span className="font-bold text-purple-600 shrink-0">التركيب</span>
+                    <span className="h-1 w-1 rounded-full bg-purple-300 shrink-0" />
+                    <span className="text-purple-800 font-medium">{project.installation_person.full_name}</span>
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Cancellation reason */}
             {project.status === 'cancelled' && project.cancellation_reason && (
@@ -270,63 +282,39 @@ export function ProjectDetail({
           </div>
         )}
 
-        {/* Project action buttons */}
+        {/* Action buttons */}
         {canManage && (
           <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
-            {/* Team edit — admin always, coordinator only if project is not finished */}
             {(currentProfile.role === 'admin' || (isCoordinator && !isFinished)) && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleAction('team')}
-                className="gap-1.5"
-              >
+              <Button size="sm" variant="outline" onClick={() => handleAction('team')} className="gap-1.5">
                 <Users className="h-4 w-4" />
                 تعديل الفريق
               </Button>
             )}
-
             {!isFinished && (
               <>
                 {isActive && (
                   <>
-                    <Button
-                      size="sm"
-                      variant="success"
-                      onClick={() => handleAction('complete')}
-                      className="gap-1.5"
-                    >
+                    <Button size="sm" variant="success" onClick={() => handleAction('complete')} className="gap-1.5">
                       <CheckCircle2 className="h-4 w-4" />
                       إغلاق المشروع
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAction('hold')}
-                      className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
-                    >
+                    <Button size="sm" variant="outline" onClick={() => handleAction('hold')}
+                      className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50">
                       <PauseCircle className="h-4 w-4" />
                       تعليق المشروع
                     </Button>
                   </>
                 )}
                 {isOnHold && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAction('reactivate')}
-                    className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50"
-                  >
+                  <Button size="sm" variant="outline" onClick={() => handleAction('reactivate')}
+                    className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50">
                     <PlayCircle className="h-4 w-4" />
                     إعادة تفعيل
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAction('cancel')}
-                  className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
-                >
+                <Button size="sm" variant="outline" onClick={() => handleAction('cancel')}
+                  className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50">
                   <XCircle className="h-4 w-4" />
                   إلغاء المشروع
                 </Button>
@@ -352,16 +340,12 @@ export function ProjectDetail({
             return (
               <div key={step} className="flex items-center shrink-0">
                 <div className="flex flex-col items-center gap-1.5">
-                  <div
-                    className={cn(
-                      'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors',
-                      isDone
-                        ? 'bg-emerald-500 border-emerald-500 text-white'
-                        : isCurrent
-                        ? 'bg-brand-600 border-brand-600 text-white'
-                        : 'bg-white border-gray-200 text-gray-400'
-                    )}
-                  >
+                  <div className={cn(
+                    'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors',
+                    isDone ? 'bg-emerald-500 border-emerald-500 text-white'
+                      : isCurrent ? 'bg-brand-600 border-brand-600 text-white'
+                      : 'bg-white border-gray-200 text-gray-400'
+                  )}>
                     {isDone ? '✓' : stepNum}
                   </div>
                   <span className={cn(
@@ -372,10 +356,7 @@ export function ProjectDetail({
                   </span>
                 </div>
                 {idx < LIFECYCLE_STEPS.length - 1 && (
-                  <div className={cn(
-                    'h-0.5 w-8 mx-1 mb-4',
-                    stepNum < stage ? 'bg-emerald-400' : 'bg-gray-200'
-                  )} />
+                  <div className={cn('h-0.5 w-8 mx-1 mb-4', stepNum < stage ? 'bg-emerald-400' : 'bg-gray-200')} />
                 )}
               </div>
             )
@@ -398,6 +379,11 @@ export function ProjectDetail({
               )}
             >
               {tab.label}
+              {tab.id === 'attachments' && attachments.length > 0 && (
+                <span className="ms-1.5 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                  {attachments.length}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -408,22 +394,11 @@ export function ProjectDetail({
         {activeTab === 'payments' && (
           <PaymentsTab payments={payments} projectId={project.id} currentProfile={currentProfile} />
         )}
-        {activeTab === 'materials' && (
-          <MaterialsTab
-            materials={materials}
-            supplyOrders={supplyOrders}
-            projectId={project.id}
-            currentProfile={currentProfile}
-            payments={payments}
-          />
-        )}
         {activeTab === 'installation' && (
-          <InstallationTab
-            installations={installations}
-            projectId={project.id}
-            currentProfile={currentProfile}
-            payments={payments}
-          />
+          <InstallationTab installations={installations} projectId={project.id} currentProfile={currentProfile} />
+        )}
+        {activeTab === 'attachments' && (
+          <AttachmentsTab attachments={attachments} projectId={project.id} />
         )}
         {activeTab === 'activity' && <ActivityTab activityLog={activityLog} />}
       </div>
@@ -435,36 +410,28 @@ export function ProjectDetail({
           <DialogClose onClose={() => setDialog(null)} />
         </DialogHeader>
         <DialogContent>
-          <div className="space-y-4">
-            {hasPendingPayments && (
-              <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>يوجد دفعات لم تُسدَّد بعد. لا يمكن إغلاق المشروع حتى تُحصَّل جميع الدفعات.</span>
-              </div>
-            )}
-            {!hasPendingPayments && (
-              <p className="text-sm text-gray-600">
-                هل أنت متأكد من إغلاق المشروع <strong>{project.project_name}</strong> وتحديد حالته إلى &ldquo;مكتمل&rdquo;؟
-                لن تتمكن من إجراء تغييرات بعد الإغلاق.
-              </p>
-            )}
-          </div>
+          {hasPendingPayments ? (
+            <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>يوجد دفعات لم تُسدَّد بعد. لا يمكن إغلاق المشروع حتى تُحصَّل جميع الدفعات.</span>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600">
+              هل أنت متأكد من إغلاق المشروع <strong>{project.project_name}</strong> وتحديد حالته إلى &ldquo;مكتمل&rdquo;؟
+              لن تتمكن من إجراء تغييرات بعد الإغلاق.
+            </p>
+          )}
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
-          <Button
-            variant="success"
-            loading={isPending}
-            onClick={handleConfirm}
-            disabled={hasPendingPayments}
-          >
+          <Button variant="success" loading={isPending} onClick={handleConfirm} disabled={hasPendingPayments}>
             <CheckCircle2 className="h-4 w-4" />
             تأكيد الإغلاق
           </Button>
         </DialogFooter>
       </Dialog>
 
-      {/* ── Hold project dialog ── */}
+      {/* ── Hold dialog ── */}
       <Dialog open={dialog === 'hold'} onClose={() => setDialog(null)}>
         <DialogHeader>
           <DialogTitle>تعليق المشروع</DialogTitle>
@@ -477,11 +444,7 @@ export function ProjectDetail({
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
-          <Button
-            loading={isPending}
-            onClick={handleConfirm}
-            className="bg-amber-600 hover:bg-amber-700 text-white"
-          >
+          <Button loading={isPending} onClick={handleConfirm} className="bg-amber-600 hover:bg-amber-700 text-white">
             <PauseCircle className="h-4 w-4" />
             تعليق المشروع
           </Button>
@@ -516,64 +479,39 @@ export function ProjectDetail({
         </DialogHeader>
         <DialogContent>
           <div className="space-y-5">
-            {/* Coordinator — admin only */}
             {currentProfile.role === 'admin' && (
               <div className="space-y-1.5">
                 <Label>الكوردنيتر</Label>
-                <Select
-                  value={teamCoordinatorId}
-                  onChange={(e) => setTeamCoordinatorId(e.target.value)}
-                  placeholder="اختر الكوردنيتر"
-                >
+                <Select value={teamCoordinatorId} onChange={(e) => setTeamCoordinatorId(e.target.value)} placeholder="اختر الكوردنيتر">
                   <option value="">— بدون كوردنيتر —</option>
                   {coordinators.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}
-                    </option>
+                    <option key={c.id} value={c.id}>{c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}</option>
                   ))}
                 </Select>
-                {teamCoordinatorId && (
-                  <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                    (coordinatorWorkload[teamCoordinatorId] ?? 0) === 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : (coordinatorWorkload[teamCoordinatorId] ?? 0) <= 2
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                  }`}>
-                    <Briefcase className="h-3 w-3" />
-                    {workloadLabel(coordinatorWorkload[teamCoordinatorId] ?? 0)}
-                  </div>
-                )}
+                {teamCoordinatorId && <WorkloadChip count={coordinatorWorkload[teamCoordinatorId] ?? 0} />}
               </div>
             )}
 
-            {/* Sales engineer — admin and coordinator */}
             <div className="space-y-1.5">
               <Label>مهندس المبيعات</Label>
-              <Select
-                value={teamSalesId}
-                onChange={(e) => setTeamSalesId(e.target.value)}
-                placeholder="اختر المهندس"
-              >
+              <Select value={teamSalesId} onChange={(e) => setTeamSalesId(e.target.value)} placeholder="اختر المهندس">
                 <option value="">— بدون مهندس —</option>
                 {salesEngineers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.full_name} — {workloadLabel(salesWorkload[s.id] ?? 0)}
-                  </option>
+                  <option key={s.id} value={s.id}>{s.full_name} — {workloadLabel(salesWorkload[s.id] ?? 0)}</option>
                 ))}
               </Select>
-              {teamSalesId && (
-                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                  (salesWorkload[teamSalesId] ?? 0) === 0
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : (salesWorkload[teamSalesId] ?? 0) <= 2
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-red-50 text-red-700 border-red-200'
-                }`}>
-                  <Briefcase className="h-3 w-3" />
-                  {workloadLabel(salesWorkload[teamSalesId] ?? 0)}
-                </div>
-              )}
+              {teamSalesId && <WorkloadChip count={salesWorkload[teamSalesId] ?? 0} />}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>مسؤول التركيب</Label>
+              <Select value={teamInstallationId} onChange={(e) => setTeamInstallationId(e.target.value)} placeholder="اختر مسؤول التركيب">
+                <option value="">— بدون مسؤول —</option>
+                {installationPersons.map((i) => (
+                  <option key={i.id} value={i.id}>{i.full_name} — {workloadLabel(installationWorkload[i.id] ?? 0)}</option>
+                ))}
+              </Select>
+              {teamInstallationId && <WorkloadChip count={installationWorkload[teamInstallationId] ?? 0} />}
             </div>
           </div>
         </DialogContent>
@@ -586,7 +524,7 @@ export function ProjectDetail({
         </DialogFooter>
       </Dialog>
 
-      {/* ── Cancel project dialog ── */}
+      {/* ── Cancel dialog ── */}
       <Dialog open={dialog === 'cancel'} onClose={() => setDialog(null)}>
         <DialogHeader>
           <DialogTitle>إلغاء المشروع</DialogTitle>
@@ -610,12 +548,8 @@ export function ProjectDetail({
         </DialogContent>
         <DialogFooter>
           <Button variant="outline" onClick={() => setDialog(null)}>رجوع</Button>
-          <Button
-            loading={isPending}
-            onClick={handleConfirm}
-            disabled={!cancelReason.trim()}
-            className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-40"
-          >
+          <Button loading={isPending} onClick={handleConfirm} disabled={!cancelReason.trim()}
+            className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-40">
             <XCircle className="h-4 w-4" />
             تأكيد الإلغاء
           </Button>

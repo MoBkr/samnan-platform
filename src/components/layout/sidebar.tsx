@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   FolderKanban,
-  Truck,
   Hammer,
   Users,
   LogOut,
@@ -45,12 +44,6 @@ const NAV_ITEMS: NavItem[] = [
     roles: ['coordinator', 'admin'],
   },
   {
-    label: 'التوريد',
-    href: '/supply',
-    icon: <Truck className="h-5 w-5" />,
-    roles: ['supply', 'coordinator', 'admin'],
-  },
-  {
     label: 'التركيبات',
     href: '/installation',
     icon: <Hammer className="h-5 w-5" />,
@@ -67,7 +60,6 @@ const NAV_ITEMS: NavItem[] = [
 const AVATAR_COLORS: Record<string, string> = {
   coordinator: 'bg-blue-500',
   sales_engineer: 'bg-emerald-500',
-  supply: 'bg-amber-500',
   installation: 'bg-purple-500',
   admin: 'bg-rose-500',
 }
@@ -173,6 +165,15 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
             تسجيل الخروج
           </button>
         </form>
+        <a
+          href="https://tfco.sa/"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 flex items-center justify-center gap-1 py-1 text-[10px] text-slate-700 hover:text-slate-500 transition-colors"
+        >
+          <span>built by</span>
+          <span className="font-semibold tracking-wide">Thakaa Flow</span>
+        </a>
       </div>
     </div>
   )

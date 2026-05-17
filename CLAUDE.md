@@ -21,43 +21,148 @@
 
 > *Clear each item after completing.*
 
-1. **Supabase:** Create a new project and provide `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
-2. **Supabase:** Run the full SQL schema (9 tables + triggers) in the SQL Editor
-3. **Supabase:** Create storage bucket named `documents` (public)
+1. **Supabase — SQL Migration:** Run this in Supabase SQL Editor to add supply/installation columns:
+   ```sql
+   ALTER TABLE public.projects
+     ADD COLUMN IF NOT EXISTS supply_id uuid REFERENCES public.profiles(id),
+     ADD COLUMN IF NOT EXISTS installation_id uuid REFERENCES public.profiles(id);
+   ```
+   This is required for the new team assignment feature to work.
+
+2. **Vercel — Redeploy** after the SQL migration is done (or push latest code to GitHub to trigger auto-deploy).
 
 ---
 
 ## 🗓️ TODAY'S SESSION
 
 **Date:** 2026-05-13
-**Status:** Full app built and production build passing ✓
+**Status:** Full app built, all features complete, build passing ✓
 
 ---
 
 ## 📋 NEXT SESSION — Start Here
 
-*(will be filled at end of first session)*
+1. **Verify SQL migration ran** (item 1 in HUMAN ACTIONS above)
+2. **Test the app end-to-end** — create a project, add payments, request materials, schedule supply, schedule installation, close project
+3. **If bugs are found**, fix them one by one
+4. **Optional next features:**
+   - Search/filter on projects list (by status, date range, team member)
+   - Notifications / email alerts
+   - Dashboard improvements (charts, revenue over time)
+   - Mobile PWA improvements
 
 ---
 
 ## 🏗️ ARCHITECTURE STATE
 
 ### What exists right now
-```
-Clean slate. Starting fresh.
-```
+
+Full-stack Arabic RTL app deployed on Vercel, connected to Supabase.
 
 ### Folder structure
-*(will be updated after first session)*
+```
+src/
+  app/
+    (auth)/
+      login/page.tsx          # Login page
+      signup/page.tsx         # Signup with role select (coordinator/SE/supply/installation/admin)
+    (dashboard)/
+      layout.tsx              # Dashboard shell (sidebar + header)
+      dashboard/page.tsx      # Role-specific dashboard
+      projects/
+        page.tsx              # Projects list (tab: مشاريعي / كل المشاريع)
+        new/page.tsx          # New project form
+        [id]/page.tsx         # Project detail
+      payments/page.tsx       # Payments overview
+      supply/page.tsx         # Supply overview
+      installation/page.tsx   # Installation overview
+      users/page.tsx          # User management (admin only)
+  components/
+    layout/
+      dashboard-shell.tsx     # Overall layout with sidebar + mobile drawer
+      sidebar.tsx             # Navigation sidebar
+      header.tsx              # Top header with user dropdown
+    projects/
+      projects-list.tsx       # Card grid view (مشاريعي/كل المشاريع tabs)
+      project-detail.tsx      # Full project detail with tabs
+      new-project-form.tsx    # Create project form (role-aware team assignment)
+      activity-tab.tsx        # Activity log tab
+    payments/
+      payments-tab.tsx        # Payment cards with progress bars
+    supply/
+      materials-tab.tsx       # Material requests + supply orders
+    installation/
+      installation-tab.tsx    # Installation scheduling
+    dashboard/
+      coordinator-dashboard.tsx
+      sales-engineer-dashboard.tsx
+      supply-dashboard.tsx
+      installation-dashboard.tsx
+      admin-dashboard.tsx
+    shared/
+      page-header.tsx
+      status-badge.tsx        # All status badge components
+      empty-state.tsx
+    ui/                       # Base UI components (button, input, dialog, etc.)
+  lib/
+    actions/
+      auth.ts                 # getCurrentProfile, signOut
+      projects.ts             # getProject, createProject, updateProjectStatus, updateProjectTeam
+      payments.ts             # createPayment, recordPayment
+      materials.ts            # createMaterialRequest, updateMaterialStatus, scheduleSupplyOrder, completeSupplyOrder
+      installation.ts         # scheduleInstallation, updateInstallationStatus
+      upload.ts               # uploadFile (Supabase Storage)
+    supabase/
+      client.ts               # Browser client
+      server.ts               # Server client (cookies)
+      service.ts              # Service role client (bypasses RLS)
+      typed.ts                # QueryResult/QueryResultMany type helpers
+    constants.ts              # STATUS_LABELS, PAYMENT_TYPE_LABELS, ROLE_LABELS, etc.
+    utils.ts                  # formatCurrency, formatDateShort, isOverdue, cn
+  types/
+    database.ts               # All DB types: Profile, Project, Payment, Material, etc.
+  middleware.ts               # Route guard: redirects unauthenticated users to /login
+```
 
 ### Database
-*(will be updated after first session)*
+9 tables in Supabase:
+- `profiles` — user roles (coordinator, sales_engineer, supply, installation, admin)
+- `projects` — **has supply_id and installation_id columns (requires SQL migration above)**
+- `payments` — per-project payment schedule
+- `materials` — material requests with jsonb items array
+- `supply_orders` — supply delivery scheduling
+- `installations` — installation scheduling
+- `documents` — file references
+- `activity_log` — all status changes
+- `notifications` — (created but not yet used)
+
+RLS is enabled on all tables. The app uses the service role client for writes.
 
 ### Routes
-*(will be updated after first session)*
+| Route | Role access |
+|-------|-------------|
+| `/login` | All |
+| `/signup` | All |
+| `/dashboard` | coordinator, sales_engineer, admin |
+| `/projects` | coordinator, sales_engineer, supply, installation, admin |
+| `/projects/new` | coordinator, sales_engineer, admin |
+| `/projects/[id]` | All |
+| `/payments` | coordinator, admin |
+| `/supply` | supply, coordinator, admin |
+| `/installation` | installation, coordinator, admin |
+| `/users` | admin only |
 
 ### Environment
-*(will be updated after first session)*
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+### Live URLs
+- **App:** https://samnan-platform.vercel.app
+- **GitHub:** https://github.com/MoBkr/samnan-platform
+- **Supabase:** https://supabase.com/dashboard/project/vkkyawhqwnlgpztaqqjq
 
 ---
 
@@ -65,21 +170,51 @@ Clean slate. Starting fresh.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Auth + roles | ⬜ | |
-| Project creation | ⬜ | |
-| Project list | ⬜ | |
-| Payment tracking | ⬜ | |
-| Materials & supply | ⬜ | |
-| Installation | ⬜ | |
-| Dashboard | ⬜ | |
-| Notifications | ⬜ | |
-| Deployment | ⬜ | |
+| Auth + roles | ✅ | Login, signup, role-based redirect, middleware guard |
+| Project creation | ✅ | Full form with team assignment + workload display |
+| Project list | ✅ | Card grid, مشاريعي/كل المشاريع tabs |
+| Project detail | ✅ | Header with role chips, lifecycle progress, tabs |
+| Project status actions | ✅ | Close, hold, reactivate, cancel with dialogs |
+| Team edit from detail | ✅ | Admin/coordinator can change all 4 team members |
+| Payment tracking | ✅ | Cards with progress bars, receipt upload, overdue detection |
+| Materials & supply | ✅ | Request form, status updates, supply order scheduling |
+| Installation | ✅ | Schedule, confirm, in-progress, complete |
+| Supply/Installation person assignment | ✅ | supply_id + installation_id columns added to projects |
+| Final payment bypass | ✅ | If final payment paid, skip supply/install payment prereqs |
+| Dashboard | ✅ | Role-specific dashboards for all 5 roles |
+| User management | ✅ | Admin can create/edit/deactivate users |
+| Notifications | ⬜ | Not started (not needed for prototype) |
 
 ---
 
 ## 📅 HISTORY LOG
 
-*(empty — fresh start)*
+### Session 1 — 2026-05-13
+Built the entire app from scratch:
+- Auth, roles, middleware
+- Project CRUD with contract upload
+- Payment tracking (all types)
+- Materials & supply flow
+- Installation scheduling
+- Role-specific dashboards
+- User management
+
+### Session 2 — 2026-05-13 (continued)
+- Added admin role to signup
+- Role-based team assignment with workload display (WorkloadBadge)
+- Project status actions (close/hold/reactivate/cancel dialogs)
+- My Projects / All Projects tab switcher
+- Team edit dialog from project detail page
+- Final payment bypass for supply/installation requirements
+- Fixed payment logic bugs (inverted guard, over-payment, missing prerequisites)
+- Added supply_id + installation_id to projects (DB migration pending)
+- Comprehensive UI/UX overhaul:
+  - Projects list: table → card grid
+  - Project detail: role-colored team chips instead of flat list
+  - Materials tab: better cards with numbered item list + progress bar
+  - Installation tab: better cards with progress steps + confirmation badges
+  - Payments tab: collection summary bar + improved card design
+  - Input component: brand color focus rings
 
 ---
 ---

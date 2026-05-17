@@ -29,14 +29,6 @@ export default async function ProjectsPage() {
         myProjectIds.add(p.id)
       }
     }
-  } else if (profile.role === 'supply') {
-    // "my projects" = projects that have active material requests
-    const supabase = await createClient()
-    const result = (await supabase
-      .from('materials')
-      .select('project_id')
-      .in('status', ['pending', 'preparing', 'ready'])) as QueryResultMany<{ project_id: string }>
-    for (const m of result.data ?? []) myProjectIds.add(m.project_id)
   } else if (profile.role === 'installation') {
     // "my projects" = projects that have active installations
     const supabase = await createClient()

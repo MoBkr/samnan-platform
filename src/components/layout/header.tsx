@@ -20,7 +20,6 @@ function getInitials(name: string) {
 const ROLE_COLORS: Record<string, string> = {
   coordinator: 'bg-brand-600',
   sales_engineer: 'bg-green-600',
-  supply: 'bg-amber-600',
   installation: 'bg-purple-600',
   admin: 'bg-rose-600',
 }
@@ -29,7 +28,6 @@ const DASHBOARD_LINK: Record<string, string> = {
   coordinator: '/dashboard',
   sales_engineer: '/dashboard',
   admin: '/dashboard',
-  supply: '/supply',
   installation: '/installation',
 }
 

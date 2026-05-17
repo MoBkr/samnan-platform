@@ -83,10 +83,24 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
     setReceiptFile(null)
   }
 
+  const totalAmount = payments.filter(p => p.status !== 'cancelled').reduce((s, p) => s + (p.amount ?? 0), 0)
+  const totalPaid = payments.filter(p => p.status !== 'cancelled').reduce((s, p) => s + (p.paid_amount ?? 0), 0)
+  const collectionPct = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">جدول الدفعات</h3>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+            <CreditCard className="h-4 w-4 text-blue-700" />
+          </div>
+          <h3 className="text-base font-semibold text-gray-900">جدول الدفعات</h3>
+          {payments.length > 0 && (
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">
+              {payments.length}
+            </span>
+          )}
+        </div>
         {canAddPayment && (
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4" />
@@ -94,6 +108,25 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
           </Button>
         )}
       </div>
+
+      {/* Summary bar */}
+      {payments.length > 0 && totalAmount > 0 && (
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="text-gray-500">التحصيل الكلي</span>
+            <span className="font-bold text-gray-800">
+              {formatCurrency(totalPaid)} / {formatCurrency(totalAmount)}
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${collectionPct === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`}
+              style={{ width: `${collectionPct}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">{collectionPct}% مُحصَّل</p>
+        </div>
+      )}
 
       {payments.length === 0 ? (
         <EmptyState
@@ -106,67 +139,97 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
           {payments.map((payment) => {
             const overdue = isOverdue(payment.due_date, payment.status)
             const displayStatus = overdue && payment.status === 'pending' ? 'overdue' : payment.status
+            const paidPct = payment.amount > 0 ? Math.min(100, Math.round((payment.paid_amount / payment.amount) * 100)) : 0
 
             return (
               <div
                 key={payment.id}
-                className={`rounded-2xl border p-5 ${overdue ? 'border-red-200 bg-red-50/30' : 'border-gray-100 bg-white'} shadow-sm`}
+                className={`rounded-2xl border shadow-sm overflow-hidden ${
+                  overdue
+                    ? 'border-red-200 bg-red-50/20'
+                    : payment.status === 'paid'
+                    ? 'border-green-200 bg-green-50/10'
+                    : 'border-gray-100 bg-white'
+                }`}
               >
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      {PAYMENT_TYPE_LABELS[payment.type]}
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 mt-0.5">
-                      {formatCurrency(payment.amount)}
-                    </p>
+                {/* Card header */}
+                <div className="px-5 pt-5 pb-4">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        {PAYMENT_TYPE_LABELS[payment.type]}
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 mt-0.5 leading-tight">
+                        {formatCurrency(payment.amount)}
+                      </p>
+                    </div>
+                    <PaymentStatusBadge status={displayStatus} />
                   </div>
-                  <PaymentStatusBadge status={displayStatus} />
+
+                  {payment.due_date && (
+                    <p className={`flex items-center gap-1.5 text-xs mb-3 ${overdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                      <Receipt className="h-3 w-3 shrink-0" />
+                      استحقاق: {formatDateShort(payment.due_date)}
+                      {overdue && <span className="text-red-500">(متأخر)</span>}
+                    </p>
+                  )}
+
+                  {/* Partial payment progress */}
+                  {payment.paid_amount > 0 && payment.status !== 'paid' && payment.status !== 'cancelled' && (
+                    <div className="mb-3">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                        <span>محصّل: <strong className="text-gray-700">{formatCurrency(payment.paid_amount)}</strong></span>
+                        <span className="font-semibold text-brand-600">{paidPct}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full rounded-full bg-brand-500 transition-all duration-500"
+                          style={{ width: `${paidPct}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        متبقي: {formatCurrency(payment.amount - payment.paid_amount)}
+                      </p>
+                    </div>
+                  )}
+
+                  {payment.status === 'paid' && (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium mb-2">
+                      <Receipt className="h-3.5 w-3.5" />
+                      مدفوع بالكامل — {formatCurrency(payment.amount)}
+                    </div>
+                  )}
+
+                  {payment.notes && (
+                    <p className="text-xs text-gray-500 italic mb-2">{payment.notes}</p>
+                  )}
                 </div>
 
-                {payment.due_date && (
-                  <p className="mb-2 text-sm text-gray-500">
-                    الاستحقاق: {formatDateShort(payment.due_date)}
-                  </p>
-                )}
-
-                {payment.paid_amount > 0 && payment.status !== 'paid' && (
-                  <div className="mb-3">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>المحصّل: {formatCurrency(payment.paid_amount)}</span>
-                      <span>{Math.round((payment.paid_amount / payment.amount) * 100)}%</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full rounded-full bg-brand-500"
-                        style={{ width: `${Math.min(100, (payment.paid_amount / payment.amount) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {payment.receipt_url && (
-                  <a
-                    href={payment.receipt_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mb-3 flex items-center gap-1.5 text-xs text-brand-600 hover:underline font-medium"
-                  >
-                    <Receipt className="h-3.5 w-3.5" />
-                    عرض الإيصال
-                  </a>
-                )}
-
-                {canRecordPayment && payment.status !== 'paid' && payment.status !== 'cancelled' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-1 w-full"
-                    onClick={() => setRecordPaymentId(payment.id)}
-                  >
-                    تسجيل دفعة
-                  </Button>
-                )}
+                {/* Footer */}
+                <div className="border-t border-gray-100 px-5 py-3 flex items-center justify-between gap-2">
+                  {payment.receipt_url ? (
+                    <a
+                      href={payment.receipt_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 hover:underline font-medium"
+                    >
+                      <Receipt className="h-3.5 w-3.5" />
+                      عرض الإيصال
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                  {canRecordPayment && payment.status !== 'paid' && payment.status !== 'cancelled' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRecordPaymentId(payment.id)}
+                    >
+                      تسجيل دفعة
+                    </Button>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -185,7 +248,6 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
               <Label>نوع الدفعة</Label>
               <Select name="type" required placeholder="اختر النوع">
                 <option value="upfront">دفعة أولى</option>
-                <option value="supply">دفعة توريد</option>
                 <option value="installation">دفعة تركيب</option>
                 <option value="final">دفعة نهائية</option>
                 <option value="custom">مخصصة</option>
