@@ -14,7 +14,7 @@ interface AttachmentsTabProps {
   projectId: string
 }
 
-const DOC_TYPES = ['contract', 'receipt', 'delivery_note'] as const
+const DOC_TYPES = ['contract', 'receipt', 'delivery_note', 'materials_request'] as const
 
 function getDocumentIcon(url: string) {
   const isPdf = url.toLowerCase().endsWith('.pdf')

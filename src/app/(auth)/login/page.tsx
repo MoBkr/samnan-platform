@@ -74,9 +74,9 @@ export default function LoginPage() {
           {/* Stats row */}
           <div className="mt-10 flex items-center justify-center gap-6">
             {[
-              { n: '5', label: 'أدوار وظيفية' },
-              { n: '8', label: 'مراحل تنفيذ' },
-              { n: '١٠٠٪', label: 'رقمي' },
+              { n: '4', label: 'أدوار وظيفية' },
+              { n: '5', label: 'مراحل تنفيذ' },
+              { n: '100%', label: 'رقمي' },
             ].map(({ n, label }) => (
               <div key={label} className="text-center">
                 <p className="text-3xl font-bold text-white">{n}</p>

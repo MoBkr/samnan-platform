@@ -21,15 +21,23 @@
 
 > *Clear each item after completing.*
 
-1. **Supabase — SQL Migration:** Run this in Supabase SQL Editor to add supply/installation columns:
+1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
+   -- Add installation_id to projects (if not already done)
    ALTER TABLE public.projects
-     ADD COLUMN IF NOT EXISTS supply_id uuid REFERENCES public.profiles(id),
      ADD COLUMN IF NOT EXISTS installation_id uuid REFERENCES public.profiles(id);
-   ```
-   This is required for the new team assignment feature to work.
 
-2. **Vercel — Redeploy** after the SQL migration is done (or push latest code to GitHub to trigger auto-deploy).
+   -- Update documents type constraint to include new types
+   ALTER TABLE public.documents
+     DROP CONSTRAINT IF EXISTS documents_type_check;
+
+   ALTER TABLE public.documents
+     ADD CONSTRAINT documents_type_check
+     CHECK (type IN ('contract','invoice','receipt','delivery_note','completion_photo','other','materials_request'));
+   ```
+   Without this, file uploads in the Attachments tab will fail.
+
+2. **Vercel — Auto-deploy** is triggered by the GitHub push (already done).
 
 ---
 

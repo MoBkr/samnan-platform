@@ -5,7 +5,7 @@ export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'cancel
 export type MaterialStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'partial'
 export type SupplyOrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'failed' | 'rescheduled'
 export type InstallationStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'delayed' | 'rescheduled'
-export type DocumentType = 'contract' | 'invoice' | 'receipt' | 'delivery_note' | 'completion_photo' | 'other'
+export type DocumentType = 'contract' | 'invoice' | 'receipt' | 'delivery_note' | 'completion_photo' | 'other' | 'materials_request'
 
 export interface Profile {
   id: string

@@ -45,6 +45,7 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   receipt: 'إيصال',
   delivery_note: 'وصل الاستلام',
   completion_photo: 'صورة إتمام',
+  materials_request: 'طلب المواد',
   other: 'أخرى',
 }
 
