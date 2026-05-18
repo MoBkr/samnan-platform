@@ -19,7 +19,7 @@ export default async function UsersPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="إدارة المستخدمين" description="إنشاء وإدارة حسابات المستخدمين" />
-      <UsersManager users={result.data ?? []} />
+      <UsersManager users={result.data ?? []} currentUserId={profile.id} />
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,17 +10,19 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmpty } from '@/components/ui/table'
-import { createUser, updateUserRole } from '@/lib/actions/auth'
+import { createUser, updateUserRole, deleteUser } from '@/lib/actions/auth'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateShort } from '@/lib/utils'
 import type { Profile, UserRole } from '@/types/database'
 
 interface UsersManagerProps {
   users: Profile[]
+  currentUserId: string
 }
 
-export function UsersManager({ users }: UsersManagerProps) {
+export function UsersManager({ users, currentUserId }: UsersManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
@@ -43,6 +45,15 @@ export function UsersManager({ users }: UsersManagerProps) {
       const result = await updateUserRole(userId, role)
       if (result?.error) toast.error(result.error)
       else toast.success('تم تحديث الدور')
+    })
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return
+    startTransition(async () => {
+      const result = await deleteUser(deleteTarget.id)
+      if (result?.error) toast.error(result.error)
+      else { toast.success('تم حذف الحساب'); setDeleteTarget(null) }
     })
   }
 
@@ -71,6 +82,7 @@ export function UsersManager({ users }: UsersManagerProps) {
               <TableHead>الحالة</TableHead>
               <TableHead>تاريخ الإنشاء</TableHead>
               <TableHead>تعديل الدور</TableHead>
+            <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -104,12 +116,48 @@ export function UsersManager({ users }: UsersManagerProps) {
                       <option value="admin">الإدارة</option>
                     </Select>
                   </TableCell>
+                  <TableCell>
+                    {user.id !== currentUserId && (
+                      <button
+                        onClick={() => setDeleteTarget(user)}
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        title="حذف الحساب"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete user dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <DialogHeader>
+          <DialogTitle>حذف الحساب</DialogTitle>
+          <DialogClose onClose={() => setDeleteTarget(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
+            <Trash2 className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              سيتم حذف حساب <strong>{deleteTarget?.full_name}</strong> نهائياً ولن يتمكن من الدخول للمنصة.
+              <br /><strong>لا يمكن التراجع عن هذا الإجراء.</strong>
+            </span>
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteTarget(null)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleDeleteConfirm}
+            className="bg-red-600 hover:bg-red-700 text-white">
+            <Trash2 className="h-4 w-4" />
+            حذف الحساب
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       <Dialog open={showCreateDialog} onClose={() => setShowCreateDialog(false)}>
         <DialogHeader>

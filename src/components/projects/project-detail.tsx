@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
-  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2,
+  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -18,13 +19,13 @@ import { InstallationTab } from '@/components/installation/installation-tab'
 import { MaterialsTab } from '@/components/projects/materials-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
-import { updateProjectStatus, updateProjectTeam, updateProjectAmount } from '@/lib/actions/projects'
+import { updateProjectStatus, updateProjectTeam, updateProjectAmount, deleteProject } from '@/lib/actions/projects'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material } from '@/types/database'
 
 type Tab = 'payments' | 'installation' | 'materials' | 'attachments' | 'activity'
-type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | null
+type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | 'delete' | null
 
 function workloadLabel(count: number) {
   if (count === 0) return 'لا مشاريع نشطة'
@@ -120,6 +121,7 @@ export function ProjectDetail({
   const [teamSalesId, setTeamSalesId] = useState(project.sales_engineer_id ?? '')
   const [teamInstallationId, setTeamInstallationId] = useState(project.installation_id ?? '')
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const activePayments = payments.filter(p => p.status !== 'cancelled')
   const totalPaid = activePayments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
@@ -168,6 +170,13 @@ export function ProjectDetail({
         const parsed = parseFloat(newAmount)
         if (isNaN(parsed) || parsed <= 0) { toast.error('يرجى إدخال قيمة صحيحة'); return }
         result = await updateProjectAmount(project.id, parsed)
+      } else if (dialog === 'delete') {
+        result = await deleteProject(project.id)
+        if (!result?.error) {
+          toast.success('تم حذف المشروع نهائياً')
+          router.push('/projects')
+          return
+        }
       }
 
       if (result?.error) {
@@ -357,6 +366,14 @@ export function ProjectDetail({
                   إلغاء المشروع
                 </Button>
               </>
+            )}
+            {/* Delete — admin only, cancelled or on_hold */}
+            {currentProfile.role === 'admin' && (project.status === 'cancelled' || project.status === 'on_hold') && (
+              <Button size="sm" variant="outline" onClick={() => handleAction('delete')}
+                className="gap-1.5 text-red-700 border-red-300 hover:bg-red-50 ms-auto">
+                <Trash2 className="h-4 w-4" />
+                حذف المشروع نهائياً
+              </Button>
             )}
           </div>
         )}
@@ -635,6 +652,33 @@ export function ProjectDetail({
             className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-40">
             <XCircle className="h-4 w-4" />
             تأكيد الإلغاء
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Delete project dialog ── */}
+      <Dialog open={dialog === 'delete'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>حذف المشروع نهائياً</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-3">
+            <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
+              <Trash2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                سيتم حذف مشروع <strong>{project.project_name}</strong> بشكل نهائي وكامل — الدفعات، الملفات، سجل النشاطات.
+                <br /><strong>لا يمكن التراجع عن هذا الإجراء.</strong>
+              </span>
+            </div>
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleConfirm}
+            className="bg-red-600 hover:bg-red-700 text-white">
+            <Trash2 className="h-4 w-4" />
+            حذف نهائياً
           </Button>
         </DialogFooter>
       </Dialog>

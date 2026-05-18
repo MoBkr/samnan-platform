@@ -201,6 +201,60 @@ export async function uploadContractUrl(projectId: string, url: string) {
   return { success: true }
 }
 
+export async function deleteProject(projectId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const profileResult = (await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()) as QueryResult<{ role: string }>
+
+  if (profileResult.data?.role !== 'admin') return { error: 'الحذف متاح للإدارة فقط' }
+
+  const service = createServiceClient()
+
+  const projectResult = (await service
+    .from('projects')
+    .select('status, project_name')
+    .eq('id', projectId)
+    .single()) as unknown as { data: { status: string; project_name: string } | null }
+
+  if (!projectResult.data) return { error: 'المشروع غير موجود' }
+
+  const { status } = projectResult.data
+  if (status !== 'cancelled' && status !== 'on_hold') {
+    return { error: 'يمكن حذف المشاريع الملغاة أو المعلقة فقط' }
+  }
+
+  // Delete related records in order (FK constraints)
+  await service.from('activity_log').delete().eq('project_id', projectId)
+  await service.from('payments').delete().eq('project_id', projectId)
+  await service.from('installations').delete().eq('project_id', projectId)
+  await service.from('materials').delete().eq('project_id', projectId)
+
+  const docsResult = (await service
+    .from('documents')
+    .select('url')
+    .eq('project_id', projectId)) as unknown as { data: { url: string }[] | null }
+
+  if (docsResult.data?.length) {
+    const paths = docsResult.data.map(d => {
+      try { return new URL(d.url).pathname.split('/documents/')[1] } catch { return null }
+    }).filter(Boolean) as string[]
+    if (paths.length) await service.storage.from('documents').remove(paths)
+  }
+
+  await service.from('documents').delete().eq('project_id', projectId)
+  await service.from('projects').delete().eq('id', projectId)
+
+  revalidatePath('/projects')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logActivity(service: ReturnType<typeof createServiceClient>, projectId: string, userId: string, action: string, details: Record<string, any>) {
   await service.from('activity_log').insert({

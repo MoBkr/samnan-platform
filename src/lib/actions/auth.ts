@@ -141,6 +141,28 @@ export async function signUp(formData: FormData) {
   redirect(ROLE_REDIRECTS[role] ?? '/dashboard')
 }
 
+export async function deleteUser(targetUserId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const profileResult = (await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()) as QueryResult<{ role: string }>
+
+  if (profileResult.data?.role !== 'admin') return { error: 'الحذف متاح للإدارة فقط' }
+  if (user.id === targetUserId) return { error: 'لا يمكنك حذف حسابك الخاص' }
+
+  const service = createServiceClient()
+  const { error } = await service.auth.admin.deleteUser(targetUserId)
+  if (error) return { error: 'فشل حذف الحساب. حاول مرة أخرى' }
+
+  revalidatePath('/users')
+  return { success: true }
+}
+
 export async function getCurrentProfile(): Promise<Profile | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
