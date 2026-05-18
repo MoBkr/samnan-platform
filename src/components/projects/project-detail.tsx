@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
-  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2,
+  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -134,9 +134,21 @@ export function ProjectDetail({
 
   const canManage = currentProfile.role === 'admin'
     || (currentProfile.role === 'coordinator' && project.coordinator_id === currentProfile.id)
+  const isAdmin = currentProfile.role === 'admin'
   const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'
+
+  function handleRemoveMember(field: 'coordinator' | 'sales_engineer' | 'installation') {
+    const coordId = field === 'coordinator' ? null : (project.coordinator_id ?? null)
+    const salesId = field === 'sales_engineer' ? null : (project.sales_engineer_id ?? null)
+    const installId = field === 'installation' ? null : (project.installation_id ?? null)
+    startTransition(async () => {
+      const result = await updateProjectTeam(project.id, coordId, salesId, installId)
+      if (result?.error) toast.error(result.error)
+      else { toast.success('تم إزالة عضو الفريق'); router.refresh() }
+    })
+  }
   const isFinished = project.status === 'completed' || project.status === 'cancelled'
   const hasPendingPayments = payments.some(p => p.status === 'pending' || p.status === 'partial')
 
@@ -267,6 +279,12 @@ export function ProjectDetail({
                     <span className="font-bold text-blue-500 shrink-0">الكوردنيتر</span>
                     <span className="h-1 w-1 rounded-full bg-blue-300 shrink-0" />
                     <span className="text-blue-800 font-medium">{project.coordinator.full_name}</span>
+                    {isAdmin && (
+                      <button onClick={() => handleRemoveMember('coordinator')} disabled={isPending}
+                        className="mr-0.5 rounded-full p-0.5 text-blue-400 hover:bg-blue-200 hover:text-blue-700 transition-colors disabled:opacity-40">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 )}
                 {project.sales_engineer && (
@@ -274,6 +292,12 @@ export function ProjectDetail({
                     <span className="font-bold text-emerald-600 shrink-0">المبيعات</span>
                     <span className="h-1 w-1 rounded-full bg-emerald-300 shrink-0" />
                     <span className="text-emerald-800 font-medium">{project.sales_engineer.full_name}</span>
+                    {isAdmin && (
+                      <button onClick={() => handleRemoveMember('sales_engineer')} disabled={isPending}
+                        className="mr-0.5 rounded-full p-0.5 text-emerald-400 hover:bg-emerald-200 hover:text-emerald-700 transition-colors disabled:opacity-40">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 )}
                 {project.installation_person && (
@@ -281,6 +305,12 @@ export function ProjectDetail({
                     <span className="font-bold text-purple-600 shrink-0">التركيب</span>
                     <span className="h-1 w-1 rounded-full bg-purple-300 shrink-0" />
                     <span className="text-purple-800 font-medium">{project.installation_person.full_name}</span>
+                    {isAdmin && (
+                      <button onClick={() => handleRemoveMember('installation')} disabled={isPending}
+                        className="mr-0.5 rounded-full p-0.5 text-purple-400 hover:bg-purple-200 hover:text-purple-700 transition-colors disabled:opacity-40">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 )}
               </div>
