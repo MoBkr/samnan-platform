@@ -23,7 +23,7 @@ export async function getProjectsReport(): Promise<ProjectReport[]> {
   const supabase = await createClient()
   const result = (await supabase
     .from('projects')
-    .select('*, coordinator:profiles!coordinator_id(full_name), sales_engineer:profiles!sales_engineer_id(full_name), installation_person:profiles!installation_id(full_name)')
+    .select('*, coordinator:profiles!coordinator_id(full_name), sales_engineer:profiles!sales_engineer_id(full_name)')
     .order('created_at', { ascending: false })) as QueryResultMany<ProjectReport>
   return result.data ?? []
 }

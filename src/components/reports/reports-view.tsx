@@ -3,9 +3,8 @@
 import { useState } from 'react'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { formatCurrency, formatDateShort } from '@/lib/utils'
+import { formatCurrency, formatDateShort, cn } from '@/lib/utils'
 import { ROLE_LABELS, STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
 import type { Profile } from '@/types/database'
 import type { ProjectReport, PaymentReport, ActivityLogReport } from '@/lib/actions/reports'
 
@@ -53,7 +52,11 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
       <style>{`
         @media print {
           @page { size: A4 portrait; margin: 10mm 8mm; }
+
+          /* Hide nav/header/sidebar */
           aside, header, nav, .no-print { display: none !important; }
+
+          /* Reset html + body */
           html, body {
             overflow: visible !important;
             height: auto !important;
@@ -65,14 +68,21 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
             margin: 0 !important;
             padding: 0 !important;
           }
-          * {
-            overflow: visible !important;
+
+          /* Reset Next.js App Router wrapper divs (DashboardShell outer + inner) */
+          body > div,
+          body > div > div,
+          body > div > div > div {
+            display: block !important;
+            height: auto !important;
+            min-height: auto !important;
             max-height: none !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            box-sizing: border-box !important;
+            overflow: visible !important;
+            width: 100% !important;
+            flex: none !important;
           }
-          #__next { display: block !important; height: auto !important; }
+
+          /* Reset main content area */
           main, [role="main"] {
             display: block !important;
             height: auto !important;
@@ -80,7 +90,15 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
             padding: 0 !important;
             margin: 0 !important;
           }
+
+          /* Allow color printing */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           .print-only { display: block !important; }
+
           table {
             page-break-inside: auto !important;
             border-collapse: collapse !important;
