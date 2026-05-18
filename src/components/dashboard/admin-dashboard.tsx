@@ -42,7 +42,7 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard
           href="/projects"
           icon={<FolderKanban className="h-6 w-6" />}
@@ -66,14 +66,6 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           bg="bg-purple-50 text-purple-700"
           value={users.length}
           label="المستخدمون"
-        />
-        <KpiCard
-          href="/reports"
-          icon={<FileBarChart2 className="h-6 w-6" />}
-          bg="bg-teal-50 text-teal-700"
-          value="PDF"
-          label="التقارير"
-          isText
         />
       </div>
 
@@ -149,6 +141,24 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           )}
         </div>
       </div>
+
+      {/* Reports Card */}
+      <Link href="/reports">
+        <div className="rounded-2xl border-2 border-teal-100 bg-gradient-to-l from-teal-50 to-white p-5 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
+                <FileBarChart2 className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-teal-900">التقارير والإحصائيات</p>
+                <p className="text-sm text-teal-600 mt-0.5">تصدير المشاريع · الدفعات · الفريق · سجل النشاطات — طباعة PDF</p>
+              </div>
+            </div>
+            <ArrowLeft className="h-5 w-5 text-teal-400 shrink-0" />
+          </div>
+        </div>
+      </Link>
     </div>
   )
 }

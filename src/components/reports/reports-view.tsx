@@ -52,15 +52,20 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
     <>
       <style>{`
         @media print {
-          aside, header, .no-print { display: none !important; }
-          html, body { overflow: visible !important; height: auto !important; background: white !important; }
-          main { overflow: visible !important; height: auto !important; max-height: none !important; padding: 0 !important; }
-          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { size: A4 portrait; margin: 12mm; }
+          aside, header, nav, .no-print { display: none !important; }
+          html { overflow: visible !important; height: auto !important; background: white !important; font-size: 12px !important; }
+          body { overflow: visible !important; height: auto !important; background: white !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+          #__next, main, [data-slot="main"] { overflow: visible !important; height: auto !important; max-height: none !important; padding: 0 !important; width: 100% !important; }
+          div { overflow: visible !important; max-height: none !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
           .print-only { display: block !important; }
-          table { page-break-inside: auto; border-collapse: collapse; width: 100%; }
+          table { page-break-inside: auto; border-collapse: collapse !important; width: 100% !important; font-size: 11px !important; }
           thead { display: table-header-group; }
           tr { page-break-inside: avoid; }
-          td, th { border: 1px solid #e5e7eb !important; }
+          td, th { border: 1px solid #e5e7eb !important; padding: 6px 8px !important; }
+          .overflow-x-auto { overflow: visible !important; }
+          .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
         }
         .print-only { display: none; }
       `}</style>

@@ -233,22 +233,10 @@ export async function deleteProject(projectId: string) {
   await service.from('activity_log').delete().eq('project_id', projectId)
   await service.from('payments').delete().eq('project_id', projectId)
   await service.from('installations').delete().eq('project_id', projectId)
+  await service.from('supply_orders').delete().eq('project_id', projectId)
   await service.from('materials').delete().eq('project_id', projectId)
-
-  const docsResult = (await service
-    .from('documents')
-    .select('url')
-    .eq('project_id', projectId)) as unknown as { data: { url: string }[] | null }
-
-  if (docsResult.data?.length) {
-    const paths = docsResult.data.map(d => {
-      try { return new URL(d.url).pathname.split('/documents/')[1] } catch { return null }
-    }).filter(Boolean) as string[]
-    if (paths.length) await service.storage.from('documents').remove(paths)
-  }
-
   await service.from('documents').delete().eq('project_id', projectId)
-  await service.from('projects').delete().eq('id', projectId)
+  await (service.from('projects').delete().eq('id', projectId) as unknown as Promise<unknown>)
 
   revalidatePath('/projects')
   revalidatePath('/dashboard')
