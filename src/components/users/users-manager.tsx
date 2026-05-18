@@ -120,10 +120,10 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
                     {user.id !== currentUserId && (
                       <button
                         onClick={() => setDeleteTarget(user)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                        title="حذف الحساب"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
+                        حذف
                       </button>
                     )}
                   </TableCell>
