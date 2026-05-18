@@ -27,8 +27,8 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 start-0 z-50 transition-transform duration-300 lg:static lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : 'translate-x-full rtl:translate-x-full lg:translate-x-0'
+          'fixed inset-y-0 start-0 z-50 transition-transform duration-300 lg:static lg:transform-none',
+          sidebarOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
         <Sidebar profile={profile} onClose={() => setSidebarOpen(false)} />
