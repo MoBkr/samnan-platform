@@ -41,8 +41,24 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
         </div>
       </div>
 
+      {/* Reports quick-access banner */}
+      <Link href="/reports">
+        <div className="flex items-center justify-between rounded-2xl bg-teal-600 px-6 py-4 shadow-sm hover:bg-teal-700 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+              <FileBarChart2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">التقارير والطباعة</p>
+              <p className="text-xs text-teal-200">تصدير تقارير المشاريع والمدفوعات بصيغة PDF</p>
+            </div>
+          </div>
+          <ArrowLeft className="h-5 w-5 text-teal-200" />
+        </div>
+      </Link>
+
       {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <KpiCard
           href="/projects"
           icon={<FolderKanban className="h-6 w-6" />}
@@ -67,16 +83,6 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           value={users.length}
           label="المستخدمون"
         />
-        <Link href="/reports" className="col-span-2 lg:col-span-1">
-          <div className="h-full rounded-2xl border-2 border-teal-200 bg-teal-600 p-5 shadow-sm transition-all hover:shadow-md hover:bg-teal-700 hover:-translate-y-0.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 mb-3">
-              <FileBarChart2 className="h-6 w-6 text-white" />
-            </div>
-            <p className="text-3xl font-bold text-white">PDF</p>
-            <p className="text-sm text-teal-100 mt-0.5">التقارير</p>
-            <p className="text-xs text-teal-200 mt-1">طباعة وتصدير</p>
-          </div>
-        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
