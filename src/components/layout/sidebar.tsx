@@ -50,6 +50,9 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Hammer className="h-5 w-5" />,
     roles: ['installation', 'coordinator', 'admin'],
   },
+]
+
+const ADMIN_ITEMS: NavItem[] = [
   {
     label: 'إدارة المستخدمين',
     href: '/users',
@@ -83,6 +86,7 @@ interface SidebarProps {
 export function Sidebar({ profile, onClose }: SidebarProps) {
   const pathname = usePathname()
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(profile.role))
+  const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(profile.role))
 
   return (
     <div className="flex h-full w-64 flex-col bg-sidebar">
@@ -130,35 +134,84 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
-        <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-600">القائمة</p>
-        <ul className="space-y-0.5">
-          {visibleItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={onClose}
-                  className={cn(
-                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
-                    isActive
-                      ? 'bg-brand-600 text-white shadow-sm shadow-brand-900/30'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                  )}
-                >
-                  <span className={cn('transition-transform', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')}>
-                    {item.icon}
-                  </span>
-                  {item.label}
-                  {isActive && (
-                    <span className="ms-auto h-1.5 w-1.5 rounded-full bg-blue-300" />
-                  )}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
+        {/* Main items */}
+        <div>
+          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-600">القائمة</p>
+          <ul className="space-y-0.5">
+            {visibleItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                      isActive
+                        ? 'bg-brand-600 text-white shadow-sm shadow-brand-900/30'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    )}
+                  >
+                    <span className={cn('transition-transform', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')}>
+                      {item.icon}
+                    </span>
+                    {item.label}
+                    {isActive && (
+                      <span className="ms-auto h-1.5 w-1.5 rounded-full bg-blue-300" />
+                    )}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+
+        {/* Admin section */}
+        {visibleAdminItems.length > 0 && (
+          <div>
+            <div className="mb-2 px-2 flex items-center gap-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">الإدارة</p>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+            <ul className="space-y-0.5">
+              {visibleAdminItems.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                const isReports = item.href === '/reports'
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                        isActive
+                          ? isReports
+                            ? 'bg-teal-600 text-white shadow-sm'
+                            : 'bg-brand-600 text-white shadow-sm shadow-brand-900/30'
+                          : isReports
+                            ? 'text-teal-400 hover:bg-teal-500/10 hover:text-teal-300'
+                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      )}
+                    >
+                      <span className={cn(
+                        'transition-transform',
+                        isActive ? 'text-white' : isReports ? 'text-teal-400 group-hover:text-teal-300' : 'text-slate-500 group-hover:text-white'
+                      )}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                      {isActive && (
+                        <span className={cn('ms-auto h-1.5 w-1.5 rounded-full', isReports ? 'bg-teal-300' : 'bg-blue-300')} />
+                      )}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* Sign out */}

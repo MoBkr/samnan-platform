@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, Bell, LogOut, ChevronDown, Home, FileBarChart2 } from 'lucide-react'
+import { Menu, Bell, LogOut, ChevronDown, Home } from 'lucide-react'
 import { ROLE_LABELS } from '@/lib/constants'
 import { signOut } from '@/lib/actions/auth'
 import type { Profile } from '@/types/database'
@@ -91,16 +91,6 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
           <span className="hidden sm:inline">الرئيسية</span>
         </Link>
 
-        {/* Reports — admin only */}
-        {profile?.role === 'admin' && (
-          <Link
-            href="/reports"
-            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 transition-colors shadow-sm"
-          >
-            <FileBarChart2 className="h-4 w-4" />
-            <span>التقارير</span>
-          </Link>
-        )}
       </div>
 
       {/* Left side — bell + user */}

@@ -48,70 +48,7 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
   })
 
   return (
-    <div id="reports-root">
-      <style>{`
-        @media print {
-          @page { size: A4 portrait; margin: 10mm 8mm; }
-
-          /* Hide nav/header/sidebar */
-          aside, header, nav, .no-print { display: none !important; }
-
-          /* Reset html + body */
-          html, body {
-            overflow: visible !important;
-            height: auto !important;
-            min-height: auto !important;
-            max-height: none !important;
-            width: 100% !important;
-            background: white !important;
-            font-size: 11px !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
-          /* Reset Next.js App Router wrapper divs (DashboardShell outer + inner) */
-          body > div,
-          body > div > div,
-          body > div > div > div {
-            display: block !important;
-            height: auto !important;
-            min-height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-            width: 100% !important;
-            flex: none !important;
-          }
-
-          /* Reset main content area */
-          main, [role="main"] {
-            display: block !important;
-            height: auto !important;
-            overflow: visible !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          /* Allow color printing */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          .print-only { display: block !important; }
-
-          table {
-            page-break-inside: auto !important;
-            border-collapse: collapse !important;
-            width: 100% !important;
-            font-size: 10px !important;
-          }
-          thead { display: table-header-group !important; }
-          tr { page-break-inside: avoid !important; }
-          td, th { border: 1px solid #d1d5db !important; padding: 5px 7px !important; }
-        }
-        .print-only { display: none; }
-      `}</style>
-
+    <div>
       {/* ─── Screen header ─── */}
       <div className="no-print mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
