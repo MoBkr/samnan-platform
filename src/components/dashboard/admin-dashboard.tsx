@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FolderKanban, AlertTriangle, Users, ArrowLeft } from 'lucide-react'
+import { FolderKanban, AlertTriangle, Users, ArrowLeft, FileBarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
@@ -40,6 +40,22 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           </p>
         </div>
       </div>
+
+      {/* Reports quick access */}
+      <Link href="/reports">
+        <div className="flex items-center justify-between rounded-2xl border border-brand-100 bg-brand-50 px-5 py-4 shadow-sm hover:bg-brand-100 transition-colors cursor-pointer">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white shrink-0">
+              <FileBarChart2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-brand-900">التقارير</p>
+              <p className="text-xs text-brand-600 mt-0.5">تصدير بيانات المشاريع، الدفعات، الفريق، وسجل النشاطات</p>
+            </div>
+          </div>
+          <ArrowLeft className="h-4 w-4 text-brand-500 shrink-0" />
+        </div>
+      </Link>
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
