@@ -16,6 +16,7 @@ export const STATUS_LABELS: Record<ProjectStatus, string> = {
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   upfront: 'دفعة أولى',
+  materials: 'دفعة المواد',
   installation: 'دفعة تركيب',
   final: 'دفعة نهائية',
   custom: 'دفعة مخصصة',

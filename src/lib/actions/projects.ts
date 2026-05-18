@@ -170,6 +170,25 @@ export async function updateProjectTeam(
   return { success: true }
 }
 
+export async function updateProjectAmount(projectId: string, totalAmount: number) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('projects')
+    .update({ total_amount: totalAmount } as never)
+    .eq('id', projectId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل تحديث قيمة المشروع' }
+
+  await logActivity(service, projectId, user.id, 'تعديل قيمة المشروع', { total_amount: totalAmount })
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
 export async function uploadContractUrl(projectId: string, url: string) {
   const service = createServiceClient()
   const { error } = (await service

@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import {
   FolderKanban, AlertTriangle, Hammer,
-  Plus, TrendingUp, CheckCircle2, ArrowLeft, Eye,
+  Plus, CheckCircle2, ArrowLeft, Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
+import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
 import type { Profile, Project, Payment, Installation } from '@/types/database'
@@ -36,14 +37,12 @@ export function CoordinatorDashboard({
 
   const myActiveProjects = myProjects.filter(p => p.status === 'active')
   const myCompletedCount = myProjects.filter(p => p.status === 'completed').length
-  const myTotalRevenue = myActiveProjects.reduce((s, p) => s + (p.total_amount ?? 0), 0)
-
   const myOverduePayments = overduePayments.filter(op =>
     myProjects.some(p => p.id === op.project.id)
   )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-brand-700 to-brand-800 p-6 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10">
@@ -104,13 +103,11 @@ export function CoordinatorDashboard({
             label="تركيب اليوم"
             sub={`${upcomingInstallations.length} قادم`}
           />
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100">
-              <TrendingUp className="h-6 w-6 text-purple-700" />
-            </div>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{formatCurrency(myTotalRevenue)}</p>
-            <p className="text-sm font-medium text-gray-600 mt-1">إجمالي قيمة مشاريعي</p>
-          </div>
+          <RevenueBreakdownCard
+            projects={myProjects}
+            label="إجمالي قيمة مشاريعي"
+            iconBg="bg-purple-100 text-purple-700"
+          />
         </div>
 
         {/* My overdue + my active lists */}

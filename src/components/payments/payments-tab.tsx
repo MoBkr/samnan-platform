@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon } from 'lucide-react'
+import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,32 +10,43 @@ import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { PaymentStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
-import { createPayment, recordPayment } from '@/lib/actions/payments'
+import { createPayment, recordPayment, deletePayment, editPayment } from '@/lib/actions/payments'
 import { uploadFile } from '@/lib/actions/upload'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
 import type { Payment, Profile } from '@/types/database'
 
+const PAYMENT_TYPES = ['upfront', 'materials', 'installation', 'final', 'custom'] as const
+
 interface PaymentsTabProps {
   payments: Payment[]
   projectId: string
-  currentProfile: Profile
+  canManage: boolean
+  currentProfile?: Profile
 }
 
-export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTabProps) {
+export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [recordPaymentId, setRecordPaymentId] = useState<string | null>(null)
+  const [editPaymentId, setEditPaymentId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const canAddPayment = ['coordinator', 'admin'].includes(currentProfile.role)
-  const canRecordPayment = ['coordinator', 'admin'].includes(currentProfile.role)
   const selectedPayment = payments.find((p) => p.id === recordPaymentId)
+  const editingPayment = payments.find((p) => p.id === editPaymentId)
+
+  // Types with a fully-paid payment — blocked for adding another
+  const paidTypes = new Set(payments.filter(p => p.status === 'paid').map(p => p.type))
 
   function handleAddPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+    const type = formData.get('type') as string
+    if (paidTypes.has(type as never)) {
+      toast.error('يوجد دفعة مؤكدة من هذا النوع. احذف الدفعة القديمة أولاً')
+      return
+    }
     formData.set('project_id', projectId)
     startTransition(async () => {
       const result = await createPayment(formData)
@@ -50,16 +61,12 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
     startTransition(async () => {
       let receiptUrl = (form.elements.namedItem('receipt_url') as HTMLInputElement)?.value || ''
 
-      // Upload file if provided
       if (receiptFile) {
         const uploadFormData = new FormData()
         uploadFormData.set('file', receiptFile)
         uploadFormData.set('folder', 'receipts')
         const uploadResult = await uploadFile(uploadFormData)
-        if ('error' in uploadResult) {
-          toast.error(uploadResult.error)
-          return
-        }
+        if ('error' in uploadResult) { toast.error(uploadResult.error); return }
         receiptUrl = uploadResult.url
       }
 
@@ -78,7 +85,31 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
     })
   }
 
-  function handleDialogClose() {
+  function handleEditPayment(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    formData.set('payment_id', editPaymentId!)
+    formData.set('project_id', projectId)
+    startTransition(async () => {
+      const result = await editPayment(formData)
+      if (result?.error) toast.error(result.error)
+      else { toast.success('تم تعديل الدفعة'); setEditPaymentId(null) }
+    })
+  }
+
+  function handleDeletePayment(payment: Payment) {
+    const warningText = payment.status === 'paid'
+      ? `تحذير: هذه الدفعة مؤكدة ومدفوعة بالكامل. هل أنت متأكد من حذف دفعة "${PAYMENT_TYPE_LABELS[payment.type]}"؟`
+      : `هل تريد حذف دفعة "${PAYMENT_TYPE_LABELS[payment.type]}"؟`
+    if (!confirm(warningText)) return
+    startTransition(async () => {
+      const result = await deletePayment(payment.id, projectId)
+      if (result?.error) toast.error(result.error)
+      else toast.success('تم حذف الدفعة')
+    })
+  }
+
+  function handleRecordClose() {
     setRecordPaymentId(null)
     setReceiptFile(null)
   }
@@ -101,7 +132,7 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
             </span>
           )}
         </div>
-        {canAddPayment && (
+        {canManage && (
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4" />
             إضافة دفعة
@@ -140,6 +171,8 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
             const overdue = isOverdue(payment.due_date, payment.status)
             const displayStatus = overdue && payment.status === 'pending' ? 'overdue' : payment.status
             const paidPct = payment.amount > 0 ? Math.min(100, Math.round((payment.paid_amount / payment.amount) * 100)) : 0
+            const canEdit = canManage && payment.status !== 'paid' && payment.status !== 'cancelled'
+            const canDelete = canManage && payment.status !== 'cancelled'
 
             return (
               <div
@@ -149,6 +182,8 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
                     ? 'border-red-200 bg-red-50/20'
                     : payment.status === 'paid'
                     ? 'border-green-200 bg-green-50/10'
+                    : payment.status === 'cancelled'
+                    ? 'border-gray-200 bg-gray-50/50 opacity-60'
                     : 'border-gray-100 bg-white'
                 }`}
               >
@@ -163,7 +198,28 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
                         {formatCurrency(payment.amount)}
                       </p>
                     </div>
-                    <PaymentStatusBadge status={displayStatus} />
+                    <div className="flex items-center gap-1.5">
+                      <PaymentStatusBadge status={displayStatus} />
+                      {canEdit && (
+                        <button
+                          onClick={() => setEditPaymentId(payment.id)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                          title="تعديل"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDeletePayment(payment)}
+                          disabled={isPending}
+                          className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {payment.due_date && (
@@ -174,7 +230,6 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
                     </p>
                   )}
 
-                  {/* Partial payment progress */}
                   {payment.paid_amount > 0 && payment.status !== 'paid' && payment.status !== 'cancelled' && (
                     <div className="mb-3">
                       <div className="flex justify-between text-xs text-gray-500 mb-1.5">
@@ -220,7 +275,7 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
                   ) : (
                     <span />
                   )}
-                  {canRecordPayment && payment.status !== 'paid' && payment.status !== 'cancelled' && (
+                  {canManage && payment.status !== 'paid' && payment.status !== 'cancelled' && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -236,7 +291,7 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
         </div>
       )}
 
-      {/* Add payment dialog */}
+      {/* ── Add payment dialog ── */}
       <Dialog open={showAddDialog} onClose={() => setShowAddDialog(false)}>
         <DialogHeader>
           <DialogTitle>إضافة دفعة جديدة</DialogTitle>
@@ -247,11 +302,18 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
             <div className="space-y-1.5">
               <Label>نوع الدفعة</Label>
               <Select name="type" required placeholder="اختر النوع">
-                <option value="upfront">دفعة أولى</option>
-                <option value="installation">دفعة تركيب</option>
-                <option value="final">دفعة نهائية</option>
-                <option value="custom">مخصصة</option>
+                {PAYMENT_TYPES.map((type) => {
+                  const isBlocked = paidTypes.has(type)
+                  return (
+                    <option key={type} value={type} disabled={isBlocked}>
+                      {PAYMENT_TYPE_LABELS[type]}{isBlocked ? ' — مؤكدة الدفع' : ''}
+                    </option>
+                  )
+                })}
               </Select>
+              {paidTypes.size > 0 && (
+                <p className="text-xs text-amber-600">أنواع الدفعات المؤكدة لا يمكن إضافتها مرة أخرى</p>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -279,11 +341,69 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
         </DialogFooter>
       </Dialog>
 
-      {/* Record payment dialog */}
-      <Dialog open={!!recordPaymentId} onClose={handleDialogClose}>
+      {/* ── Edit payment dialog ── */}
+      <Dialog open={!!editPaymentId} onClose={() => setEditPaymentId(null)}>
+        <DialogHeader>
+          <DialogTitle>تعديل الدفعة — {editingPayment && PAYMENT_TYPE_LABELS[editingPayment.type]}</DialogTitle>
+          <DialogClose onClose={() => setEditPaymentId(null)} />
+        </DialogHeader>
+        <DialogContent>
+          {editingPayment && (
+            <form id="edit-payment-form" onSubmit={handleEditPayment} className="space-y-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600">
+                المبلغ الحالي: <strong className="text-gray-900">{formatCurrency(editingPayment.amount)}</strong>
+                {editingPayment.paid_amount > 0 && (
+                  <span className="ms-2 text-xs text-amber-600">
+                    (محصّل: {formatCurrency(editingPayment.paid_amount)})
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>المبلغ الجديد (ريال)</Label>
+                <Input
+                  name="amount"
+                  type="number"
+                  min={editingPayment.paid_amount || 0.01}
+                  step="0.01"
+                  required
+                  defaultValue={editingPayment.amount}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>تاريخ الاستحقاق</Label>
+                <Input
+                  name="due_date"
+                  type="date"
+                  dir="ltr"
+                  defaultValue={editingPayment.due_date ?? ''}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>ملاحظات</Label>
+                <Input
+                  name="notes"
+                  defaultValue={editingPayment.notes ?? ''}
+                  placeholder="اختياري"
+                />
+              </div>
+            </form>
+          )}
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditPaymentId(null)}>إلغاء</Button>
+          <Button type="submit" form="edit-payment-form" loading={isPending}>
+            <Edit2 className="h-4 w-4" />
+            حفظ التعديلات
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Record payment dialog ── */}
+      <Dialog open={!!recordPaymentId} onClose={handleRecordClose}>
         <DialogHeader>
           <DialogTitle>تسجيل دفعة — {selectedPayment && PAYMENT_TYPE_LABELS[selectedPayment.type]}</DialogTitle>
-          <DialogClose onClose={handleDialogClose} />
+          <DialogClose onClose={handleRecordClose} />
         </DialogHeader>
         <DialogContent>
           {selectedPayment && (
@@ -307,7 +427,6 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
                 />
               </div>
 
-              {/* File upload for receipt */}
               <div className="space-y-1.5">
                 <Label>إيصال الدفع (صورة أو PDF)</Label>
                 <input type="hidden" name="receipt_url" />
@@ -354,13 +473,8 @@ export function PaymentsTab({ payments, projectId, currentProfile }: PaymentsTab
           )}
         </DialogContent>
         <DialogFooter>
-          <Button variant="outline" onClick={handleDialogClose}>إلغاء</Button>
-          <Button
-            type="submit"
-            form="record-payment-form"
-            loading={isPending}
-            variant="success"
-          >
+          <Button variant="outline" onClick={handleRecordClose}>إلغاء</Button>
+          <Button type="submit" form="record-payment-form" loading={isPending} variant="success">
             {isPending ? 'جاري الرفع...' : 'تأكيد الاستلام'}
           </Button>
         </DialogFooter>

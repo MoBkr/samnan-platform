@@ -125,6 +125,87 @@ export async function recordPayment(formData: FormData) {
   return { success: true }
 }
 
+export async function deletePayment(paymentId: string, projectId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const service = createServiceClient()
+
+  // Only allow deletion if payment is not fully paid
+  const { data: payment } = (await service
+    .from('payments')
+    .select('status')
+    .eq('id', paymentId)
+    .single()) as unknown as { data: { status: string } | null }
+
+  if (!payment) return { error: 'الدفعة غير موجودة' }
+
+  const { error } = (await service
+    .from('payments')
+    .delete()
+    .eq('id', paymentId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل حذف الدفعة' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId,
+    user_id: user.id,
+    action: 'حذف دفعة',
+    details: { payment_id: paymentId },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
+export async function editPayment(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const paymentId = formData.get('payment_id') as string
+  const projectId = formData.get('project_id') as string
+  const amount = parseFloat(formData.get('amount') as string)
+  const dueDate = formData.get('due_date') as string
+  const notes = formData.get('notes') as string
+
+  if (!paymentId || isNaN(amount) || amount <= 0) return { error: 'يرجى إدخال مبلغ صحيح' }
+
+  const service = createServiceClient()
+
+  const { data: payment } = (await service
+    .from('payments')
+    .select('status, paid_amount')
+    .eq('id', paymentId)
+    .single()) as unknown as { data: { status: string; paid_amount: number } | null }
+
+  if (!payment) return { error: 'الدفعة غير موجودة' }
+  if (payment.status === 'paid') return { error: 'لا يمكن تعديل دفعة مؤكدة الدفع' }
+  if (amount < payment.paid_amount) return { error: 'المبلغ الجديد لا يمكن أن يكون أقل من المبلغ المحصّل' }
+
+  const { error } = (await service
+    .from('payments')
+    .update({
+      amount,
+      due_date: dueDate || null,
+      notes: notes || null,
+    } as never)
+    .eq('id', paymentId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل تعديل الدفعة' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId,
+    user_id: user.id,
+    action: 'تعديل دفعة',
+    details: { payment_id: paymentId, amount },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
 export async function cancelPayment(paymentId: string, projectId: string) {
   const service = createServiceClient()
   const supabase = await createClient()

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { InstallationStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
-import { scheduleInstallation, updateInstallationStatus } from '@/lib/actions/installation'
+import { scheduleInstallation, updateInstallationStatus, markClientNotified } from '@/lib/actions/installation'
 import { formatDateShort } from '@/lib/utils'
 import type { Installation, Profile } from '@/types/database'
 
@@ -27,15 +27,16 @@ const STEPS = ['مجدول', 'مؤكد', 'قيد التنفيذ', 'مكتمل']
 interface InstallationTabProps {
   installations: Installation[]
   projectId: string
+  canManage: boolean
   currentProfile: Profile
 }
 
-export function InstallationTab({ installations, projectId, currentProfile }: InstallationTabProps) {
+export function InstallationTab({ installations, projectId, canManage, currentProfile }: InstallationTabProps) {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const canSchedule = ['coordinator', 'admin'].includes(currentProfile.role)
-  const canUpdate = ['installation', 'coordinator', 'admin'].includes(currentProfile.role)
+  const canSchedule = canManage
+  const canUpdate = canManage || currentProfile.role === 'installation'
 
   function handleSchedule(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -54,6 +55,14 @@ export function InstallationTab({ installations, projectId, currentProfile }: In
       const result = await updateInstallationStatus(installationId, projectId, status)
       if (result?.error) toast.error(result.error)
       else toast.success('تم تحديث الحالة')
+    })
+  }
+
+  function handleNotifyClient(installationId: string) {
+    startTransition(async () => {
+      const result = await markClientNotified(installationId, projectId)
+      if (result?.error) toast.error(result.error)
+      else toast.success('تم تسجيل إبلاغ العميل')
     })
   }
 
@@ -96,6 +105,7 @@ export function InstallationTab({ installations, projectId, currentProfile }: In
               canUpdate={canUpdate}
               isPending={isPending}
               onStatusUpdate={handleStatusUpdate}
+              onNotifyClient={handleNotifyClient}
             />
           ))}
         </div>
@@ -132,11 +142,13 @@ function InstallationCard({
   canUpdate,
   isPending,
   onStatusUpdate,
+  onNotifyClient,
 }: {
   installation: Installation
   canUpdate: boolean
   isPending: boolean
   onStatusUpdate: (id: string, status: Installation['status']) => void
+  onNotifyClient: (id: string) => void
 }) {
   const currentStep = INSTALLATION_STATUS_STEPS[installation.status] ?? 0
   const isDelayed = installation.status === 'delayed' || installation.status === 'rescheduled'
@@ -179,14 +191,26 @@ function InstallationCard({
           <CheckCircle2 className="h-3 w-3" />
           {installation.installation_team_confirmed ? 'الفريق مؤكد' : 'في انتظار تأكيد الفريق'}
         </span>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border ${
-          installation.client_notified
-            ? 'bg-blue-50 text-blue-700 border-blue-200'
-            : 'bg-gray-50 text-gray-500 border-gray-200'
-        }`}>
-          <CheckCircle2 className="h-3 w-3" />
-          {installation.client_notified ? 'العميل مُبلَّغ' : 'لم يُبلَّغ العميل'}
-        </span>
+        {installation.client_notified ? (
+          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
+            <CheckCircle2 className="h-3 w-3" />
+            تم إبلاغ العميل
+          </span>
+        ) : canUpdate ? (
+          <button
+            onClick={() => onNotifyClient(installation.id)}
+            disabled={isPending}
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border bg-gray-50 text-gray-500 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-3 w-3" />
+            إبلاغ العميل
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border bg-gray-50 text-gray-500 border-gray-200">
+            <CheckCircle2 className="h-3 w-3" />
+            لم يُبلَّغ العميل
+          </span>
+        )}
       </div>
 
       {/* Progress steps */}

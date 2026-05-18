@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
-  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase,
+  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -15,15 +15,16 @@ import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFo
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { PaymentsTab } from '@/components/payments/payments-tab'
 import { InstallationTab } from '@/components/installation/installation-tab'
+import { MaterialsTab } from '@/components/projects/materials-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
-import { updateProjectStatus, updateProjectTeam } from '@/lib/actions/projects'
+import { updateProjectStatus, updateProjectTeam, updateProjectAmount } from '@/lib/actions/projects'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { Project, Payment, Installation, ActivityLog, Profile, Document } from '@/types/database'
+import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material } from '@/types/database'
 
-type Tab = 'payments' | 'installation' | 'attachments' | 'activity'
-type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | null
+type Tab = 'payments' | 'installation' | 'materials' | 'attachments' | 'activity'
+type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | null
 
 function workloadLabel(count: number) {
   if (count === 0) return 'لا مشاريع نشطة'
@@ -50,6 +51,7 @@ interface ProjectDetailProps {
   payments: Payment[]
   installations: Installation[]
   attachments: Document[]
+  material: Material | null
   activityLog: ActivityLog[]
   currentProfile: Profile
   coordinators: Pick<Profile, 'id' | 'full_name' | 'role'>[]
@@ -63,31 +65,44 @@ interface ProjectDetailProps {
 const TABS: { id: Tab; label: string }[] = [
   { id: 'payments', label: 'الدفعات' },
   { id: 'installation', label: 'التركيب' },
+  { id: 'materials', label: 'المواد' },
   { id: 'attachments', label: 'المرفقات' },
   { id: 'activity', label: 'سجل النشاط' },
 ]
 
-function getLifecycleStage(payments: Payment[], installations: Installation[]): { stage: number; label: string } {
+function getLifecycleStage(
+  payments: Payment[],
+  installations: Installation[],
+  material: Material | null,
+  attachments: Document[]
+): { stage: number; label: string } {
   const hasUpfrontPaid = payments.some(p => p.type === 'upfront' && p.status === 'paid')
   const hasInstallationPaid = payments.some(p => p.type === 'installation' && p.status === 'paid')
   const hasFinalPaid = payments.some(p => p.type === 'final' && p.status === 'paid')
   const hasScheduledInstall = installations.length > 0
   const installDone = installations.some(i => i.status === 'completed')
 
-  if (installDone && (hasFinalPaid || hasInstallationPaid)) return { stage: 5, label: 'مكتمل' }
-  if (installDone) return { stage: 4, label: 'التركيب منجز' }
-  if (hasScheduledInstall) return { stage: 3, label: 'التركيب مجدول' }
+  const hasMaterialsRequest = attachments.some(a => a.type === 'materials_request')
+    || (material?.items && material.items.length > 0)
+  const hasDeliveryNote = attachments.some(a => a.type === 'delivery_note')
+
+  if (installDone && (hasFinalPaid || hasInstallationPaid)) return { stage: 7, label: 'مكتمل' }
+  if (installDone) return { stage: 6, label: 'التركيب منجز' }
+  if (hasScheduledInstall) return { stage: 5, label: 'التركيب مجدول' }
+  if (hasDeliveryNote) return { stage: 4, label: 'المواد موردة' }
+  if (hasMaterialsRequest) return { stage: 3, label: 'المواد مطلوبة' }
   if (hasUpfrontPaid || hasFinalPaid) return { stage: 2, label: 'الدفعة الأولى محصّلة' }
   return { stage: 1, label: 'تم التعاقد' }
 }
 
-const LIFECYCLE_STEPS = ['التعاقد', 'الدفعات', 'التركيب مجدول', 'التركيب منجز', 'الإغلاق']
+const LIFECYCLE_STEPS = ['التعاقد', 'الدفعات', 'طلب المواد', 'توريد المواد', 'التركيب مجدول', 'التركيب منجز', 'الإغلاق']
 
 export function ProjectDetail({
   project,
   payments,
   installations,
   attachments,
+  material,
   activityLog,
   currentProfile,
   coordinators,
@@ -100,6 +115,7 @@ export function ProjectDetail({
   const [activeTab, setActiveTab] = useState<Tab>('payments')
   const [dialog, setDialog] = useState<ActionDialog>(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [newAmount, setNewAmount] = useState(project.total_amount?.toString() ?? '')
   const [teamCoordinatorId, setTeamCoordinatorId] = useState(project.coordinator_id ?? '')
   const [teamSalesId, setTeamSalesId] = useState(project.sales_engineer_id ?? '')
   const [teamInstallationId, setTeamInstallationId] = useState(project.installation_id ?? '')
@@ -110,9 +126,12 @@ export function ProjectDetail({
   const totalDue = activePayments.reduce((sum, p) => sum + (p.amount ?? 0), 0)
   const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
 
-  const { stage, label: stageLabel } = getLifecycleStage(payments, installations)
+  const isFullyPaid = project.total_amount != null && project.total_amount > 0 && totalPaid >= project.total_amount
 
-  const canManage = currentProfile.role === 'coordinator' || currentProfile.role === 'admin'
+  const { stage, label: stageLabel } = getLifecycleStage(payments, installations, material, attachments)
+
+  const canManage = currentProfile.role === 'admin'
+    || (currentProfile.role === 'coordinator' && project.coordinator_id === currentProfile.id)
   const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'
@@ -121,6 +140,7 @@ export function ProjectDetail({
 
   function handleAction(action: ActionDialog) {
     if (action === 'cancel') setCancelReason('')
+    if (action === 'editAmount') setNewAmount(project.total_amount?.toString() ?? '')
     setDialog(action)
   }
 
@@ -144,6 +164,10 @@ export function ProjectDetail({
           teamSalesId || null,
           teamInstallationId || null
         )
+      } else if (dialog === 'editAmount') {
+        const parsed = parseFloat(newAmount)
+        if (isNaN(parsed) || parsed <= 0) { toast.error('يرجى إدخال قيمة صحيحة'); return }
+        result = await updateProjectAmount(project.id, parsed)
       }
 
       if (result?.error) {
@@ -155,6 +179,7 @@ export function ProjectDetail({
           reactivate: 'تم إعادة تفعيل المشروع',
           cancel: 'تم إلغاء المشروع',
           team: 'تم تحديث الفريق',
+          editAmount: 'تم تحديث قيمة المشروع',
         }
         toast.success(labels[dialog!] ?? 'تم التحديث')
         setDialog(null)
@@ -163,7 +188,7 @@ export function ProjectDetail({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Back */}
       <div className="flex items-center gap-2">
         <Link href="/projects">
@@ -183,6 +208,12 @@ export function ProjectDetail({
             <div className="flex flex-wrap items-center gap-3 mb-3">
               <h1 className="text-2xl font-bold text-gray-900">{project.project_name}</h1>
               <ProjectStatusBadge status={project.status} />
+              {isFullyPaid && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  مدفوع بالكامل
+                </span>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-gray-500 mt-1">
@@ -197,12 +228,19 @@ export function ProjectDetail({
                   {project.expected_end_date && ` — ${formatDateShort(project.expected_end_date)}`}
                 </span>
               )}
-              {project.total_amount && (
-                <span className="flex items-center gap-1.5 font-semibold text-gray-700">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
-                  {formatCurrency(project.total_amount)}
-                </span>
-              )}
+              <span className="flex items-center gap-1.5 font-semibold text-gray-700">
+                <DollarSign className="h-4 w-4 text-gray-400" />
+                {project.total_amount ? formatCurrency(project.total_amount) : <span className="text-gray-400 font-normal italic text-xs">القيمة غير محددة</span>}
+                {canManage && (
+                  <button
+                    onClick={() => handleAction('editAmount')}
+                    className="ms-1 text-gray-400 hover:text-brand-600 transition-colors"
+                    title="تعديل القيمة"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </span>
               {project.contract_url && (
                 <a href={project.contract_url} target="_blank" rel="noreferrer"
                   className="flex items-center gap-1.5 text-brand-600 hover:text-brand-700 hover:underline font-medium">
@@ -250,14 +288,14 @@ export function ProjectDetail({
 
           {/* Financial summary */}
           <div className="flex gap-3 shrink-0">
-            <div className="rounded-xl bg-blue-50 px-4 py-3 text-center min-w-[100px]">
-              <p className="text-xs text-blue-600 font-medium">المحصّل</p>
-              <p className="text-lg font-bold text-blue-700 mt-0.5">{formatCurrency(totalPaid)}</p>
-              <p className="text-xs text-blue-500 mt-0.5">{collectionPct}%</p>
+            <div className={`rounded-xl px-4 py-3 text-center min-w-[100px] ${isFullyPaid ? 'bg-emerald-50' : 'bg-blue-50'}`}>
+              <p className={`text-xs font-medium ${isFullyPaid ? 'text-emerald-600' : 'text-blue-600'}`}>المحصّل</p>
+              <p className={`text-lg font-bold mt-0.5 ${isFullyPaid ? 'text-emerald-700' : 'text-blue-700'}`}>{formatCurrency(totalPaid)}</p>
+              <p className={`text-xs mt-0.5 ${isFullyPaid ? 'text-emerald-500' : 'text-blue-500'}`}>{collectionPct}%</p>
             </div>
             <div className="rounded-xl bg-gray-50 px-4 py-3 text-center min-w-[100px]">
               <p className="text-xs text-gray-500 font-medium">الإجمالي</p>
-              <p className="text-lg font-bold text-gray-700 mt-0.5">{formatCurrency(totalDue)}</p>
+              <p className="text-lg font-bold text-gray-700 mt-0.5">{project.total_amount ? formatCurrency(project.total_amount) : formatCurrency(totalDue)}</p>
               <p className="text-xs text-gray-400 mt-0.5">المتفق عليه</p>
             </div>
           </div>
@@ -275,8 +313,8 @@ export function ProjectDetail({
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
               <div
-                className={`h-full rounded-full transition-all duration-500 ${collectionPct === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                style={{ width: `${collectionPct}%` }}
+                className={`h-full rounded-full transition-all duration-500 ${isFullyPaid ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                style={{ width: `${Math.min(collectionPct, 100)}%` }}
               />
             </div>
           </div>
@@ -328,7 +366,7 @@ export function ProjectDetail({
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-gray-700">مرحلة المشروع</h3>
-          <span className="text-xs font-semibold text-brand-600 bg-brand-50 rounded-full px-3 py-1">
+          <span className="text-xs font-semibold rounded-full px-3 py-1 text-brand-600 bg-brand-50">
             {stageLabel}
           </span>
         </div>
@@ -366,13 +404,13 @@ export function ProjectDetail({
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-0">
+        <nav className="flex gap-0 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'px-5 py-3 text-sm font-medium transition-all border-b-2',
+                'px-5 py-3 text-sm font-medium transition-all border-b-2 whitespace-nowrap',
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -392,16 +430,61 @@ export function ProjectDetail({
       {/* Tab content */}
       <div>
         {activeTab === 'payments' && (
-          <PaymentsTab payments={payments} projectId={project.id} currentProfile={currentProfile} />
+          <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} />
         )}
         {activeTab === 'installation' && (
-          <InstallationTab installations={installations} projectId={project.id} currentProfile={currentProfile} />
+          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} />
+        )}
+        {activeTab === 'materials' && (
+          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} />
         )}
         {activeTab === 'attachments' && (
-          <AttachmentsTab attachments={attachments} projectId={project.id} />
+          <AttachmentsTab
+            attachments={attachments}
+            projectId={project.id}
+            project={project}
+            payments={payments}
+            canManage={canManage}
+          />
         )}
         {activeTab === 'activity' && <ActivityTab activityLog={activityLog} />}
       </div>
+
+      {/* ── Edit Amount dialog ── */}
+      <Dialog open={dialog === 'editAmount'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>تعديل قيمة المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-4">
+            {project.total_amount && (
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600">
+                القيمة الحالية: <strong className="text-gray-900">{formatCurrency(project.total_amount)}</strong>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>القيمة الجديدة (ريال)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={newAmount}
+                onChange={(e) => setNewAmount(e.target.value)}
+                dir="ltr"
+              />
+            </div>
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleConfirm} disabled={!newAmount || parseFloat(newAmount) <= 0}>
+            <Edit2 className="h-4 w-4" />
+            حفظ القيمة
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* ── Close project dialog ── */}
       <Dialog open={dialog === 'complete'} onClose={() => setDialog(null)}>

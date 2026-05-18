@@ -11,6 +11,7 @@ import {
   LogOut,
   X,
   Wallet,
+  FileBarChart2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/actions/auth'
@@ -53,6 +54,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'إدارة المستخدمين',
     href: '/users',
     icon: <Users className="h-5 w-5" />,
+    roles: ['admin'],
+  },
+  {
+    label: 'التقارير',
+    href: '/reports',
+    icon: <FileBarChart2 className="h-5 w-5" />,
     roles: ['admin'],
   },
 ]

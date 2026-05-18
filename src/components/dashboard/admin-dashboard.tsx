@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { FolderKanban, AlertTriangle, Users, TrendingUp, ArrowLeft } from 'lucide-react'
+import { FolderKanban, AlertTriangle, Users, ArrowLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
+import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { formatCurrency } from '@/lib/utils'
 import { ROLE_LABELS } from '@/lib/constants'
 import type { Profile, Project, Payment } from '@/types/database'
@@ -16,8 +17,7 @@ interface AdminDashboardProps {
 export function AdminDashboard({ profile, projects, overduePayments, users }: AdminDashboardProps) {
   const activeProjects = projects.filter((p) => p.status === 'active')
   const completedProjects = projects.filter((p) => p.status === 'completed')
-  const totalRevenue = projects.reduce((sum, p) => sum + (p.total_amount ?? 0), 0)
-  const activeRevenue = activeProjects.reduce((sum, p) => sum + (p.total_amount ?? 0), 0)
+  const overdueValue = overduePayments.reduce((s, p) => s + (p.amount - p.paid_amount), 0)
 
   const roleCount = users.reduce<Record<string, number>>((acc, u) => {
     acc[u.role] = (acc[u.role] ?? 0) + 1
@@ -50,20 +50,14 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           value={activeProjects.length}
           label="مشاريع نشطة"
         />
-        <KpiCard
-          href="#"
-          icon={<TrendingUp className="h-6 w-6" />}
-          bg="bg-emerald-50 text-emerald-700"
-          value={formatCurrency(totalRevenue)}
-          label="إجمالي القيمة"
-          isText
-        />
+        <RevenueBreakdownCard projects={projects} label="إجمالي القيمة" />
         <KpiCard
           href="/payments"
           icon={<AlertTriangle className="h-6 w-6" />}
           bg="bg-red-50 text-red-700"
           value={overduePayments.length}
           label="مدفوعات متأخرة"
+          sub={overduePayments.length > 0 ? `متأخر: ${overdueValue.toLocaleString('en')} ريال` : undefined}
           urgent={overduePayments.length > 0}
         />
         <KpiCard
@@ -73,27 +67,6 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           value={users.length}
           label="المستخدمون"
         />
-      </div>
-
-      {/* Revenue breakdown */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">قيمة المشاريع النشطة</p>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(activeRevenue)}</p>
-          <p className="text-xs text-gray-400 mt-1">{activeProjects.length} مشروع</p>
-        </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">مشاريع مكتملة</p>
-          <p className="text-2xl font-bold text-emerald-700">{completedProjects.length}</p>
-          <p className="text-xs text-gray-400 mt-1">{formatCurrency(completedProjects.reduce((s,p) => s + (p.total_amount ?? 0), 0))}</p>
-        </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">المتأخرات</p>
-          <p className="text-2xl font-bold text-red-600">
-            {formatCurrency(overduePayments.reduce((s,p) => s + (p.amount - p.paid_amount), 0))}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">{overduePayments.length} دفعة متأخرة</p>
-        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -185,17 +158,19 @@ interface KpiCardProps {
   bg: string
   value: number | string
   label: string
+  sub?: string
   isText?: boolean
   urgent?: boolean
 }
 
-function KpiCard({ href, icon, bg, value, label, isText, urgent }: KpiCardProps) {
+function KpiCard({ href, icon, bg, value, label, sub, isText, urgent }: KpiCardProps) {
   return (
     <Link href={href}>
       <div className={`rounded-2xl border bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${urgent ? 'border-red-200' : 'border-gray-100'}`}>
         <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${bg}`}>{icon}</div>
         <p className={`font-bold text-gray-900 ${isText ? 'text-xl' : 'text-3xl'}`}>{value}</p>
         <p className="text-sm text-gray-500 mt-0.5">{label}</p>
+        {sub && <p className={`text-xs mt-1 font-medium ${urgent ? 'text-red-500' : 'text-gray-400'}`}>{sub}</p>}
       </div>
     </Link>
   )

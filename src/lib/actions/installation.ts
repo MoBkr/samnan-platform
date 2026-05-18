@@ -61,6 +61,24 @@ export async function scheduleInstallation(formData: FormData) {
   return { success: true }
 }
 
+export async function markClientNotified(installationId: string, projectId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('installations')
+    .update({ client_notified: true } as never)
+    .eq('id', installationId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل تحديث حالة الإبلاغ' }
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
 export async function updateInstallationStatus(
   installationId: string,
   projectId: string,

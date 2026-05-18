@@ -1,6 +1,6 @@
 export type UserRole = 'coordinator' | 'sales_engineer' | 'installation' | 'admin'
 export type ProjectStatus = 'active' | 'completed' | 'cancelled' | 'on_hold'
-export type PaymentType = 'upfront' | 'installation' | 'final' | 'custom'
+export type PaymentType = 'upfront' | 'materials' | 'installation' | 'final' | 'custom'
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'cancelled'
 export type MaterialStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'partial'
 export type SupplyOrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'failed' | 'rescheduled'

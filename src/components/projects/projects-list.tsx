@@ -8,7 +8,8 @@ import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { Project, Profile } from '@/types/database'
+import { STATUS_LABELS } from '@/lib/constants'
+import type { Project, Profile, ProjectStatus } from '@/types/database'
 
 interface ProjectsListProps {
   projects: Project[]
@@ -19,19 +20,32 @@ interface ProjectsListProps {
 
 type View = 'mine' | 'all'
 
+const STATUS_FILTERS: { value: ProjectStatus | 'all'; label: string }[] = [
+  { value: 'all', label: 'الكل' },
+  { value: 'active', label: STATUS_LABELS.active },
+  { value: 'on_hold', label: STATUS_LABELS.on_hold },
+  { value: 'completed', label: STATUS_LABELS.completed },
+  { value: 'cancelled', label: STATUS_LABELS.cancelled },
+]
+
 export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate }: ProjectsListProps) {
   const isAdmin = currentProfile.role === 'admin'
   const [view, setView] = useState<View>('mine')
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all')
 
   const myProjects = projects.filter((p) => myProjectIds.has(p.id))
-  const displayed = isAdmin ? projects : view === 'mine' ? myProjects : projects
+  const baseList = isAdmin ? projects : view === 'mine' ? myProjects : projects
+
+  const displayed = statusFilter === 'all'
+    ? baseList
+    : baseList.filter((p) => p.status === statusFilter)
 
   const myCount = myProjects.length
   const allCount = projects.length
 
   return (
-    <div className="space-y-5">
-      {/* Tab switcher — hidden for admin */}
+    <div className="space-y-4">
+      {/* View switcher — hidden for admin */}
       {!isAdmin && (
         <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 w-fit">
           <button
@@ -71,24 +85,50 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
         </div>
       )}
 
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setStatusFilter(f.value)}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-medium transition-all',
+              statusFilter === f.value
+                ? 'bg-brand-600 border-brand-600 text-white'
+                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800'
+            )}
+          >
+            {f.label}
+            {f.value !== 'all' && (
+              <span className={cn(
+                'ms-1.5 rounded-full px-1 text-[10px] font-bold',
+                statusFilter === f.value ? 'text-white/80' : 'text-gray-400'
+              )}>
+                {(isAdmin ? projects : view === 'mine' ? myProjects : projects).filter(p => p.status === f.value).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Cards grid */}
       {displayed.length === 0 ? (
         <EmptyState
-          message={view === 'mine' ? 'لا توجد مشاريع مخصصة لك' : 'لا توجد مشاريع بعد'}
+          message={statusFilter !== 'all' ? `لا توجد مشاريع ${STATUS_LABELS[statusFilter as ProjectStatus]}` : view === 'mine' ? 'لا توجد مشاريع مخصصة لك' : 'لا توجد مشاريع بعد'}
           description={
-            view === 'mine'
+            view === 'mine' && statusFilter === 'all'
               ? 'ستظهر هنا المشاريع التي أنت مسؤول عنها'
-              : canCreate
+              : canCreate && statusFilter === 'all'
               ? 'أنشئ مشروعاً جديداً للبدء'
               : undefined
           }
           icon={<FolderOpen className="h-8 w-8 text-gray-400" />}
           action={
-            view === 'mine' ? (
+            view === 'mine' && statusFilter === 'all' ? (
               <Button variant="outline" size="sm" onClick={() => setView('all')}>
                 عرض كل المشاريع
               </Button>
-            ) : canCreate ? (
+            ) : canCreate && statusFilter === 'all' ? (
               <Link href="/projects/new">
                 <Button>
                   <Plus className="h-4 w-4" />
