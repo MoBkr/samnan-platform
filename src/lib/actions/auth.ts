@@ -156,8 +156,22 @@ export async function deleteUser(targetUserId: string) {
   if (user.id === targetUserId) return { error: 'لا يمكنك حذف حسابك الخاص' }
 
   const service = createServiceClient()
-  const { error } = await service.auth.admin.deleteUser(targetUserId)
-  if (error) return { error: 'فشل حذف الحساب. حاول مرة أخرى' }
+
+  // Detach user from any projects before deletion
+  await service.from('projects').update({ coordinator_id: null } as never).eq('coordinator_id', targetUserId)
+  await service.from('projects').update({ sales_engineer_id: null } as never).eq('sales_engineer_id', targetUserId)
+
+  // Delete profile record first (avoids FK constraint when deleting auth user)
+  const { error: profileError } = await service
+    .from('profiles')
+    .delete()
+    .eq('id', targetUserId)
+
+  if (profileError) return { error: 'فشل حذف بيانات المستخدم' }
+
+  // Delete auth user
+  const { error: authError } = await service.auth.admin.deleteUser(targetUserId)
+  if (authError) return { error: 'فشل حذف حساب تسجيل الدخول. حاول مرة أخرى' }
 
   revalidatePath('/users')
   return { success: true }
