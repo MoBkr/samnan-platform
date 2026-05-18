@@ -32,12 +32,24 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           <div className="absolute -top-8 -left-8 h-48 w-48 rounded-full bg-blue-400 blur-2xl" />
           <div className="absolute bottom-0 right-10 h-32 w-32 rounded-full bg-indigo-500 blur-xl" />
         </div>
-        <div className="relative z-10">
-          <p className="text-slate-400 text-sm">لوحة الإدارة العليا</p>
-          <h1 className="text-2xl font-bold mt-1">مرحباً، {profile.full_name}</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            {projects.length} مشروع إجمالي — {activeProjects.length} نشط — {completedProjects.length} مكتمل
-          </p>
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-slate-400 text-sm">لوحة الإدارة العليا</p>
+            <h1 className="text-2xl font-bold mt-1">مرحباً، {profile.full_name}</h1>
+            <p className="text-slate-400 text-sm mt-1">
+              {projects.length} مشروع إجمالي — {activeProjects.length} نشط — {completedProjects.length} مكتمل
+            </p>
+          </div>
+          <Link href="/reports" className="shrink-0">
+            <div className="flex items-center gap-2.5 rounded-xl bg-white/15 border border-white/25 px-4 py-3 hover:bg-white/25 transition-colors">
+              <FileBarChart2 className="h-5 w-5 text-teal-300" />
+              <div>
+                <p className="text-sm font-bold text-white">التقارير</p>
+                <p className="text-xs text-slate-300">طباعة · تصدير PDF</p>
+              </div>
+              <ArrowLeft className="h-4 w-4 text-slate-300 ms-1" />
+            </div>
+          </Link>
         </div>
       </div>
 
