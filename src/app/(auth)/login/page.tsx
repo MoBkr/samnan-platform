@@ -26,7 +26,59 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* === Brand Panel (Right in RTL) === */}
+      {/* === Form Panel (Right in RTL — shown first) === */}
+      <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-6 lg:p-16">
+        {/* Mobile logo */}
+        <div className="mb-10 lg:hidden">
+          <div className="bg-white rounded-2xl px-6 py-4 shadow-md border border-gray-100">
+            <Image src="/logo.png" alt="سمنان" width={180} height={65} className="object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          </div>
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-8 text-end">
+            <h1 className="text-3xl font-bold text-gray-900">أهلاً بك</h1>
+            <p className="mt-1.5 text-gray-500">سجّل دخولك للوصول إلى منصة سمنان</p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">البريد الإلكتروني</Label>
+                <Input id="email" name="email" type="email" placeholder="you@samnan.sa"
+                  required autoComplete="email" dir="ltr" className="h-12 text-start" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">كلمة المرور</Label>
+                <Input id="password" name="password" type="password" placeholder="••••••••"
+                  required autoComplete="current-password" dir="ltr" className="h-12 text-start" />
+              </div>
+              {error && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
+                  <span className="mt-px shrink-0">⚠</span>
+                  <span>{error}</span>
+                </div>
+              )}
+              <Button type="submit" className="w-full h-12 text-base font-semibold rounded-xl" loading={loading}>
+                {loading ? 'جاري التحقق...' : 'تسجيل الدخول'}
+              </Button>
+            </form>
+          </div>
+
+          <p className="mt-6 text-center text-sm text-gray-500">
+            موظف جديد؟{' '}
+            <Link href="/signup" className="font-semibold text-brand-600 hover:underline">إنشاء حساب</Link>
+          </p>
+        </div>
+
+        <p className="mt-12 text-center text-xs text-gray-400">
+          تصميم وتطوير بواسطة{' '}
+          <a href="https://tfco.sa/" target="_blank" rel="noreferrer" className="font-medium text-gray-500 hover:text-gray-700 transition-colors">Thakaa Flow</a>
+        </p>
+      </div>
+
+      {/* === Brand Panel (Left in RTL — shown second) === */}
       <div className="hidden lg:flex lg:w-[45%] flex-col items-center justify-between bg-brand-700 p-12 relative overflow-hidden">
         {/* Background pattern */}
         <div className="absolute inset-0 overflow-hidden">
@@ -101,81 +153,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* === Form Panel (Left in RTL) === */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 p-6 lg:p-16">
-        {/* Mobile logo */}
-        <div className="mb-10 lg:hidden">
-          <div className="bg-white rounded-2xl px-6 py-4 shadow-md border border-gray-100">
-            <Image src="/logo.png" alt="سمنان" width={180} height={65} className="object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          </div>
-        </div>
-
-        <div className="w-full max-w-sm">
-          {/* Header */}
-          <div className="mb-8 text-end">
-            <h1 className="text-3xl font-bold text-gray-900">أهلاً بك</h1>
-            <p className="mt-1.5 text-gray-500">سجّل دخولك للوصول إلى منصة سمنان</p>
-          </div>
-
-          {/* Form card */}
-          <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">البريد الإلكتروني</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="you@samnan.sa"
-                  required
-                  autoComplete="email"
-                  dir="ltr"
-                  className="h-12 text-start"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="password">كلمة المرور</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                  dir="ltr"
-                  className="h-12 text-start"
-                />
-              </div>
-
-              {error && (
-                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
-                  <span className="mt-px shrink-0">⚠</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <Button type="submit" className="w-full h-12 text-base font-semibold rounded-xl" loading={loading}>
-                {loading ? 'جاري التحقق...' : 'تسجيل الدخول'}
-              </Button>
-            </form>
-          </div>
-
-          <p className="mt-6 text-center text-sm text-gray-500">
-            موظف جديد؟{' '}
-            <Link href="/signup" className="font-semibold text-brand-600 hover:underline">
-              إنشاء حساب
-            </Link>
-          </p>
-        </div>
-
-        {/* Footer */}
-        <p className="mt-12 text-center text-xs text-gray-400">
-          تصميم وتطوير بواسطة{' '}
-          <a href="https://tfco.sa/" target="_blank" rel="noreferrer" className="font-medium text-gray-500 hover:text-gray-700 transition-colors">Thakaa Flow</a>
-        </p>
-      </div>
     </div>
   )
 }

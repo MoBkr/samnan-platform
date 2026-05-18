@@ -51,17 +51,17 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
     <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4 lg:px-6">
       {/* Right side — mobile menu + logo (desktop) */}
       <div className="flex items-center gap-3">
-        {/* Mobile hamburger */}
+        {/* Hamburger — always visible */}
         <button
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
           aria-label="القائمة"
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Logo — visible on desktop (sidebar already shows it on mobile) */}
-        <Link href={dashboardHref} className="hidden lg:flex items-center gap-2.5 group">
+        {/* Logo */}
+        <Link href={dashboardHref} className="flex items-center gap-2.5 group">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 p-1 shadow-sm">
             <Image
               src="/logo-white.jpg"
@@ -72,14 +72,14 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
           </div>
-          <div className="leading-tight">
+          <div className="leading-tight hidden sm:block">
             <p className="text-sm font-bold text-brand-800 group-hover:text-brand-600 transition-colors">سمنان</p>
             <p className="text-[10px] text-gray-400">منصة الإدارة</p>
           </div>
         </Link>
 
-        {/* Divider (desktop only) */}
-        <div className="hidden lg:block h-6 w-px bg-gray-200" />
+        {/* Divider */}
+        <div className="h-6 w-px bg-gray-200" />
 
         {/* Home button */}
         <Link

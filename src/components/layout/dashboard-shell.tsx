@@ -16,21 +16,19 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Mobile sidebar overlay */}
+      {/* Overlay — all screen sizes */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — always overlay, never pushes content */}
       <aside
         className={cn(
-          'lg:relative lg:block lg:shrink-0',
-          sidebarOpen
-            ? 'fixed inset-y-0 start-0 z-50 block'
-            : 'hidden lg:block'
+          'fixed inset-y-0 start-0 z-50',
+          sidebarOpen ? 'block' : 'hidden'
         )}
       >
         <Sidebar profile={profile} onClose={() => setSidebarOpen(false)} />

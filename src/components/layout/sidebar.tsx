@@ -59,12 +59,6 @@ const ADMIN_ITEMS: NavItem[] = [
     icon: <Users className="h-5 w-5" />,
     roles: ['admin'],
   },
-  {
-    label: 'التقارير',
-    href: '/reports',
-    icon: <FileBarChart2 className="h-5 w-5" />,
-    roles: ['admin'],
-  },
 ]
 
 const AVATAR_COLORS: Record<string, string> = {

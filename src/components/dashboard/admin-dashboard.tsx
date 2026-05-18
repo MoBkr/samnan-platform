@@ -19,7 +19,9 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
   const completedProjects = projects.filter((p) => p.status === 'completed')
   const overdueValue = overduePayments.reduce((s, p) => s + (p.amount - p.paid_amount), 0)
 
+  const VISIBLE_ROLES = ['coordinator', 'sales_engineer', 'installation', 'admin']
   const roleCount = users.reduce<Record<string, number>>((acc, u) => {
+    if (!VISIBLE_ROLES.includes(u.role)) return acc
     acc[u.role] = (acc[u.role] ?? 0) + 1
     return acc
   }, {})
