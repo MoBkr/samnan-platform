@@ -95,10 +95,10 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
         {profile?.role === 'admin' && (
           <Link
             href="/reports"
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-teal-600 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 transition-colors shadow-sm"
           >
             <FileBarChart2 className="h-4 w-4" />
-            <span className="hidden sm:inline">التقارير</span>
+            <span>التقارير</span>
           </Link>
         )}
       </div>
