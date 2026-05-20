@@ -160,6 +160,7 @@ export async function deleteUser(targetUserId: string) {
   // Detach user from any projects before deletion
   await service.from('projects').update({ coordinator_id: null } as never).eq('coordinator_id', targetUserId)
   await service.from('projects').update({ sales_engineer_id: null } as never).eq('sales_engineer_id', targetUserId)
+  await service.from('projects').update({ installation_id: null } as never).eq('installation_id', targetUserId)
 
   // Delete profile record first (avoids FK constraint when deleting auth user)
   const { error: profileError } = await service
