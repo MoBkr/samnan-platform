@@ -188,5 +188,11 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .eq('id', user.id)
     .single()) as QueryResult<Profile>
 
-  return result.data ?? null
+  if (!result.data) {
+    // Auth session exists but profile was deleted — sign out to prevent redirect loop
+    await supabase.auth.signOut()
+    return null
+  }
+
+  return result.data
 }
