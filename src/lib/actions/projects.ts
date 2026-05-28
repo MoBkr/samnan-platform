@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Project, ProjectStatus } from '@/types/database'
@@ -90,7 +89,7 @@ export async function createProject(formData: FormData) {
   await logActivity(service, data!.id, user.id, 'إنشاء المشروع', { project_name: projectName })
 
   revalidatePath('/projects')
-  redirect(`/projects/${data!.id}`)
+  return { projectId: data!.id }
 }
 
 export async function updateProjectStatus(

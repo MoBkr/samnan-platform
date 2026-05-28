@@ -37,7 +37,22 @@
    ```
    Without this, file uploads in the Attachments tab will fail.
 
-2. **Vercel — Auto-deploy** is triggered by the GitHub push (already done).
+2. **Supabase — Payments type constraint (REQUIRED if payments of type `materials` fail):** The original DB schema used `'supply'` for payment type, but the app now uses `'materials'`. If creating a materials payment returns a DB constraint error, run:
+   ```sql
+   ALTER TABLE public.payments
+     DROP CONSTRAINT IF EXISTS payments_type_check;
+
+   ALTER TABLE public.payments
+     ADD CONSTRAINT payments_type_check
+     CHECK (type IN ('upfront','materials','installation','final','custom'));
+   ```
+
+3. **Supabase — Profiles FK for safe deletion from dashboard:** If deleting a user from the Supabase Auth dashboard (not from the app) fails with FK error, run:
+   ```sql
+   ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+   ALTER TABLE public.profiles ADD CONSTRAINT profiles_id_fkey
+     FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+   ```
 
 ---
 

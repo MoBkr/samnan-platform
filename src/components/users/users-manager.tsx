@@ -183,7 +183,6 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
               <Select name="role" required placeholder="اختر الدور">
                 <option value="coordinator">الكوردنيتر</option>
                 <option value="sales_engineer">مهندس المبيعات</option>
-                <option value="supply">التوريد</option>
                 <option value="installation">التركيبات</option>
                 <option value="admin">الإدارة</option>
               </Select>

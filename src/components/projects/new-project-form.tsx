@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Upload, X, FileText, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,7 @@ export function NewProjectForm({
   coordinatorWorkload, salesWorkload, installationWorkload,
   currentProfile,
 }: NewProjectFormProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
@@ -81,6 +83,7 @@ export function NewProjectForm({
       }
       const result = await createProject(formData)
       if (result?.error) { setError(result.error); toast.error(result.error) }
+      else if ('projectId' in result) { router.push(`/projects/${result.projectId}`) }
     })
   }
 

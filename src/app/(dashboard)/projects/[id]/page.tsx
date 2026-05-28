@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getProject } from '@/lib/actions/projects'
 import { getProjectPayments } from '@/lib/actions/payments'
 import { getProjectInstallations } from '@/lib/actions/installation'
@@ -23,6 +23,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   ])
 
   if (!project) notFound()
+  if (!profile) redirect('/login')
 
   const supabase = await createClient()
 

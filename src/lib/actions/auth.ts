@@ -38,7 +38,7 @@ export async function signIn(formData: FormData) {
 
   const role = result.data?.role ?? 'coordinator'
   revalidatePath('/', 'layout')
-  redirect(ROLE_REDIRECTS[role] ?? '/dashboard')
+  return { redirectTo: ROLE_REDIRECTS[role] ?? '/dashboard' }
 }
 
 export async function signOut() {
@@ -138,7 +138,7 @@ export async function signUp(formData: FormData) {
   await supabase.auth.signInWithPassword({ email, password })
 
   revalidatePath('/', 'layout')
-  redirect(ROLE_REDIRECTS[role] ?? '/dashboard')
+  return { redirectTo: ROLE_REDIRECTS[role] ?? '/dashboard' }
 }
 
 export async function deleteUser(targetUserId: string) {

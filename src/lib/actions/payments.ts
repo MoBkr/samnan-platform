@@ -22,7 +22,7 @@ export async function getAllOverduePayments() {
   const result = (await supabase
     .from('payments')
     .select('*, project:projects(id, client_name, project_name)')
-    .lt('due_date', today)
+    .lte('due_date', today)
     .in('status', ['pending', 'partial'])
     .order('due_date', { ascending: true })) as QueryResultMany<Payment & { project: { id: string; client_name: string; project_name: string } }>
   return result.data ?? []

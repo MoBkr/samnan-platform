@@ -36,15 +36,21 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
   const selectedPayment = payments.find((p) => p.id === recordPaymentId)
   const editingPayment = payments.find((p) => p.id === editPaymentId)
 
-  // Types with a fully-paid payment — blocked for adding another
+  // Non-custom types that already have a non-cancelled payment — block adding another
+  const usedTypes = new Set(
+    payments
+      .filter(p => p.status !== 'cancelled' && p.type !== 'custom')
+      .map(p => p.type)
+  )
+  // Keep paidTypes for the display hint ("مؤكدة الدفع")
   const paidTypes = new Set(payments.filter(p => p.status === 'paid').map(p => p.type))
 
   function handleAddPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const type = formData.get('type') as string
-    if (paidTypes.has(type as never)) {
-      toast.error('يوجد دفعة مؤكدة من هذا النوع. احذف الدفعة القديمة أولاً')
+    if (type !== 'custom' && usedTypes.has(type as never)) {
+      toast.error('يوجد دفعة من هذا النوع. احذف أو الغِ الدفعة الموجودة أولاً')
       return
     }
     formData.set('project_id', projectId)
@@ -303,16 +309,17 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
               <Label>نوع الدفعة</Label>
               <Select name="type" required placeholder="اختر النوع">
                 {PAYMENT_TYPES.map((type) => {
-                  const isBlocked = paidTypes.has(type)
+                  const isBlocked = type !== 'custom' && usedTypes.has(type)
+                  const isPaid = paidTypes.has(type)
                   return (
                     <option key={type} value={type} disabled={isBlocked}>
-                      {PAYMENT_TYPE_LABELS[type]}{isBlocked ? ' — مؤكدة الدفع' : ''}
+                      {PAYMENT_TYPE_LABELS[type]}{isPaid ? ' — مؤكدة الدفع' : isBlocked ? ' — موجودة مسبقاً' : ''}
                     </option>
                   )
                 })}
               </Select>
-              {paidTypes.size > 0 && (
-                <p className="text-xs text-amber-600">أنواع الدفعات المؤكدة لا يمكن إضافتها مرة أخرى</p>
+              {usedTypes.size > 0 && (
+                <p className="text-xs text-amber-600">أنواع الدفعات الموجودة لا يمكن تكرارها</p>
               )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

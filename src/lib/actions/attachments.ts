@@ -45,9 +45,11 @@ export async function uploadAttachment(formData: FormData) {
   const filePath = `${docType}/${fileName}`
 
   const service = createServiceClient()
+  const bytes = await file.arrayBuffer()
+  const buffer = Buffer.from(bytes)
   const { error: uploadError } = await service.storage
     .from('documents')
-    .upload(filePath, file, { upsert: false })
+    .upload(filePath, buffer, { contentType: file.type, upsert: false })
 
   if (uploadError) {
     return { error: 'فشل رفع الملف. تأكد من إنشاء الـ bucket في Supabase' }
@@ -160,9 +162,11 @@ export async function uploadContractUrl(formData: FormData) {
   const filePath = `contracts/${fileName}`
 
   const service = createServiceClient()
+  const bytes = await file.arrayBuffer()
+  const buffer = Buffer.from(bytes)
   const { error: uploadError } = await service.storage
     .from('documents')
-    .upload(filePath, file, { upsert: false })
+    .upload(filePath, buffer, { contentType: file.type, upsert: false })
 
   if (uploadError) return { error: 'فشل رفع الملف' }
 
