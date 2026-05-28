@@ -28,10 +28,37 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: checks
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: checks
+    needs: unit-tests
 
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -51,3 +78,43 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    env:
+      BASE_URL: https://samnan-platform.vercel.app
+      E2E_COORDINATOR_EMAIL: ${{ secrets.E2E_COORDINATOR_EMAIL }}
+      E2E_COORDINATOR_PASSWORD: ${{ secrets.E2E_COORDINATOR_PASSWORD }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_INSTALLATION_EMAIL: ${{ secrets.E2E_INSTALLATION_EMAIL }}
+      E2E_INSTALLATION_PASSWORD: ${{ secrets.E2E_INSTALLATION_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload E2E report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
