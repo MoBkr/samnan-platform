@@ -85,8 +85,8 @@ export function NewProjectForm({
         const result = await createProject(formData)
         if (result?.error) { setError(result.error); toast.error(result.error) }
         else if ('projectId' in result) { router.push(`/projects/${result.projectId}`) }
-      } catch {
-        const msg = 'حدث خطأ أثناء إنشاء المشروع. حاول مرة أخرى'
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'حدث خطأ أثناء إنشاء المشروع. حاول مرة أخرى'
         setError(msg)
         toast.error(msg)
       }
