@@ -148,51 +148,53 @@ export function ProjectDetail({
 
   function handleConfirm() {
     startTransition(async () => {
-      let result: { error?: string } | undefined
+      try {
+        let result: { error?: string } | undefined
 
-      if (dialog === 'complete') {
-        result = await updateProjectStatus(project.id, 'completed')
-      } else if (dialog === 'hold') {
-        result = await updateProjectStatus(project.id, 'on_hold')
-      } else if (dialog === 'reactivate') {
-        result = await updateProjectStatus(project.id, 'active')
-      } else if (dialog === 'cancel') {
-        if (!cancelReason.trim()) { toast.error('يرجى إدخال سبب الإلغاء'); return }
-        result = await updateProjectStatus(project.id, 'cancelled', cancelReason.trim())
-      } else if (dialog === 'team') {
-        result = await updateProjectTeam(
-          project.id,
-          teamCoordinatorId || null,
-          teamSalesId || null,
-          teamInstallationId || null
-        )
-      } else if (dialog === 'editAmount') {
-        const parsed = parseFloat(newAmount)
-        if (isNaN(parsed) || parsed <= 0) { toast.error('يرجى إدخال قيمة صحيحة'); return }
-        result = await updateProjectAmount(project.id, parsed)
-      } else if (dialog === 'delete') {
-        result = await deleteProject(project.id)
-        if (!result?.error) {
-          toast.success('تم حذف المشروع نهائياً')
-          router.push('/projects')
-          return
+        if (dialog === 'complete') {
+          result = await updateProjectStatus(project.id, 'completed')
+        } else if (dialog === 'hold') {
+          result = await updateProjectStatus(project.id, 'on_hold')
+        } else if (dialog === 'reactivate') {
+          result = await updateProjectStatus(project.id, 'active')
+        } else if (dialog === 'cancel') {
+          if (!cancelReason.trim()) { toast.error('يرجى إدخال سبب الإلغاء'); return }
+          result = await updateProjectStatus(project.id, 'cancelled', cancelReason.trim())
+        } else if (dialog === 'team') {
+          result = await updateProjectTeam(
+            project.id,
+            teamCoordinatorId || null,
+            teamSalesId || null,
+            teamInstallationId || null
+          )
+        } else if (dialog === 'editAmount') {
+          const parsed = parseFloat(newAmount)
+          if (isNaN(parsed) || parsed <= 0) { toast.error('يرجى إدخال قيمة صحيحة'); return }
+          result = await updateProjectAmount(project.id, parsed)
+        } else if (dialog === 'delete') {
+          result = await deleteProject(project.id)
+          if (!result?.error) {
+            toast.success('تم حذف المشروع نهائياً')
+            router.push('/projects')
+            return
+          }
         }
-      }
 
-      if (result?.error) {
-        toast.error(result.error)
-      } else {
-        const labels: Record<string, string> = {
-          complete: 'تم إغلاق المشروع بنجاح',
-          hold: 'تم تعليق المشروع',
-          reactivate: 'تم إعادة تفعيل المشروع',
-          cancel: 'تم إلغاء المشروع',
-          team: 'تم تحديث الفريق',
-          editAmount: 'تم تحديث قيمة المشروع',
+        if (result?.error) {
+          toast.error(result.error)
+        } else {
+          const labels: Record<string, string> = {
+            complete: 'تم إغلاق المشروع بنجاح',
+            hold: 'تم تعليق المشروع',
+            reactivate: 'تم إعادة تفعيل المشروع',
+            cancel: 'تم إلغاء المشروع',
+            team: 'تم تحديث الفريق',
+            editAmount: 'تم تحديث قيمة المشروع',
+          }
+          toast.success(labels[dialog!] ?? 'تم التحديث')
+          setDialog(null)
         }
-        toast.success(labels[dialog!] ?? 'تم التحديث')
-        setDialog(null)
-      }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 

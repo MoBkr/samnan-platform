@@ -44,25 +44,31 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
     formData.set('project_id', projectId)
 
     startTransition(async () => {
-      const result = await scheduleInstallation(formData)
-      if (result?.error) toast.error(result.error)
-      else { toast.success('تم جدولة التركيب'); setShowScheduleDialog(false) }
+      try {
+        const result = await scheduleInstallation(formData)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم جدولة التركيب'); setShowScheduleDialog(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleStatusUpdate(installationId: string, status: Installation['status']) {
     startTransition(async () => {
-      const result = await updateInstallationStatus(installationId, projectId, status)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم تحديث الحالة')
+      try {
+        const result = await updateInstallationStatus(installationId, projectId, status)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم تحديث الحالة')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleNotifyClient(installationId: string) {
     startTransition(async () => {
-      const result = await markClientNotified(installationId, projectId)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم تسجيل إبلاغ العميل')
+      try {
+        const result = await markClientNotified(installationId, projectId)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم تسجيل إبلاغ العميل')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 

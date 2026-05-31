@@ -30,30 +30,32 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
     const formData = new FormData(e.currentTarget)
 
     startTransition(async () => {
-      const result = await createUser(formData)
-      if (result?.error) {
-        toast.error(result.error)
-      } else {
-        toast.success('تم إنشاء المستخدم بنجاح')
-        setShowCreateDialog(false)
-      }
+      try {
+        const result = await createUser(formData)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم إنشاء المستخدم بنجاح'); setShowCreateDialog(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleRoleChange(userId: string, role: UserRole) {
     startTransition(async () => {
-      const result = await updateUserRole(userId, role)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم تحديث الدور')
+      try {
+        const result = await updateUserRole(userId, role)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم تحديث الدور')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleDeleteConfirm() {
     if (!deleteTarget) return
     startTransition(async () => {
-      const result = await deleteUser(deleteTarget.id)
-      if (result?.error) toast.error(result.error)
-      else { toast.success('تم حذف الحساب'); setDeleteTarget(null) }
+      try {
+        const result = await deleteUser(deleteTarget.id)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم حذف الحساب'); setDeleteTarget(null) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 

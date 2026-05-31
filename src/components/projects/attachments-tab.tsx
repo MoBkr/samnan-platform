@@ -145,56 +145,64 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
     if (selectedFiles.length === 0) return
 
     startTransition(async () => {
-      let successCount = 0
-      let lastError = ''
+      try {
+        let successCount = 0
+        let lastError = ''
 
-      for (const file of selectedFiles) {
-        const formData = new FormData()
-        formData.set('file', file)
-        formData.set('project_id', projectId)
-        formData.set('type', selectedType)
-        if (selectedType === 'other' && otherLabel.trim()) {
-          formData.set('description', otherLabel.trim())
+        for (const file of selectedFiles) {
+          const formData = new FormData()
+          formData.set('file', file)
+          formData.set('project_id', projectId)
+          formData.set('type', selectedType)
+          if (selectedType === 'other' && otherLabel.trim()) {
+            formData.set('description', otherLabel.trim())
+          }
+
+          const result = await uploadAttachment(formData)
+          if (result?.error) lastError = result.error
+          else successCount++
         }
 
-        const result = await uploadAttachment(formData)
-        if (result?.error) lastError = result.error
-        else successCount++
-      }
+        if (successCount > 0) toast.success(successCount === 1 ? 'تم رفع الملف بنجاح' : `تم رفع ${successCount} ملفات`)
+        if (lastError) toast.error(lastError)
 
-      if (successCount > 0) toast.success(successCount === 1 ? 'تم رفع الملف بنجاح' : `تم رفع ${successCount} ملفات`)
-      if (lastError) toast.error(lastError)
-
-      setUploadDialog(false)
-      setSelectedFiles([])
-      setOtherLabel('')
+        setUploadDialog(false)
+        setSelectedFiles([])
+        setOtherLabel('')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleDelete(docId: string) {
     if (!confirm('هل تريد حذف هذا الملف؟')) return
     startTransition(async () => {
-      const result = await deleteAttachment(docId, projectId)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم حذف الملف بنجاح')
+      try {
+        const result = await deleteAttachment(docId, projectId)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم حذف الملف بنجاح')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleDeleteContract() {
     if (!confirm('هل تريد حذف العقد الأساسي؟ لن يمكن التراجع عن هذا الإجراء')) return
     startTransition(async () => {
-      const result = await deleteContractUrl(projectId)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم حذف العقد')
+      try {
+        const result = await deleteContractUrl(projectId)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم حذف العقد')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleDeleteReceipt(paymentId: string) {
     if (!confirm('هل تريد حذف هذا الإيصال؟')) return
     startTransition(async () => {
-      const result = await deletePaymentReceipt(paymentId, projectId)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم حذف الإيصال')
+      try {
+        const result = await deletePaymentReceipt(paymentId, projectId)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم حذف الإيصال')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -202,16 +210,18 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
     e.preventDefault()
     if (!contractFile) return
     startTransition(async () => {
-      const formData = new FormData()
-      formData.set('file', contractFile)
-      formData.set('project_id', projectId)
-      const result = await uploadContractUrl(formData)
-      if (result?.error) toast.error(result.error)
-      else {
-        toast.success('تم رفع العقد الجديد')
-        setContractDialog(false)
-        setContractFile(null)
-      }
+      try {
+        const formData = new FormData()
+        formData.set('file', contractFile)
+        formData.set('project_id', projectId)
+        const result = await uploadContractUrl(formData)
+        if (result?.error) toast.error(result.error)
+        else {
+          toast.success('تم رفع العقد الجديد')
+          setContractDialog(false)
+          setContractFile(null)
+        }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 

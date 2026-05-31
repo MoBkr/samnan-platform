@@ -55,9 +55,11 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
     }
     formData.set('project_id', projectId)
     startTransition(async () => {
-      const result = await createPayment(formData)
-      if (result?.error) toast.error(result.error)
-      else { toast.success('تم إضافة الدفعة بنجاح'); setShowAddDialog(false) }
+      try {
+        const result = await createPayment(formData)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم إضافة الدفعة بنجاح'); setShowAddDialog(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -65,29 +67,31 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
     e.preventDefault()
     const form = e.currentTarget
     startTransition(async () => {
-      let receiptUrl = (form.elements.namedItem('receipt_url') as HTMLInputElement)?.value || ''
+      try {
+        let receiptUrl = (form.elements.namedItem('receipt_url') as HTMLInputElement)?.value || ''
 
-      if (receiptFile) {
-        const uploadFormData = new FormData()
-        uploadFormData.set('file', receiptFile)
-        uploadFormData.set('folder', 'receipts')
-        const uploadResult = await uploadFile(uploadFormData)
-        if ('error' in uploadResult) { toast.error(uploadResult.error); return }
-        receiptUrl = uploadResult.url
-      }
+        if (receiptFile) {
+          const uploadFormData = new FormData()
+          uploadFormData.set('file', receiptFile)
+          uploadFormData.set('folder', 'receipts')
+          const uploadResult = await uploadFile(uploadFormData)
+          if ('error' in uploadResult) { toast.error(uploadResult.error); return }
+          receiptUrl = uploadResult.url
+        }
 
-      const formData = new FormData(form)
-      formData.set('payment_id', recordPaymentId!)
-      formData.set('project_id', projectId)
-      formData.set('receipt_url', receiptUrl)
+        const formData = new FormData(form)
+        formData.set('payment_id', recordPaymentId!)
+        formData.set('project_id', projectId)
+        formData.set('receipt_url', receiptUrl)
 
-      const result = await recordPayment(formData)
-      if (result?.error) toast.error(result.error)
-      else {
-        toast.success('تم تسجيل الدفعة بنجاح')
-        setRecordPaymentId(null)
-        setReceiptFile(null)
-      }
+        const result = await recordPayment(formData)
+        if (result?.error) toast.error(result.error)
+        else {
+          toast.success('تم تسجيل الدفعة بنجاح')
+          setRecordPaymentId(null)
+          setReceiptFile(null)
+        }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -97,9 +101,11 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
     formData.set('payment_id', editPaymentId!)
     formData.set('project_id', projectId)
     startTransition(async () => {
-      const result = await editPayment(formData)
-      if (result?.error) toast.error(result.error)
-      else { toast.success('تم تعديل الدفعة'); setEditPaymentId(null) }
+      try {
+        const result = await editPayment(formData)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم تعديل الدفعة'); setEditPaymentId(null) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -109,9 +115,11 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
       : `هل تريد حذف دفعة "${PAYMENT_TYPE_LABELS[payment.type]}"؟`
     if (!confirm(warningText)) return
     startTransition(async () => {
-      const result = await deletePayment(payment.id, projectId)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم حذف الدفعة')
+      try {
+        const result = await deletePayment(payment.id, projectId)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم حذف الدفعة')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 

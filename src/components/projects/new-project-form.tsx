@@ -72,18 +72,24 @@ export function NewProjectForm({
     setError(null)
     const form = e.currentTarget
     startTransition(async () => {
-      const formData = new FormData(form)
-      if (contractFile) {
-        const upForm = new FormData()
-        upForm.set('file', contractFile)
-        upForm.set('folder', 'contracts')
-        const upResult = await uploadFile(upForm)
-        if ('error' in upResult) { setError(upResult.error); toast.error(upResult.error); return }
-        formData.set('contract_url', upResult.url)
+      try {
+        const formData = new FormData(form)
+        if (contractFile) {
+          const upForm = new FormData()
+          upForm.set('file', contractFile)
+          upForm.set('folder', 'contracts')
+          const upResult = await uploadFile(upForm)
+          if ('error' in upResult) { setError(upResult.error); toast.error(upResult.error); return }
+          formData.set('contract_url', upResult.url)
+        }
+        const result = await createProject(formData)
+        if (result?.error) { setError(result.error); toast.error(result.error) }
+        else if ('projectId' in result) { router.push(`/projects/${result.projectId}`) }
+      } catch {
+        const msg = 'حدث خطأ أثناء إنشاء المشروع. حاول مرة أخرى'
+        setError(msg)
+        toast.error(msg)
       }
-      const result = await createProject(formData)
-      if (result?.error) { setError(result.error); toast.error(result.error) }
-      else if ('projectId' in result) { router.push(`/projects/${result.projectId}`) }
     })
   }
 

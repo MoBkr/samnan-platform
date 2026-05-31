@@ -106,9 +106,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   function handleSaveItems() {
     startTransition(async () => {
-      const result = await updateMaterialsItems(projectId, draftItems)
-      if (result?.error) toast.error(result.error)
-      else { toast.success('تم حفظ قائمة المواد'); setEditingItems(false) }
+      try {
+        const result = await updateMaterialsItems(projectId, draftItems)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم حفظ قائمة المواد'); setEditingItems(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -136,9 +138,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     formData.set('type', 'materials_request')
 
     startTransition(async () => {
-      const result = await uploadAttachment(formData)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم رفع الملف')
+      try {
+        const result = await uploadAttachment(formData)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم رفع الملف')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -150,32 +154,36 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   function handleConfirmReady() {
     setUploadingReady(true)
     startTransition(async () => {
-      // Upload the ready-materials document if provided
-      if (readyFile) {
-        const formData = new FormData()
-        formData.set('file', readyFile)
-        formData.set('project_id', projectId)
-        formData.set('type', 'materials_request')
-        formData.set('description', `قائمة المواد الجاهزة — ${readyFile.name}`)
-        const uploadResult = await uploadAttachment(formData)
-        if (uploadResult?.error) {
-          toast.error(uploadResult.error)
-          setUploadingReady(false)
-          return
+      try {
+        // Upload the ready-materials document if provided
+        if (readyFile) {
+          const formData = new FormData()
+          formData.set('file', readyFile)
+          formData.set('project_id', projectId)
+          formData.set('type', 'materials_request')
+          formData.set('description', `قائمة المواد الجاهزة — ${readyFile.name}`)
+          const uploadResult = await uploadAttachment(formData)
+          if (uploadResult?.error) {
+            toast.error(uploadResult.error)
+            setUploadingReady(false)
+            return
+          }
         }
-      }
-      const result = await updateMaterialsStatus(projectId, 'ready')
-      setUploadingReady(false)
-      if (result?.error) toast.error(result.error)
-      else { toast.success('تم تحديد المواد كجاهزة'); setReadyDialog(false) }
+        const result = await updateMaterialsStatus(projectId, 'ready')
+        setUploadingReady(false)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم تحديد المواد كجاهزة'); setReadyDialog(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleConfirmDelivery() {
     startTransition(async () => {
-      const result = await updateMaterialsStatus(projectId, 'delivered')
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم تأكيد الاستلام')
+      try {
+        const result = await updateMaterialsStatus(projectId, 'delivered')
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم تأكيد الاستلام')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
@@ -191,10 +199,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
     setDeliveryNoteUploading(true)
     startTransition(async () => {
-      const result = await uploadAttachment(formData)
-      setDeliveryNoteUploading(false)
-      if (result?.error) toast.error(result.error)
-      else toast.success('تم رفع وصل الاستلام')
+      try {
+        const result = await uploadAttachment(formData)
+        setDeliveryNoteUploading(false)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم رفع وصل الاستلام')
+      } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 

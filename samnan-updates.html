@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تحديثات منصة سمنان — عرض تقديمي</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --brand: #1841A0;
+      --brand-light: #e8eef8;
+      --brand-dark: #102d7a;
+      --success: #10B981;
+      --success-light: #d1fae5;
+      --warning: #F59E0B;
+      --warning-light: #fef3c7;
+      --danger: #EF4444;
+      --danger-light: #fee2e2;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-400: #94a3b8;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-900: #0f172a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Cairo', Arial, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-700);
+      line-height: 1.6;
+    }
+
+    /* ─── HEADER ─── */
+    .site-header {
+      background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%);
+      color: white;
+      padding: 48px 24px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .site-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .site-header .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 8px 20px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .site-header h1 { font-size: clamp(24px, 4vw, 36px); font-weight: 800; margin-bottom: 10px; }
+    .site-header p { font-size: 16px; opacity: 0.8; margin-bottom: 24px; }
+    .header-meta {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .meta-chip {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ─── NAV ─── */
+    .nav-bar {
+      background: white;
+      border-bottom: 2px solid var(--gray-100);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      padding: 0 16px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-400);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover { color: var(--brand); }
+    .nav-btn.active { color: var(--brand); border-bottom-color: var(--brand); }
+    .nav-btn .nav-icon { font-size: 16px; }
+
+    /* ─── MAIN ─── */
+    .main { max-width: 1100px; margin: 0 auto; padding: 40px 16px 80px; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ─── SUMMARY CARDS ─── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .sum-card {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid var(--gray-200);
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .sum-card .num {
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--brand);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .sum-card .lbl { font-size: 13px; color: var(--gray-600); font-weight: 600; }
+
+    /* ─── CHANGE CARDS ─── */
+    .change-section { margin-bottom: 48px; }
+    .change-section h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--gray-900);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .change-section h2 .icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .change-card {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid var(--gray-200);
+      overflow: hidden;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .change-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      gap: 12px;
+    }
+    .change-card-header:hover { background: var(--gray-50); }
+    .change-card-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--gray-900);
+      flex: 1;
+    }
+    .change-card-body {
+      display: none;
+      border-top: 1px solid var(--gray-100);
+    }
+    .change-card-body.open { display: block; }
+    .change-card-inner { padding: 20px; }
+
+    /* ─── BEFORE/AFTER ─── */
+    .ba-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    @media (max-width: 600px) { .ba-grid { grid-template-columns: 1fr; } }
+    .ba-box {
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .ba-box.before {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+    .ba-box.after {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    .ba-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ba-box.before .ba-label { color: #b91c1c; }
+    .ba-box.after .ba-label { color: #15803d; }
+    .ba-list { list-style: none; }
+    .ba-list li {
+      font-size: 13px;
+      padding: 4px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: var(--gray-700);
+    }
+    .ba-list li::before { content: '•'; flex-shrink: 0; margin-top: 1px; }
+    .ba-box.before .ba-list li::before { color: #ef4444; }
+    .ba-box.after .ba-list li::before { color: #10b981; }
+
+    /* ─── FEATURE LIST ─── */
+    .feature-list { list-style: none; margin-top: 12px; }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 14px;
+      color: var(--gray-700);
+    }
+    .feature-list li:last-child { border-bottom: none; }
+    .feature-list .fi { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ─── BADGES ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge-new { background: #dbeafe; color: #1d4ed8; }
+    .badge-improved { background: #d1fae5; color: #065f46; }
+    .badge-fixed { background: #fef3c7; color: #92400e; }
+    .badge-removed { background: #fee2e2; color: #991b1b; }
+
+    /* ─── TIMELINE ─── */
+    .timeline { position: relative; padding-right: 24px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      right: 7px; top: 8px; bottom: 8px;
+      width: 2px;
+      background: var(--gray-200);
+    }
+    .tl-item {
+      position: relative;
+      margin-bottom: 20px;
+      padding-right: 20px;
+    }
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      right: -18px; top: 6px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--brand);
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px var(--brand);
+    }
+    .tl-title { font-weight: 700; font-size: 14px; color: var(--gray-900); margin-bottom: 4px; }
+    .tl-desc { font-size: 13px; color: var(--gray-600); }
+
+    /* ─── INFO BOX ─── */
+    .info-box {
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .info-box.blue { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .info-box.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .info-box .info-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .info-box .info-text { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+    .info-box .info-text strong { color: var(--gray-900); display: block; margin-bottom: 4px; font-size: 14px; }
+
+    /* ─── COMPARISON TABLE ─── */
+    .comp-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    .comp-table th {
+      background: var(--brand);
+      color: white;
+      padding: 10px 14px;
+      text-align: right;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .comp-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      vertical-align: middle;
+    }
+    .comp-table tr:nth-child(even) td { background: var(--gray-50); }
+    .comp-table tr:last-child td { border-bottom: none; }
+
+    /* ─── LIFECYCLE ─── */
+    .lifecycle {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .lc-step {
+      display: flex;
+      align-items: center;
+    }
+    .lc-dot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .lc-circle {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: white;
+    }
+    .lc-circle.done { background: #10b981; }
+    .lc-circle.new { background: var(--brand); box-shadow: 0 0 0 3px #bfdbfe; }
+    .lc-circle.normal { background: var(--gray-400); }
+    .lc-label { font-size: 10px; color: var(--gray-600); font-weight: 600; white-space: nowrap; text-align: center; }
+    .lc-line {
+      height: 2px; width: 24px; margin: 0 2px; margin-bottom: 16px;
+    }
+    .lc-line.done { background: #10b981; }
+    .lc-line.normal { background: var(--gray-200); }
+
+    /* ─── FOOTER ─── */
+    .site-footer {
+      text-align: center;
+      padding: 32px;
+      background: white;
+      border-top: 1px solid var(--gray-100);
+      color: var(--gray-400);
+      font-size: 12px;
+    }
+    .site-footer strong { color: var(--brand); }
+
+    /* ─── SCROLL ANIMATION ─── */
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header class="site-header">
+  <div class="logo-badge">⚙️ وثيقة التحديثات الرسمية</div>
+  <h1>منصة سمنان — التحديثات الجديدة</h1>
+  <p>ملخص شامل للتغييرات والتحسينات المُنجزة على المنصة</p>
+  <div class="header-meta">
+    <span class="meta-chip">📅 مايو 2026</span>
+    <span class="meta-chip">🏢 مجموعة سمنان القابضة</span>
+    <span class="meta-chip">🛠 تطوير: Thakaa Flow</span>
+  </div>
+</header>
+
+<!-- ═══════════════ NAVIGATION ═══════════════ -->
+<nav class="nav-bar">
+  <div class="nav-inner">
+    <button class="nav-btn active" onclick="showSection('overview', this)">
+      <span class="nav-icon">📊</span> نظرة عامة
+    </button>
+    <button class="nav-btn" onclick="showSection('payments', this)">
+      <span class="nav-icon">💳</span> الدفعات
+    </button>
+    <button class="nav-btn" onclick="showSection('attachments', this)">
+      <span class="nav-icon">📁</span> المرفقات
+    </button>
+    <button class="nav-btn" onclick="showSection('workflow', this)">
+      <span class="nav-icon">⚙️</span> سير العمل
+    </button>
+    <button class="nav-btn" onclick="showSection('reports', this)">
+      <span class="nav-icon">📈</span> التقارير
+    </button>
+    <button class="nav-btn" onclick="showSection('ui', this)">
+      <span class="nav-icon">🎨</span> الواجهة
+    </button>
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- ═══════════════ SECTION: OVERVIEW ═══════════════ -->
+<div id="overview" class="section active fade-in">
+
+  <div class="summary-grid">
+    <div class="sum-card">
+      <div class="num">6</div>
+      <div class="lbl">ميزات جديدة</div>
+    </div>
+    <div class="sum-card">
+      <div class="num">12</div>
+      <div class="lbl">تحسين على ميزات قائمة</div>
+    </div>
+    <div class="sum-card">
+      <div class="num">4</div>
+      <div class="lbl">أخطاء تم إصلاحها</div>
+    </div>
+    <div class="sum-card">
+      <div class="num">20+</div>
+      <div class="lbl">ملف تم تعديله</div>
+    </div>
+  </div>
+
+  <div class="info-box blue">
+    <div class="info-icon">ℹ️</div>
+    <div class="info-text">
+      <strong>عن هذه التحديثات</strong>
+      جميع التعديلات الواردة في هذا المستند تمت بناءً على ملاحظات العميل وإضافات فريق التطوير، وتشمل تحسينات جوهرية في سير العمل وواجهة المستخدم وإمكانيات إدارة الملفات.
+    </div>
+  </div>
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#dbeafe">📋</span> ملخص التغييرات الكاملة</h2>
+
+    <table class="comp-table" style="border-radius:12px; overflow:hidden; border: 1px solid var(--gray-200);">
+      <thead>
+        <tr>
+          <th>المجال</th>
+          <th>ما كان قبل</th>
+          <th>ما أصبح الآن</th>
+          <th>النوع</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>الدفعات</strong></td>
+          <td>لا يمكن تعديل أو حذف الدفعات</td>
+          <td>تعديل وحذف مع تحذير للمدفوعة بالكامل</td>
+          <td><span class="badge badge-new">🆕 جديد</span></td>
+        </tr>
+        <tr>
+          <td><strong>أنواع الدفعات</strong></td>
+          <td>دفعة أولى / توريد / تركيب / نهائية</td>
+          <td>+ دفعة المواد كنوع مستقل</td>
+          <td><span class="badge badge-new">🆕 جديد</span></td>
+        </tr>
+        <tr>
+          <td><strong>تكرار الدفعة</strong></td>
+          <td>يمكن إضافة نفس النوع أكثر من مرة</td>
+          <td>مقيّد — لا يمكن تكرار نوع مدفوع بالكامل</td>
+          <td><span class="badge badge-fixed">🔧 إصلاح</span></td>
+        </tr>
+        <tr>
+          <td><strong>المرفقات</strong></td>
+          <td>قسم منفصل، بعض الملفات لا تظهر هنا</td>
+          <td>كل ملفات المشروع في مكان واحد</td>
+          <td><span class="badge badge-improved">✅ محسّن</span></td>
+        </tr>
+        <tr>
+          <td><strong>العقد الأساسي</strong></td>
+          <td>للعرض فقط، لا يمكن تعديله</td>
+          <td>حذف + استبدال بعقد جديد</td>
+          <td><span class="badge badge-new">🆕 جديد</span></td>
+        </tr>
+        <tr>
+          <td><strong>إيصالات الدفعات</strong></td>
+          <td>للعرض فقط في المرفقات</td>
+          <td>يمكن حذفها من المرفقات</td>
+          <td><span class="badge badge-new">🆕 جديد</span></td>
+        </tr>
+        <tr>
+          <td><strong>ملفات المواد</strong></td>
+          <td>تظهر فقط في تاب المواد</td>
+          <td>تظهر في المرفقات أيضاً (مع حذف للمسؤول)</td>
+          <td><span class="badge badge-improved">✅ محسّن</span></td>
+        </tr>
+        <tr>
+          <td><strong>تركيب — إبلاغ العميل</strong></td>
+          <td>حقل معلومات فقط (لا يمكن تفعيله)</td>
+          <td>زر تفاعلي يُسجّل الإبلاغ مع Activity Log</td>
+          <td><span class="badge badge-fixed">🔧 إصلاح</span></td>
+        </tr>
+        <tr>
+          <td><strong>مراحل المشروع</strong></td>
+          <td>5 مراحل (لا تشمل المواد)</td>
+          <td>7 مراحل تشمل طلب المواد وتوريدها</td>
+          <td><span class="badge badge-improved">✅ محسّن</span></td>
+        </tr>
+        <tr>
+          <td><strong>التقارير</strong></td>
+          <td>غير متوفرة</td>
+          <td>صفحة تقارير متكاملة للإدارة مع PDF</td>
+          <td><span class="badge badge-new">🆕 جديد</span></td>
+        </tr>
+        <tr>
+          <td><strong>صلاحية الكوردنيتر</strong></td>
+          <td>أي كوردنيتر يرى كل المشاريع ويديرها</td>
+          <td>يدير مشاريعه فقط، يرى الكل قراءة فقط</td>
+          <td><span class="badge badge-fixed">🔧 إصلاح</span></td>
+        </tr>
+        <tr>
+          <td><strong>Dashboard الإدارة</strong></td>
+          <td>معلومات مكررة في أقسام متعددة</td>
+          <td>مرتّب وغير مكرر — قيمة المتأخرات في الكارد</td>
+          <td><span class="badge badge-improved">✅ محسّن</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#d1fae5">🗺️</span> مراحل المشروع الجديدة</h2>
+    <div style="background:white; border-radius:16px; border:1px solid var(--gray-200); padding:24px; overflow-x:auto;">
+      <p style="font-size:13px; color:var(--gray-600); margin-bottom:16px;">المشروع يمر الآن بـ <strong>7 مراحل</strong> واضحة تُعرض كشريط تقدم في صفحة المشروع:</p>
+      <div class="lifecycle">
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle done">✓</div><div class="lc-label">التعاقد</div></div></div>
+        <div class="lc-line done"></div>
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle done">✓</div><div class="lc-label">الدفعات</div></div></div>
+        <div class="lc-line done"></div>
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle new" style="font-size:10px">🆕</div><div class="lc-label">طلب المواد</div></div></div>
+        <div class="lc-line normal"></div>
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle new" style="font-size:10px">🆕</div><div class="lc-label">توريد المواد</div></div></div>
+        <div class="lc-line normal"></div>
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle normal">5</div><div class="lc-label">التركيب مجدول</div></div></div>
+        <div class="lc-line normal"></div>
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle normal">6</div><div class="lc-label">التركيب منجز</div></div></div>
+        <div class="lc-line normal"></div>
+        <div class="lc-step"><div class="lc-dot"><div class="lc-circle normal">7</div><div class="lc-label">الإغلاق</div></div></div>
+      </div>
+      <p style="font-size:12px; color:var(--gray-400); margin-top:8px;">🆕 = مراحل مضافة حديثاً</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ SECTION: PAYMENTS ═══════════════ -->
+<div id="payments" class="section fade-in">
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#dbeafe">💳</span> إدارة الدفعات</h2>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">حذف وتعديل الدفعات</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <div class="ba-grid">
+            <div class="ba-box before">
+              <div class="ba-label">❌ قبل</div>
+              <ul class="ba-list">
+                <li>لا يوجد زر حذف للدفعة</li>
+                <li>لا يمكن تعديل المبلغ أو التاريخ بعد الإنشاء</li>
+                <li>الدفعة المدفوعة بالكامل قابلة للإضافة مرة أخرى بنفس النوع</li>
+              </ul>
+            </div>
+            <div class="ba-box after">
+              <div class="ba-label">✅ بعد</div>
+              <ul class="ba-list">
+                <li>زر حذف (🗑) على كل دفعة — مع تحذير قبل حذف المدفوعة</li>
+                <li>زر تعديل (✏) يفتح نافذة لتغيير المبلغ والتاريخ والملاحظات</li>
+                <li>نوع الدفعة المدفوعة بالكامل يصبح معطّلاً في قائمة الإضافة</li>
+              </ul>
+            </div>
+          </div>
+          <div class="info-box blue" style="margin-top:16px">
+            <div class="info-icon">🔒</div>
+            <div class="info-text">
+              <strong>قاعدة الحماية</strong>
+              لا يمكن تعديل دفعة مؤكدة الدفع (لحماية سجلات المحاسبة). الحذف متاح مع رسالة تحذير واضحة.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">دفعة المواد — نوع جديد</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <div class="ba-grid">
+            <div class="ba-box before">
+              <div class="ba-label">❌ قبل</div>
+              <ul class="ba-list">
+                <li>أنواع الدفعات: أولى / توريد / تركيب / نهائية / مخصصة</li>
+                <li>لا يوجد نوع مخصص للمواد</li>
+              </ul>
+            </div>
+            <div class="ba-box after">
+              <div class="ba-label">✅ بعد</div>
+              <ul class="ba-list">
+                <li>تمت إضافة "دفعة المواد" كنوع مستقل</li>
+                <li>تاب المواد مقيّد — لا يفتح إلا بعد تأكيد دفع هذه الدفعة</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">منع تكرار أنواع الدفعات</div>
+        </div>
+        <span class="badge badge-fixed">🔧 إصلاح</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <p style="font-size:14px;color:var(--gray-700);line-height:1.7">
+            إذا كانت هناك دفعة من نوع معين (مثلاً: الدفعة الأولى) بحالة <strong>"مدفوعة بالكامل"</strong>،
+            فإن نفس النوع يظهر باللون الرمادي وغير قابل للاختيار في نافذة الإضافة — مع رسالة توضيحية.
+            لا يمكن تجاوز هذا القيد إلا بحذف الدفعة القديمة أولاً.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══════════════ SECTION: ATTACHMENTS ═══════════════ -->
+<div id="attachments" class="section fade-in">
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#fef3c7">📁</span> إدارة المرفقات والوثائق</h2>
+
+    <div class="info-box green">
+      <div class="info-icon">🎯</div>
+      <div class="info-text">
+        <strong>المبدأ الجديد: كل شيء في مكان واحد</strong>
+        تاب "المرفقات" في صفحة المشروع يعرض الآن جميع الملفات المرتبطة بالمشروع بدون استثناء.
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">هيكل المرفقات الجديد</div>
+        </div>
+        <span class="badge badge-improved">✅ محسّن</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <table class="comp-table" style="border-radius:10px; overflow:hidden; border:1px solid var(--gray-200);">
+            <thead>
+              <tr><th>القسم</th><th>المصدر</th><th>حذف؟</th><th>استبدال؟</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>📄 العقد الأساسي</td><td>إنشاء المشروع</td><td>✅ (المسؤول فقط)</td><td>✅ رفع عقد جديد</td></tr>
+              <tr><td>🧾 إيصالات الدفعات</td><td>تسجيل الدفعات</td><td>✅ (المسؤول فقط)</td><td>❌</td></tr>
+              <tr><td>📦 طلب المواد</td><td>تاب المواد</td><td>✅ (المسؤول فقط)</td><td>❌</td></tr>
+              <tr><td>🚚 وصل الاستلام</td><td>تاب المواد</td><td>✅ (المسؤول فقط)</td><td>❌</td></tr>
+              <tr><td>📎 مرفقات إضافية</td><td>رفع مباشر</td><td>✅ (المسؤول فقط)</td><td>❌</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:12px;color:var(--gray-400);margin-top:10px">* المسؤول = الكوردنيتر الخاص بالمشروع أو الإدارة</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">حذف واستبدال العقد الأساسي</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <ul class="feature-list">
+            <li><span class="fi">🗑</span> زر حذف العقد مع رسالة تأكيد</li>
+            <li><span class="fi">🔄</span> زر استبدال يفتح نافذة رفع ملف جديد مع تحذير "سيتم استبدال العقد الحالي"</li>
+            <li><span class="fi">➕</span> إذا لم يكن هناك عقد، يظهر زر "رفع عقد" مع منطقة رفع مخصصة</li>
+            <li><span class="fi">📝</span> كل هذه الإجراءات تُسجَّل في سجل النشاطات تلقائياً</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">كل إجراء يُسجَّل في سجل النشاطات</div>
+        </div>
+        <span class="badge badge-improved">✅ محسّن</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <p style="font-size:14px; color:var(--gray-700); margin-bottom:12px;">الإجراءات التالية تُسجَّل الآن تلقائياً في سجل النشاطات:</p>
+          <ul class="feature-list">
+            <li><span class="fi">📄</span> رفع عقد جديد أو استبداله</li>
+            <li><span class="fi">🗑</span> حذف العقد الأساسي</li>
+            <li><span class="fi">🧾</span> حذف إيصال دفعة</li>
+            <li><span class="fi">📎</span> رفع أو حذف أي مرفق</li>
+            <li><span class="fi">💳</span> حذف أو تعديل دفعة</li>
+            <li><span class="fi">📣</span> إبلاغ العميل بموعد التركيب</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══════════════ SECTION: WORKFLOW ═══════════════ -->
+<div id="workflow" class="section fade-in">
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#d1fae5">⚙️</span> سير العمل — المواد والتركيب</h2>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">تاب المواد — إعادة تصميم كاملة</div>
+        </div>
+        <span class="badge badge-improved">✅ محسّن</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <div class="ba-grid">
+            <div class="ba-box before">
+              <div class="ba-label">❌ قبل</div>
+              <ul class="ba-list">
+                <li>نموذج بسيط لطلب المواد فقط</li>
+                <li>لا يوجد إدخال يدوي للأصناف</li>
+                <li>لا يوجد وصل استلام</li>
+                <li>لا يوجد ربط بالدفعات</li>
+              </ul>
+            </div>
+            <div class="ba-box after">
+              <div class="ba-label">✅ بعد</div>
+              <ul class="ba-list">
+                <li>مقيّد بدفعة المواد (لا يفتح قبل السداد)</li>
+                <li>إدخال يدوي للأصناف: الاسم + الكمية + الوحدة + ملاحظة</li>
+                <li>رفع PDF طلب المواد عند تحديدها كجاهزة</li>
+                <li>تأكيد الاستلام ← ثم رفع وصل الاستلام</li>
+              </ul>
+            </div>
+          </div>
+          <div style="margin-top:16px; background:var(--gray-50); border-radius:10px; padding:16px;">
+            <p style="font-size:13px; font-weight:700; color:var(--gray-900); margin-bottom:10px;">مراحل تاب المواد:</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+                <span style="background:var(--brand); color:white; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex-shrink:0">1</span>
+                <span>رفع ملف طلب المواد (PDF) + إدخال الأصناف يدوياً</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+                <span style="background:var(--brand); color:white; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex-shrink:0">2</span>
+                <span>تحديد المواد كـ "جاهزة" مع رفع وثيقة التحضير</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+                <span style="background:var(--brand); color:white; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex-shrink:0">3</span>
+                <span>تأكيد استلام المواد ← الانتقال لمرحلة "موردة"</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; font-size:13px;">
+                <span style="background:var(--brand); color:white; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex-shrink:0">4</span>
+                <span>رفع وصل الاستلام الموقّع (في أي وقت بعد التأكيد)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">تاب التركيب — إبلاغ العميل</div>
+        </div>
+        <span class="badge badge-fixed">🔧 إصلاح</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <div class="ba-grid">
+            <div class="ba-box before">
+              <div class="ba-label">❌ قبل</div>
+              <ul class="ba-list">
+                <li>حقل "لم يُبلَّغ العميل" كان للعرض فقط</li>
+                <li>لا توجد طريقة لتسجيل الإبلاغ من المنصة</li>
+              </ul>
+            </div>
+            <div class="ba-box after">
+              <div class="ba-label">✅ بعد</div>
+              <ul class="ba-list">
+                <li>زر تفاعلي "إبلاغ العميل" يُفعّل حالة الإبلاغ في النظام</li>
+                <li>بعد الضغط يتحول لشارة زرقاء "تم إبلاغ العميل"</li>
+                <li>يُسجَّل في سجل النشاطات تلقائياً</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">صلاحية الكوردنيتر — إصلاح جوهري</div>
+        </div>
+        <span class="badge badge-fixed">🔧 إصلاح</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <div class="ba-grid">
+            <div class="ba-box before">
+              <div class="ba-label">❌ قبل</div>
+              <ul class="ba-list">
+                <li>أي كوردنيتر يمكنه إدارة أي مشروع</li>
+                <li>لا يوجد تمييز بين "مشروعي" و"مشروع غيري"</li>
+              </ul>
+            </div>
+            <div class="ba-box after">
+              <div class="ba-label">✅ بعد</div>
+              <ul class="ba-list">
+                <li>الكوردنيتر يدير مشاريعه فقط (التي هو الكوردنيتر المعين عليها)</li>
+                <li>يرى بقية المشاريع بصلاحية قراءة فقط</li>
+                <li>لا يستطيع رفع مرفقات في مشاريع غيره</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══════════════ SECTION: REPORTS ═══════════════ -->
+<div id="reports" class="section fade-in">
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#f3e8ff">📈</span> صفحة التقارير — ميزة جديدة كاملة</h2>
+
+    <div class="info-box green">
+      <div class="info-icon">🔐</div>
+      <div class="info-text">
+        <strong>للإدارة فقط</strong>
+        صفحة التقارير متاحة فقط للمستخدمين بدور "الإدارة" (Admin). لا تظهر في قائمة باقي الأدوار.
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">أنواع التقارير المتاحة</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <ul class="feature-list">
+            <li>
+              <span class="fi">📊</span>
+              <div><strong>تقرير المشاريع</strong> — اسم المشروع، العميل، الحالة، المبلغ، الكوردنيتر، المبيعات، تاريخ البدء</div>
+            </li>
+            <li>
+              <span class="fi">💳</span>
+              <div><strong>تقرير الدفعات</strong> — المشروع، النوع، المبلغ، المحصّل، المتبقي، الحالة، تاريخ الاستحقاق</div>
+            </li>
+            <li>
+              <span class="fi">👥</span>
+              <div><strong>تقرير الفريق</strong> — الاسم، الدور، الحالة (نشط/غير نشط)، تاريخ الانضمام</div>
+            </li>
+            <li>
+              <span class="fi">📝</span>
+              <div><strong>سجل النشاطات</strong> — آخر 300 إجراء: التاريخ، المستخدم، المشروع، الإجراء</div>
+            </li>
+          </ul>
+          <div class="info-box blue" style="margin-top:16px">
+            <div class="info-icon">🖨️</div>
+            <div class="info-text">
+              <strong>تصدير PDF</strong>
+              كل تقرير يحتوي على زر "طباعة / تحميل PDF" يفتح print dialog المتصفح. يعرض PDF نظيف
+              يحتوي فقط على بيانات التقرير مع هيدر يحمل اسم الشركة وتاريخ الإصدار.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">بطاقات الإحصائيات في كل تقرير</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <p style="font-size:14px;color:var(--gray-700);line-height:1.7">
+            فوق كل جدول توجد بطاقات ملخص تعرض الأرقام المهمة دفعة واحدة:
+          </p>
+          <ul class="feature-list" style="margin-top:12px">
+            <li><span class="fi">📊</span> تقرير المشاريع: إجمالي / نشطة / مكتملة / معلقة / إجمالي القيمة</li>
+            <li><span class="fi">💳</span> تقرير الدفعات: عدد الدفعات / مكتملة / متأخرة / المحصّل من الإجمالي</li>
+            <li><span class="fi">👥</span> تقرير الفريق: إجمالي الأعضاء / نشطون / غير نشطين</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ═══════════════ SECTION: UI ═══════════════ -->
+<div id="ui" class="section fade-in">
+
+  <div class="change-section">
+    <h2><span class="icon" style="background:#fce7f3">🎨</span> تحسينات الواجهة</h2>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">Dashboard الإدارة — تنظيف وإعادة ترتيب</div>
+        </div>
+        <span class="badge badge-improved">✅ محسّن</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <div class="ba-grid">
+            <div class="ba-box before">
+              <div class="ba-label">❌ قبل</div>
+              <ul class="ba-list">
+                <li>4 كروت KPI في الأعلى</li>
+                <li>ثم 3 كروت ثانية تكرر نفس معلومات الإيرادات</li>
+                <li>ثم قائمة المشاريع + تفاصيل الفريق</li>
+                <li>المتأخرات تظهر كعدد فقط بدون قيمة</li>
+              </ul>
+            </div>
+            <div class="ba-box after">
+              <div class="ba-label">✅ بعد</div>
+              <ul class="ba-list">
+                <li>4 كروت KPI فقط — مباشرة ثم قائمة المشاريع</li>
+                <li>إزالة القسم المكرر نهائياً</li>
+                <li>كارد المتأخرات يعرض القيمة الإجمالية للمتأخرات تحت الرقم</li>
+                <li>تصميم أكثر نظافة وأسرع في القراءة</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">Dashboard الكوردنيتر — ضبط المسافات</div>
+        </div>
+        <span class="badge badge-improved">✅ محسّن</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <ul class="feature-list">
+            <li><span class="fi">📐</span> تقليص المسافة بين الأقسام (من 32px إلى 20px)</li>
+            <li><span class="fi">👁</span> المزيد من المعلومات مرئية عند الفتح دون تمرير</li>
+            <li><span class="fi">⚡</span> تجربة قراءة أسرع وأكثر ترتيباً</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">صفحة المشروع — تضييق المسافات</div>
+        </div>
+        <span class="badge badge-improved">✅ محسّن</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <ul class="feature-list">
+            <li><span class="fi">📱</span> المسافة بين عناصر صفحة المشروع تقلصت من 24px إلى 16px</li>
+            <li><span class="fi">🖥</span> يظهر المزيد من المعلومات على الشاشة دون تمرير مفرط</li>
+            <li><span class="fi">✏️</span> زر تعديل قيمة المشروع (قلم صغير) بجانب المبلغ مباشرة</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">كارد الإيرادات التفاعلي</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <p style="font-size:14px;color:var(--gray-700);line-height:1.7">
+            في dashboard الكوردنيتر والإدارة، كارد "إجمالي القيمة" أصبح قابلاً للنقر. عند النقر ينبسط ليعرض:
+          </p>
+          <ul class="feature-list" style="margin-top:8px">
+            <li><span class="fi">🟢</span> قيمة المشاريع النشطة</li>
+            <li><span class="fi">✅</span> قيمة المشاريع المكتملة</li>
+            <li><span class="fi">🟡</span> قيمة المشاريع المعلقة</li>
+            <li><span class="fi">🔴</span> قيمة المشاريع الملغاة</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="change-card">
+      <div class="change-card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="change-card-title">فلاتر الحالة في قائمة المشاريع</div>
+        </div>
+        <span class="badge badge-new">🆕 جديد</span>
+        <span>▼</span>
+      </div>
+      <div class="change-card-body">
+        <div class="change-card-inner">
+          <ul class="feature-list">
+            <li><span class="fi">🔘</span> أزرار تصفية دائرية: الكل / نشط / معلق / مكتمل / ملغي</li>
+            <li><span class="fi">🔢</span> كل زر يعرض عدد المشاريع في تلك الحالة</li>
+            <li><span class="fi">⚡</span> التصفية فورية بدون إعادة تحميل الصفحة</li>
+            <li><span class="fi">🔗</span> تعمل مع فلتر "مشاريعي / كل المشاريع" في نفس الوقت</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+</main>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="site-footer">
+  <p>تم تطوير منصة سمنان بواسطة <strong>Thakaa Flow</strong> — ai@tfco.sa</p>
+  <p style="margin-top:6px">© 2026 مجموعة سمنان القابضة — جميع الحقوق محفوظة</p>
+</footer>
+
+<script>
+  function showSection(id, btn) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    const sec = document.getElementById(id);
+    if (sec) { sec.classList.add('active'); sec.classList.remove('fade-in'); void sec.offsetWidth; sec.classList.add('fade-in'); }
+    if (btn) btn.classList.add('active');
+  }
+
+  function toggleCard(header) {
+    const body = header.nextElementSibling;
+    const arrow = header.querySelector('span:last-child');
+    body.classList.toggle('open');
+    if (arrow) arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
+  }
+
+  // Auto-open first card in each section
+  document.querySelectorAll('.change-card-header').forEach((h, i) => {
+    if (i === 0) toggleCard(h);
+  });
+</script>
+</body>
+</html>
