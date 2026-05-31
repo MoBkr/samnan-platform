@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createProject } from '@/lib/actions/projects'
-import { uploadFile } from '@/lib/actions/upload'
+import { uploadFileDirect } from '@/lib/upload-client'
 import type { Profile } from '@/types/database'
 
 interface NewProjectFormProps {
@@ -75,10 +75,7 @@ export function NewProjectForm({
       try {
         const formData = new FormData(form)
         if (contractFile) {
-          const upForm = new FormData()
-          upForm.set('file', contractFile)
-          upForm.set('folder', 'contracts')
-          const upResult = await uploadFile(upForm)
+          const upResult = await uploadFileDirect(contractFile, 'contracts')
           if ('error' in upResult) { setError(upResult.error); toast.error(upResult.error); return }
           formData.set('contract_url', upResult.url)
         }

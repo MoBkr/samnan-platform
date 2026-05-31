@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { uploadAttachment } from '@/lib/actions/attachments'
+import { saveDocumentRecord } from '@/lib/actions/attachments'
 import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/materials'
+import { uploadFileDirect } from '@/lib/upload-client'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
 interface MaterialsTabProps {
@@ -132,15 +133,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     if (!file) return
     e.target.value = ''
 
-    const formData = new FormData()
-    formData.set('file', file)
-    formData.set('project_id', projectId)
-    formData.set('type', 'materials_request')
-
     startTransition(async () => {
       try {
-        const result = await uploadAttachment(formData)
-        if (result?.error) toast.error(result.error)
+        const upResult = await uploadFileDirect(file, 'materials_request')
+        if ('error' in upResult) { toast.error(upResult.error); return }
+        const result = await saveDocumentRecord(projectId, 'materials_request', upResult.url, file.name)
+        if ('error' in result) toast.error(result.error)
         else toast.success('تم رفع الملف')
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
@@ -157,17 +155,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       try {
         // Upload the ready-materials document if provided
         if (readyFile) {
-          const formData = new FormData()
-          formData.set('file', readyFile)
-          formData.set('project_id', projectId)
-          formData.set('type', 'materials_request')
-          formData.set('description', `قائمة المواد الجاهزة — ${readyFile.name}`)
-          const uploadResult = await uploadAttachment(formData)
-          if (uploadResult?.error) {
-            toast.error(uploadResult.error)
-            setUploadingReady(false)
-            return
-          }
+          const upResult = await uploadFileDirect(readyFile, 'materials_request')
+          if ('error' in upResult) { toast.error(upResult.error); setUploadingReady(false); return }
+          const saveResult = await saveDocumentRecord(projectId, 'materials_request', upResult.url, `قائمة المواد الجاهزة — ${readyFile.name}`)
+          if ('error' in saveResult) { toast.error(saveResult.error); setUploadingReady(false); return }
         }
         const result = await updateMaterialsStatus(projectId, 'ready')
         setUploadingReady(false)
@@ -192,17 +183,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     if (!file) return
     e.target.value = ''
 
-    const formData = new FormData()
-    formData.set('file', file)
-    formData.set('project_id', projectId)
-    formData.set('type', 'delivery_note')
-
     setDeliveryNoteUploading(true)
     startTransition(async () => {
       try {
-        const result = await uploadAttachment(formData)
+        const upResult = await uploadFileDirect(file, 'delivery_note')
+        if ('error' in upResult) { setDeliveryNoteUploading(false); toast.error(upResult.error); return }
+        const result = await saveDocumentRecord(projectId, 'delivery_note', upResult.url, file.name)
         setDeliveryNoteUploading(false)
-        if (result?.error) toast.error(result.error)
+        if ('error' in result) toast.error(result.error)
         else toast.success('تم رفع وصل الاستلام')
       } catch { toast.error('حدث خطأ غير متوقع') }
     })

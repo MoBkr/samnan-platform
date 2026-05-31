@@ -7,10 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFo
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  uploadAttachment, deleteAttachment,
+  saveDocumentRecord, deleteAttachment,
   deleteContractUrl, uploadContractUrl,
   deletePaymentReceipt,
 } from '@/lib/actions/attachments'
+import { uploadFileDirect } from '@/lib/upload-client'
 import { DOCUMENT_TYPE_LABELS, PAYMENT_TYPE_LABELS } from '@/lib/constants'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -150,16 +151,12 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
         let lastError = ''
 
         for (const file of selectedFiles) {
-          const formData = new FormData()
-          formData.set('file', file)
-          formData.set('project_id', projectId)
-          formData.set('type', selectedType)
-          if (selectedType === 'other' && otherLabel.trim()) {
-            formData.set('description', otherLabel.trim())
-          }
+          const upResult = await uploadFileDirect(file, selectedType)
+          if ('error' in upResult) { lastError = upResult.error; continue }
 
-          const result = await uploadAttachment(formData)
-          if (result?.error) lastError = result.error
+          const desc = selectedType === 'other' && otherLabel.trim() ? otherLabel.trim() : file.name
+          const result = await saveDocumentRecord(projectId, selectedType, upResult.url, desc)
+          if ('error' in result) lastError = result.error
           else successCount++
         }
 
@@ -211,8 +208,11 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
     if (!contractFile) return
     startTransition(async () => {
       try {
+        const upResult = await uploadFileDirect(contractFile, 'contracts')
+        if ('error' in upResult) { toast.error(upResult.error); return }
+
         const formData = new FormData()
-        formData.set('file', contractFile)
+        formData.set('url', upResult.url)
         formData.set('project_id', projectId)
         const result = await uploadContractUrl(formData)
         if (result?.error) toast.error(result.error)

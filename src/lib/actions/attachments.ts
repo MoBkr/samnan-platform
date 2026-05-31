@@ -22,6 +22,39 @@ export async function getProjectAttachments(projectId: string) {
   }
 }
 
+// Called after the client uploads the file directly to Supabase Storage.
+// Only saves the document record — no file data passes through Vercel.
+export async function saveDocumentRecord(
+  projectId: string,
+  docType: string,
+  publicUrl: string,
+  description: string,
+): Promise<{ success: true } | { error: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'غير مصرح' }
+
+    const service = createServiceClient()
+    const { error } = (await service
+      .from('documents')
+      .insert({
+        project_id: projectId,
+        type: docType,
+        url: publicUrl,
+        uploaded_by: user.id,
+        description,
+      } as never)) as unknown as { error: Error | null }
+
+    if (error) return { error: 'فشل حفظ بيانات الملف' }
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true }
+  } catch (e) {
+    console.error('[saveDocumentRecord]', e)
+    return { error: 'حدث خطأ غير متوقع' }
+  }
+}
+
 export async function uploadAttachment(formData: FormData) {
   try {
     const supabase = await createClient()
@@ -158,43 +191,18 @@ export async function deleteContractUrl(projectId: string) {
   }
 }
 
+// Receives the public URL (file already uploaded by client directly to Supabase).
 export async function uploadContractUrl(formData: FormData) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'غير مصرح' }
 
-    const file = formData.get('file') as File
+    const publicUrl = formData.get('url') as string
     const projectId = formData.get('project_id') as string
-
-    if (!file) return { error: 'لم يتم اختيار ملف' }
-    if (file.size > MAX_FILE_SIZE) return { error: 'حجم الملف يتجاوز 10 ميجابايت' }
-
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-    if (!allowedMimes.includes(file.type)) return { error: 'صيغة الملف غير مدعومة' }
-
-    const timestamp = Date.now()
-    const ext = file.name.split('.').pop() || 'bin'
-    const fileName = `contract-${timestamp}.${ext}`
-    const filePath = `contracts/${fileName}`
+    if (!publicUrl || !projectId) return { error: 'بيانات مفقودة' }
 
     const service = createServiceClient()
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const { error: uploadError } = await service.storage
-      .from('documents')
-      .upload(filePath, buffer, { contentType: file.type, upsert: false })
-
-    if (uploadError) {
-      if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('bucket')) {
-        return { error: 'خطأ في الإعدادات: يجب إنشاء Storage bucket باسم "documents" في Supabase' }
-      }
-      return { error: 'فشل رفع الملف. حاول مرة أخرى' }
-    }
-
-    const { data: urlData } = service.storage.from('documents').getPublicUrl(filePath)
-    const publicUrl = urlData?.publicUrl || ''
-
     const { error } = (await service
       .from('projects')
       .update({ contract_url: publicUrl } as never)
@@ -206,14 +214,14 @@ export async function uploadContractUrl(formData: FormData) {
       project_id: projectId,
       user_id: user.id,
       action: 'رفع عقد جديد',
-      details: { file_name: file.name },
+      details: {},
     } as never)
 
     revalidatePath(`/projects/${projectId}`)
     return { success: true, url: publicUrl }
   } catch (e) {
     console.error('[uploadContractUrl]', e)
-    return { error: 'حدث خطأ غير متوقع أثناء رفع الملف' }
+    return { error: 'حدث خطأ غير متوقع' }
   }
 }
 

@@ -11,7 +11,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFo
 import { PaymentStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
 import { createPayment, recordPayment, deletePayment, editPayment } from '@/lib/actions/payments'
-import { uploadFile } from '@/lib/actions/upload'
+import { uploadFileDirect } from '@/lib/upload-client'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
 import type { Payment, Profile } from '@/types/database'
@@ -71,10 +71,7 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
         let receiptUrl = (form.elements.namedItem('receipt_url') as HTMLInputElement)?.value || ''
 
         if (receiptFile) {
-          const uploadFormData = new FormData()
-          uploadFormData.set('file', receiptFile)
-          uploadFormData.set('folder', 'receipts')
-          const uploadResult = await uploadFile(uploadFormData)
+          const uploadResult = await uploadFileDirect(receiptFile, 'receipts')
           if ('error' in uploadResult) { toast.error(uploadResult.error); return }
           receiptUrl = uploadResult.url
         }
