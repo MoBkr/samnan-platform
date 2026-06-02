@@ -53,7 +53,7 @@ export function NewProjectForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
-  const [extraFiles, setExtraFiles] = useState<File[]>([])
+  const [extraFiles, setExtraFiles] = useState<{ file: File; label: string }[]>([])
   const extraFilesRef = useRef<HTMLInputElement>(null)
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState(
     currentProfile.role === 'coordinator' ? currentProfile.id : ''
@@ -88,10 +88,10 @@ export function NewProjectForm({
           const projectId = result.projectId
           // Upload extra attachments in background (don't block navigation)
           if (extraFiles.length > 0) {
-            for (const file of extraFiles) {
+            for (const { file, label } of extraFiles) {
               const upResult = await uploadFileDirect(file, 'other')
               if ('url' in upResult) {
-                await saveDocumentRecord(projectId, 'other', upResult.url, file.name)
+                await saveDocumentRecord(projectId, 'other', upResult.url, label.trim() || file.name)
               }
             }
           }
@@ -185,15 +185,25 @@ export function NewProjectForm({
           <p className="text-xs text-gray-400">ملفات إضافية تُرفع مع المشروع وتظهر في تاب المرفقات (اختياري)</p>
           {extraFiles.length > 0 && (
             <div className="space-y-2">
-              {extraFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <FileText className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span className="flex-1 text-sm text-gray-700 truncate">{f.name}</span>
-                  <span className="text-xs text-gray-400">{(f.size / 1024).toFixed(0)} KB</span>
-                  <button type="button" onClick={() => setExtraFiles(prev => prev.filter((_, j) => j !== i))}
-                    className="rounded-lg p-1 text-gray-400 hover:text-red-500 transition-colors">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+              {extraFiles.map(({ file, label }, i) => (
+                <div key={i} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className="flex-1 text-xs text-gray-500 truncate">{file.name}</span>
+                    <span className="text-xs text-gray-400">{(file.size / 1024).toFixed(0)} KB</span>
+                    <button type="button" onClick={() => setExtraFiles(prev => prev.filter((_, j) => j !== i))}
+                      className="rounded-lg p-1 text-gray-400 hover:text-red-500 transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <Input
+                    placeholder="عنوان المرفق (مثال: صورة الموقع، مخطط المشروع...)"
+                    value={label}
+                    onChange={e => setExtraFiles(prev =>
+                      prev.map((item, j) => j === i ? { ...item, label: e.target.value } : item)
+                    )}
+                    className="h-8 text-sm"
+                  />
                 </div>
               ))}
             </div>
@@ -206,7 +216,7 @@ export function NewProjectForm({
           <input ref={extraFilesRef} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files ?? [])
-              setExtraFiles(prev => [...prev, ...files])
+              setExtraFiles(prev => [...prev, ...files.map(f => ({ file: f, label: '' }))])
               e.target.value = ''
             }} />
         </CardContent>
