@@ -19,13 +19,13 @@ import { InstallationTab } from '@/components/installation/installation-tab'
 import { MaterialsTab } from '@/components/projects/materials-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
-import { updateProjectStatus, updateProjectTeam, updateProjectAmount, deleteProject } from '@/lib/actions/projects'
+import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material } from '@/types/database'
 
 type Tab = 'payments' | 'installation' | 'materials' | 'attachments' | 'activity'
-type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | 'delete' | null
+type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | 'editInfo' | 'delete' | null
 
 function workloadLabel(count: number) {
   if (count === 0) return 'لا مشاريع نشطة'
@@ -117,6 +117,14 @@ export function ProjectDetail({
   const [dialog, setDialog] = useState<ActionDialog>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [newAmount, setNewAmount] = useState(project.total_amount?.toString() ?? '')
+  const [editInfo, setEditInfo] = useState({
+    project_name: project.project_name,
+    client_name: project.client_name,
+    location: project.location ?? '',
+    total_amount: project.total_amount?.toString() ?? '',
+    start_date: project.start_date ?? '',
+    expected_end_date: project.expected_end_date ?? '',
+  })
   const [teamCoordinatorId, setTeamCoordinatorId] = useState(project.coordinator_id ?? '')
   const [teamSalesId, setTeamSalesId] = useState(project.sales_engineer_id ?? '')
   const [teamInstallationId, setTeamInstallationId] = useState(project.installation_id ?? '')
@@ -143,6 +151,14 @@ export function ProjectDetail({
   function handleAction(action: ActionDialog) {
     if (action === 'cancel') setCancelReason('')
     if (action === 'editAmount') setNewAmount(project.total_amount?.toString() ?? '')
+    if (action === 'editInfo') setEditInfo({
+      project_name: project.project_name,
+      client_name: project.client_name,
+      location: project.location ?? '',
+      total_amount: project.total_amount?.toString() ?? '',
+      start_date: project.start_date ?? '',
+      expected_end_date: project.expected_end_date ?? '',
+    })
     setDialog(action)
   }
 
@@ -171,6 +187,15 @@ export function ProjectDetail({
           const parsed = parseFloat(newAmount)
           if (isNaN(parsed) || parsed <= 0) { toast.error('يرجى إدخال قيمة صحيحة'); return }
           result = await updateProjectAmount(project.id, parsed)
+        } else if (dialog === 'editInfo') {
+          result = await updateProjectInfo(project.id, {
+            project_name: editInfo.project_name,
+            client_name: editInfo.client_name,
+            location: editInfo.location || null,
+            total_amount: editInfo.total_amount ? parseFloat(editInfo.total_amount) : null,
+            start_date: editInfo.start_date || null,
+            expected_end_date: editInfo.expected_end_date || null,
+          })
         } else if (dialog === 'delete') {
           result = await deleteProject(project.id)
           if (!result?.error) {
@@ -190,6 +215,7 @@ export function ProjectDetail({
             cancel: 'تم إلغاء المشروع',
             team: 'تم تحديث الفريق',
             editAmount: 'تم تحديث قيمة المشروع',
+            editInfo: 'تم تحديث معلومات المشروع',
           }
           toast.success(labels[dialog!] ?? 'تم التحديث')
           setDialog(null)
@@ -340,6 +366,12 @@ export function ProjectDetail({
         {/* Action buttons */}
         {canManage && (
           <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
+            {canManage && !isFinished && (
+              <Button size="sm" variant="outline" onClick={() => handleAction('editInfo')} className="gap-1.5">
+                <Edit2 className="h-4 w-4" />
+                تعديل المعلومات
+              </Button>
+            )}
             {(currentProfile.role === 'admin' || (isCoordinator && !isFinished)) && (
               <Button size="sm" variant="outline" onClick={() => handleAction('team')} className="gap-1.5">
                 <Users className="h-4 w-4" />
@@ -474,6 +506,65 @@ export function ProjectDetail({
         )}
         {activeTab === 'activity' && <ActivityTab activityLog={activityLog} />}
       </div>
+
+      {/* ── Edit Project Info dialog ── */}
+      <Dialog open={dialog === 'editInfo'} onClose={() => setDialog(null)}>
+        <DialogHeader>
+          <DialogTitle>تعديل معلومات المشروع</DialogTitle>
+          <DialogClose onClose={() => setDialog(null)} />
+        </DialogHeader>
+        <div className="p-5 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_project_name">اسم المشروع *</Label>
+              <Input id="edit_project_name" value={editInfo.project_name}
+                onChange={e => setEditInfo(p => ({ ...p, project_name: e.target.value }))}
+                placeholder="اسم المشروع" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_client_name">اسم العميل *</Label>
+              <Input id="edit_client_name" value={editInfo.client_name}
+                onChange={e => setEditInfo(p => ({ ...p, client_name: e.target.value }))}
+                placeholder="اسم العميل" required />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit_location">موقع المشروع</Label>
+            <Input id="edit_location" value={editInfo.location}
+              onChange={e => setEditInfo(p => ({ ...p, location: e.target.value }))}
+              placeholder="الرياض — حي النخيل" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit_total_amount">القيمة الإجمالية (ريال)</Label>
+            <Input id="edit_total_amount" type="number" min="0" step="0.01"
+              value={editInfo.total_amount}
+              onChange={e => setEditInfo(p => ({ ...p, total_amount: e.target.value }))}
+              placeholder="0.00" dir="ltr" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_start_date">تاريخ البداية</Label>
+              <Input id="edit_start_date" type="date" dir="ltr"
+                value={editInfo.start_date}
+                onChange={e => setEditInfo(p => ({ ...p, start_date: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_end_date">تاريخ الانتهاء المتوقع</Label>
+              <Input id="edit_end_date" type="date" dir="ltr"
+                value={editInfo.expected_end_date}
+                onChange={e => setEditInfo(p => ({ ...p, expected_end_date: e.target.value }))} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDialog(null)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleConfirm}
+            disabled={!editInfo.project_name.trim() || !editInfo.client_name.trim()}>
+            <Edit2 className="h-4 w-4" />
+            حفظ التغييرات
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* ── Edit Amount dialog ── */}
       <Dialog open={dialog === 'editAmount'} onClose={() => setDialog(null)}>

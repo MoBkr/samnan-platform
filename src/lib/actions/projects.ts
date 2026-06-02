@@ -171,6 +171,49 @@ export async function updateProjectTeam(
   return { success: true }
 }
 
+export async function updateProjectInfo(
+  projectId: string,
+  data: {
+    project_name: string
+    client_name: string
+    location: string | null
+    total_amount: number | null
+    start_date: string | null
+    expected_end_date: string | null
+  }
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  if (!data.project_name.trim() || !data.client_name.trim()) {
+    return { error: 'اسم المشروع واسم العميل مطلوبان' }
+  }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('projects')
+    .update({
+      project_name: data.project_name.trim(),
+      client_name: data.client_name.trim(),
+      location: data.location || null,
+      total_amount: data.total_amount,
+      start_date: data.start_date || null,
+      expected_end_date: data.expected_end_date || null,
+    } as never)
+    .eq('id', projectId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل تحديث بيانات المشروع' }
+
+  await logActivity(service, projectId, user.id, 'تعديل معلومات المشروع', {
+    project_name: data.project_name, client_name: data.client_name,
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/projects')
+  return { success: true }
+}
+
 export async function updateProjectAmount(projectId: string, totalAmount: number) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
