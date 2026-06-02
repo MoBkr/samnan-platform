@@ -112,8 +112,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const isDelivered = status === 'delivered'
   const isReady = status === 'ready'
 
-  // Materials payment (for display/gating delivery actions only)
-  const materialsPayment = payments.find((p) => p.type === 'materials')
+  // Only non-cancelled materials payments block the "create payment" button
+  const materialsPayment = payments.find((p) => p.type === 'materials' && p.status !== 'cancelled')
 
   // Items editor state — draftItems is the single source of truth for display
   const [editingItems, setEditingItems] = useState(false)
@@ -414,13 +414,28 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             )}
           </div>
 
-          {/* Create materials payment button */}
-          {canManage && draftItems.length > 0 && !materialsPayment && (
-            <div className="flex items-center justify-end pt-1">
-              <Button variant="outline" size="sm"
-                onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
-                إنشاء دفعة مواد
-              </Button>
+          {/* Create / view materials payment */}
+          {canManage && draftItems.length > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 mt-1">
+              <div className="flex items-center gap-2">
+                {itemsTotal > 0 ? (
+                  <span className="text-sm text-gray-700">
+                    إجمالي المواد: <strong className="text-brand-700">{itemsTotal.toLocaleString('en')} ر.س</strong>
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400">لم تُحدَّد أسعار للمواد</span>
+                )}
+              </div>
+              {materialsPayment ? (
+                <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
+                  تم إنشاء الدفعة ✓
+                </span>
+              ) : (
+                <Button size="sm" variant="outline"
+                  onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
+                  إضافة للدفعات
+                </Button>
+              )}
             </div>
           )}
         </div>
