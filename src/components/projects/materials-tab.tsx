@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { saveDocumentRecord } from '@/lib/actions/attachments'
 import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/materials'
+import { createPayment } from '@/lib/actions/payments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
@@ -48,6 +49,7 @@ function DocRow({ doc }: { doc: Document }) {
 
 function ItemsTable({ items }: { items: MaterialItem[] }) {
   if (items.length === 0) return null
+  const hasPrice = items.some(i => i.unit_price && i.unit_price > 0)
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
       <table className="w-full text-sm">
@@ -58,6 +60,8 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
             <th className="px-4 py-2.5 text-start font-medium">الكمية</th>
             <th className="px-4 py-2.5 text-start font-medium">الوحدة</th>
             <th className="px-4 py-2.5 text-start font-medium">ملاحظات</th>
+            {hasPrice && <th className="px-4 py-2.5 text-start font-medium">سعر الوحدة</th>}
+            {hasPrice && <th className="px-4 py-2.5 text-start font-medium">الإجمالي</th>}
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-50">
@@ -68,9 +72,30 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
               <td className="px-4 py-2.5 text-gray-700">{item.quantity}</td>
               <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
               <td className="px-4 py-2.5 text-gray-400 italic">{item.notes || '—'}</td>
+              {hasPrice && (
+                <td className="px-4 py-2.5 text-gray-700">
+                  {item.unit_price ? `${item.unit_price.toLocaleString('en')} ر.س` : '—'}
+                </td>
+              )}
+              {hasPrice && (
+                <td className="px-4 py-2.5 font-medium text-gray-900">
+                  {item.unit_price ? `${(item.quantity * item.unit_price).toLocaleString('en')} ر.س` : '—'}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
+        {hasPrice && (
+          <tfoot>
+            <tr className="border-t-2 border-gray-200 bg-gray-50">
+              <td colSpan={hasPrice ? 5 : 5} className="px-4 py-2.5 text-sm font-bold text-gray-700">الإجمالي</td>
+              <td className="px-4 py-2.5"></td>
+              <td className="px-4 py-2.5 font-bold text-brand-700">
+                {items.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0).toLocaleString('en')} ر.س
+              </td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   )
@@ -87,15 +112,13 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const isDelivered = status === 'delivered'
   const isReady = status === 'ready'
 
-  // Gate: materials payment must be paid before any action
+  // Materials payment (for display/gating delivery actions only)
   const materialsPayment = payments.find((p) => p.type === 'materials')
-  const materialsPaymentPaid = materialsPayment?.status === 'paid'
-  const isLocked = !materialsPaymentPaid && !isReady && !isDelivered
 
-  // Items editor state
+  // Items editor state — always available when canManage
   const [editingItems, setEditingItems] = useState(false)
   const [draftItems, setDraftItems] = useState<MaterialItem[]>(items)
-  const [newItem, setNewItem] = useState<MaterialItem>({ name: '', quantity: 0, unit: '', notes: '' })
+  const [newItem, setNewItem] = useState<MaterialItem>({ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 })
 
   // Mark-ready dialog
   const [readyDialog, setReadyDialog] = useState(false)
@@ -104,6 +127,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   // Delivery note upload (post-delivery)
   const [deliveryNoteUploading, setDeliveryNoteUploading] = useState(false)
+
+  // Create payment dialog
+  const [paymentDialog, setPaymentDialog] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState('')
+
+  // Compute items total from draft or saved items
+  const displayItems = editingItems ? draftItems : items
+  const itemsTotal = displayItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price ?? 0)), 0)
 
   function handleSaveItems() {
     startTransition(async () => {
@@ -121,7 +152,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       return
     }
     setDraftItems((prev) => [...prev, { ...newItem }])
-    setNewItem({ name: '', quantity: 0, unit: '', notes: '' })
+    setNewItem({ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 })
   }
 
   function handleRemoveItem(idx: number) {
@@ -153,7 +184,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     setUploadingReady(true)
     startTransition(async () => {
       try {
-        // Upload the ready-materials document if provided
         if (readyFile) {
           const upResult = await uploadFileDirect(readyFile, 'materials_request')
           if ('error' in upResult) { toast.error(upResult.error); setUploadingReady(false); return }
@@ -196,7 +226,26 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     })
   }
 
+  function handleCreatePayment() {
+    const amount = parseFloat(paymentAmount)
+    if (isNaN(amount) || amount <= 0) { toast.error('يرجى إدخال مبلغ صحيح'); return }
+    startTransition(async () => {
+      try {
+        const formData = new FormData()
+        formData.set('project_id', projectId)
+        formData.set('type', 'materials')
+        formData.set('amount', amount.toString())
+        const result = await createPayment(formData)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم إنشاء دفعة المواد في تاب الدفعات'); setPaymentDialog(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
   const hasContent = requestDocs.length > 0 || items.length > 0
+
+  // Gate: only delivery/ready actions are locked, not items editing
+  const isActionLocked = !materialsPayment?.status || (materialsPayment.status !== 'paid' && !isReady && !isDelivered)
 
   return (
     <div className="space-y-5">
@@ -212,15 +261,15 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         </div>
       </div>
 
-      {/* ── Lock notice ── */}
-      {isLocked && (
+      {/* ── Lock notice (only for delivery/ready actions) ── */}
+      {isActionLocked && canManage && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <Package className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-amber-800">دفعة المواد غير مسددة</p>
             <p className="text-xs text-amber-600 mt-0.5">
               {materialsPayment
-                ? 'لا يمكن طلب المواد أو تسليمها حتى يسدد العميل دفعة المواد'
+                ? 'لا يمكن تحديد المواد كجاهزة أو تسليمها حتى يسدد العميل دفعة المواد'
                 : 'يجب إضافة دفعة المواد في تاب الدفعات وتسجيل استلامها أولاً'}
             </p>
           </div>
@@ -238,7 +287,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">ملفات الطلب</p>
-              {canManage && !isReady && !isLocked && (
+              {canManage && !isReady && (
                 <label className="cursor-pointer">
                   <UploadChip loading={isPending && !readyDialog} label="رفع ملف" />
                   <input type="file" accept=".pdf,image/*,application/pdf" className="hidden"
@@ -252,11 +301,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             )}
           </div>
 
-          {/* Items list */}
+          {/* Items list — always editable when canManage */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد يدوياً</p>
-              {canManage && !isReady && !editingItems && !isLocked && (
+              {canManage && !editingItems && (
                 <button onClick={() => { setDraftItems(items); setEditingItems(true) }}
                   className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
                   <Plus className="h-3 w-3" />
@@ -277,6 +326,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                           <th className="px-3 py-2 text-start font-medium">الكمية</th>
                           <th className="px-3 py-2 text-start font-medium">الوحدة</th>
                           <th className="px-3 py-2 text-start font-medium">ملاحظات</th>
+                          <th className="px-3 py-2 text-start font-medium">سعر الوحدة</th>
                           <th className="px-3 py-2" />
                         </tr>
                       </thead>
@@ -287,6 +337,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                             <td className="px-3 py-2 text-gray-700">{item.quantity}</td>
                             <td className="px-3 py-2 text-gray-500">{item.unit}</td>
                             <td className="px-3 py-2 text-gray-400 italic text-xs">{item.notes || '—'}</td>
+                            <td className="px-3 py-2 text-gray-600">
+                              {item.unit_price ? `${item.unit_price.toLocaleString('en')} ر.س` : '—'}
+                            </td>
                             <td className="px-3 py-2">
                               <button onClick={() => handleRemoveItem(i)} className="text-red-400 hover:text-red-600">
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -300,7 +353,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 )}
 
                 {/* New item row */}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   <div className="col-span-2 sm:col-span-1 space-y-1">
                     <Label className="text-xs">اسم الصنف *</Label>
                     <Input placeholder="كابل نحاس..." value={newItem.name}
@@ -322,11 +375,24 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     <Input placeholder="اختياري" value={newItem.notes ?? ''}
                       onChange={(e) => setNewItem((p) => ({ ...p, notes: e.target.value }))} />
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">سعر الوحدة (ريال)</Label>
+                    <Input type="number" min="0" step="0.01" placeholder="0"
+                      value={newItem.unit_price || ''}
+                      onChange={(e) => setNewItem((p) => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
+                  </div>
                 </div>
                 <Button type="button" size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5">
                   <Plus className="h-3.5 w-3.5" />
                   إضافة صنف
                 </Button>
+
+                {/* Items total preview */}
+                {draftItems.some(i => i.unit_price && i.unit_price > 0) && (
+                  <div className="rounded-xl bg-brand-50 border border-brand-100 p-3 text-sm text-brand-700">
+                    إجمالي المواد: <strong>{draftItems.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0).toLocaleString('en')} ر.س</strong>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
                   <Button size="sm" loading={isPending} onClick={handleSaveItems} className="gap-1.5">
@@ -344,13 +410,23 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               <p className="text-xs text-gray-400 text-center py-1">لم تُدخَل مواد يدوياً</p>
             )}
           </div>
+
+          {/* Create materials payment button */}
+          {canManage && items.length > 0 && !materialsPayment && (
+            <div className="flex items-center justify-end pt-1">
+              <Button variant="outline" size="sm"
+                onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
+                إنشاء دفعة مواد
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* ══════════════════════════════════════════════
           STEP 2 — المواد جاهزة
       ══════════════════════════════════════════════ */}
-      {hasContent && !isReady && !isDelivered && canManage && !isLocked && (
+      {hasContent && !isReady && !isDelivered && canManage && !isActionLocked && (
         <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <StepLabel number={2} done={false} label="المواد جاهزة للتوريد" />
@@ -368,7 +444,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         <div className="rounded-2xl border border-blue-100 bg-blue-50/20 p-5 space-y-4">
           <StepLabel number={3} done={false} label="مرحلة التوريد" />
 
-          {/* Request docs summary */}
           {requestDocs.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">مستندات الطلب</p>
@@ -403,7 +478,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       ══════════════════════════════════════════════ */}
       {isDelivered && (
         <div className="space-y-4">
-          {/* Completion badge */}
           <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
             <div>
@@ -414,7 +488,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             </div>
           </div>
 
-          {/* Request docs */}
           {requestDocs.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">مستندات الطلب</p>
@@ -422,7 +495,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             </div>
           )}
 
-          {/* Items */}
           {items.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد</p>
@@ -430,7 +502,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             </div>
           )}
 
-          {/* Delivery note section */}
           <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800">وصل الاستلام (موقّع من العميل)</p>
@@ -488,6 +559,34 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             <CheckCircle2 className="h-4 w-4" />
             تأكيد — المواد جاهزة
           </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Create Materials Payment dialog ── */}
+      <Dialog open={paymentDialog} onClose={() => setPaymentDialog(false)}>
+        <DialogHeader>
+          <DialogTitle>إنشاء دفعة مواد</DialogTitle>
+          <DialogClose onClose={() => setPaymentDialog(false)} />
+
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">سيتم إنشاء دفعة مواد في تاب الدفعات. يمكن تعديل المبلغ قبل الإنشاء.</p>
+            {itemsTotal > 0 && (
+              <div className="rounded-xl bg-brand-50 border border-brand-100 p-3 text-sm text-brand-700">
+                إجمالي المواد المحسوب: <strong>{itemsTotal.toLocaleString('en')} ر.س</strong>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="mat_payment_amount">مبلغ الدفعة (ريال)</Label>
+              <Input id="mat_payment_amount" type="number" min="1" step="0.01"
+                value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" />
+            </div>
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setPaymentDialog(false)}>إلغاء</Button>
+          <Button loading={isPending} onClick={handleCreatePayment}>إنشاء الدفعة</Button>
         </DialogFooter>
       </Dialog>
     </div>

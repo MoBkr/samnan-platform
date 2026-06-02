@@ -18,6 +18,7 @@ export interface Profile {
 export interface Project {
   id: string
   client_name: string
+  location: string | null
   project_name: string
   coordinator_id: string | null
   sales_engineer_id: string | null
@@ -55,6 +56,7 @@ export interface MaterialItem {
   quantity: number
   unit: string
   notes?: string
+  unit_price?: number
 }
 
 export interface Material {

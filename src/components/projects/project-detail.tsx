@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
-  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2,
+  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2, MapPin,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -232,6 +232,12 @@ export function ProjectDetail({
                 <Building2 className="h-4 w-4 text-gray-400" />
                 {project.client_name}
               </span>
+              {project.location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  {project.location}
+                </span>
+              )}
               {project.start_date && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-gray-400" />

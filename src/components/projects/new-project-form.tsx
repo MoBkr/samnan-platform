@@ -3,13 +3,14 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Upload, X, FileText, Briefcase } from 'lucide-react'
+import { Upload, X, FileText, Briefcase, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createProject } from '@/lib/actions/projects'
+import { saveDocumentRecord } from '@/lib/actions/attachments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import type { Profile } from '@/types/database'
 
@@ -52,6 +53,8 @@ export function NewProjectForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
+  const [extraFiles, setExtraFiles] = useState<File[]>([])
+  const extraFilesRef = useRef<HTMLInputElement>(null)
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState(
     currentProfile.role === 'coordinator' ? currentProfile.id : ''
   )
@@ -81,7 +84,19 @@ export function NewProjectForm({
         }
         const result = await createProject(formData)
         if (result?.error) { setError(result.error); toast.error(result.error) }
-        else if ('projectId' in result) { router.push(`/projects/${result.projectId}`) }
+        else if (result && 'projectId' in result && result.projectId) {
+          const projectId = result.projectId
+          // Upload extra attachments in background (don't block navigation)
+          if (extraFiles.length > 0) {
+            for (const file of extraFiles) {
+              const upResult = await uploadFileDirect(file, 'other')
+              if ('url' in upResult) {
+                await saveDocumentRecord(projectId, 'other', upResult.url, file.name)
+              }
+            }
+          }
+          router.push(`/projects/${projectId}`)
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'حدث خطأ أثناء إنشاء المشروع. حاول مرة أخرى'
         setError(msg)
@@ -105,6 +120,10 @@ export function NewProjectForm({
               <Label htmlFor="client_name">اسم العميل *</Label>
               <Input id="client_name" name="client_name" placeholder="أحمد محمد" required />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="location">موقع المشروع</Label>
+            <Input id="location" name="location" placeholder="الرياض — حي النخيل" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -156,6 +175,40 @@ export function NewProjectForm({
           )}
           <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png" className="hidden"
             onChange={(e) => setContractFile(e.target.files?.[0] ?? null)} />
+        </CardContent>
+      </Card>
+
+      {/* Extra attachments */}
+      <Card>
+        <CardHeader><CardTitle>مرفقات إضافية</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-gray-400">ملفات إضافية تُرفع مع المشروع وتظهر في تاب المرفقات (اختياري)</p>
+          {extraFiles.length > 0 && (
+            <div className="space-y-2">
+              {extraFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                  <span className="flex-1 text-sm text-gray-700 truncate">{f.name}</span>
+                  <span className="text-xs text-gray-400">{(f.size / 1024).toFixed(0)} KB</span>
+                  <button type="button" onClick={() => setExtraFiles(prev => prev.filter((_, j) => j !== i))}
+                    className="rounded-lg p-1 text-gray-400 hover:text-red-500 transition-colors">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => extraFilesRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-4 text-sm text-gray-500 hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
+            <Paperclip className="h-4 w-4" />
+            إضافة مرفق
+          </button>
+          <input ref={extraFilesRef} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              setExtraFiles(prev => [...prev, ...files])
+              e.target.value = ''
+            }} />
         </CardContent>
       </Card>
 

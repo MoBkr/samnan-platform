@@ -58,6 +58,7 @@ export async function createProject(formData: FormData) {
 
   const clientName = formData.get('client_name') as string
   const projectName = formData.get('project_name') as string
+  const locationValue = formData.get('location') as string
   const totalAmount = formData.get('total_amount') as string
   const startDate = formData.get('start_date') as string
   const expectedEndDate = formData.get('expected_end_date') as string
@@ -74,6 +75,7 @@ export async function createProject(formData: FormData) {
   const { data, error } = (await service.from('projects').insert({
     client_name: clientName,
     project_name: projectName,
+    location: locationValue || null,
     total_amount: totalAmount ? parseFloat(totalAmount) : null,
     start_date: startDate || null,
     expected_end_date: expectedEndDate || null,
