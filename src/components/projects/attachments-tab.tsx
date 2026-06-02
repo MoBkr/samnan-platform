@@ -154,7 +154,7 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
           const upResult = await uploadFileDirect(file, selectedType)
           if ('error' in upResult) { lastError = upResult.error; continue }
 
-          const desc = selectedType === 'other' && otherLabel.trim() ? otherLabel.trim() : file.name
+          const desc = otherLabel.trim() || file.name
           const result = await saveDocumentRecord(projectId, selectedType, upResult.url, desc)
           if ('error' in result) lastError = result.error
           else successCount++
@@ -166,6 +166,7 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
         setUploadDialog(false)
         setSelectedFiles([])
         setOtherLabel('')
+        setSelectedType('contract')
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }

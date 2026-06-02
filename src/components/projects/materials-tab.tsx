@@ -115,9 +115,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   // Materials payment (for display/gating delivery actions only)
   const materialsPayment = payments.find((p) => p.type === 'materials')
 
-  // Items editor state — always available when canManage
+  // Items editor state — draftItems is the single source of truth for display
   const [editingItems, setEditingItems] = useState(false)
-  const [draftItems, setDraftItems] = useState<MaterialItem[]>(items)
+  const [draftItems, setDraftItems] = useState<MaterialItem[]>(() => material?.items ?? [])
   const [newItem, setNewItem] = useState<MaterialItem>({ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 })
 
   // Mark-ready dialog
@@ -132,16 +132,19 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const [paymentDialog, setPaymentDialog] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
 
-  // Compute items total from draft or saved items
-  const displayItems = editingItems ? draftItems : items
-  const itemsTotal = displayItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price ?? 0)), 0)
+  // draftItems is always the display source — no flicker after save
+  const itemsTotal = draftItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price ?? 0)), 0)
 
   function handleSaveItems() {
     startTransition(async () => {
       try {
         const result = await updateMaterialsItems(projectId, draftItems)
         if (result?.error) toast.error(result.error)
-        else { toast.success('تم حفظ قائمة المواد'); setEditingItems(false) }
+        else {
+          toast.success('تم حفظ قائمة المواد')
+          setEditingItems(false)
+          // draftItems keeps its value — shown immediately without waiting for server revalidation
+        }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -306,10 +309,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد يدوياً</p>
               {canManage && !editingItems && (
-                <button onClick={() => { setDraftItems(items); setEditingItems(true) }}
+                <button onClick={() => setEditingItems(true)}
                   className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
                   <Plus className="h-3 w-3" />
-                  {items.length > 0 ? 'تعديل' : 'إضافة مواد'}
+                  {draftItems.length > 0 ? 'تعديل' : 'إضافة مواد'}
                 </button>
               )}
             </div>
@@ -403,16 +406,16 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 </div>
               </div>
             ) : (
-              <ItemsTable items={items} />
+              <ItemsTable items={draftItems} />
             )}
 
-            {!editingItems && items.length === 0 && (
+            {!editingItems && draftItems.length === 0 && (
               <p className="text-xs text-gray-400 text-center py-1">لم تُدخَل مواد يدوياً</p>
             )}
           </div>
 
           {/* Create materials payment button */}
-          {canManage && items.length > 0 && !materialsPayment && (
+          {canManage && draftItems.length > 0 && !materialsPayment && (
             <div className="flex items-center justify-end pt-1">
               <Button variant="outline" size="sm"
                 onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
@@ -426,7 +429,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       {/* ══════════════════════════════════════════════
           STEP 2 — المواد جاهزة
       ══════════════════════════════════════════════ */}
-      {hasContent && !isReady && !isDelivered && canManage && !isActionLocked && (
+      {(draftItems.length > 0 || requestDocs.length > 0) && !isReady && !isDelivered && canManage && !isActionLocked && (
         <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <StepLabel number={2} done={false} label="المواد جاهزة للتوريد" />
@@ -450,10 +453,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               {requestDocs.map((d) => <DocRow key={d.id} doc={d} />)}
             </div>
           )}
-          {items.length > 0 && (
+          {draftItems.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد</p>
-              <ItemsTable items={items} />
+              <ItemsTable items={draftItems} />
             </div>
           )}
 
@@ -495,10 +498,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             </div>
           )}
 
-          {items.length > 0 && (
+          {draftItems.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد</p>
-              <ItemsTable items={items} />
+              <ItemsTable items={draftItems} />
             </div>
           )}
 
