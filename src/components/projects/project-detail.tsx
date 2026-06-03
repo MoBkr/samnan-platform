@@ -492,10 +492,10 @@ export function ProjectDetail({
           <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} />
         )}
         {activeTab === 'installation' && (
-          <InstallationTab installations={installations} projectId={project.id} canManage={canEditContent} currentProfile={currentProfile} />
+          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} />
         )}
         {activeTab === 'materials' && (
-          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canEditContent} payments={payments} />
+          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} />
         )}
         {activeTab === 'attachments' && (
           <AttachmentsTab

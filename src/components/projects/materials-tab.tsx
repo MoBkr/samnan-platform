@@ -264,6 +264,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         </div>
       </div>
 
+      {/* View-only notice for non-managers */}
+      {!canManage && (
+        <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <Package className="h-5 w-5 text-gray-400 shrink-0" />
+          <p className="text-sm text-gray-500">هذا القسم للعرض فقط — إدارة المواد متاحة للكوردنيتر المختص</p>
+        </div>
+      )}
+
       {/* Delivery lock notice — shown only in ready state without payment */}
       {isReady && isDeliveryLocked && canManage && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
