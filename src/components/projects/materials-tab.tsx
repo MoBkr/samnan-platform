@@ -247,8 +247,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   const hasContent = requestDocs.length > 0 || items.length > 0
 
-  // Gate: only delivery/ready actions are locked, not items editing
-  const isActionLocked = !materialsPayment?.status || (materialsPayment.status !== 'paid' && !isReady && !isDelivered)
+  // Delivery locked until at least partial payment received
+  const isDeliveryLocked = !materialsPayment || materialsPayment.paid_amount === 0
 
   return (
     <div className="space-y-5">
@@ -264,16 +264,16 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         </div>
       </div>
 
-      {/* ── Lock notice (only for delivery/ready actions) ── */}
-      {isActionLocked && canManage && (
+      {/* Delivery lock notice — shown only in ready state without payment */}
+      {isReady && isDeliveryLocked && canManage && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <Package className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-amber-800">دفعة المواد غير مسددة</p>
+            <p className="text-sm font-semibold text-amber-800">في انتظار تسديد دفعة المواد</p>
             <p className="text-xs text-amber-600 mt-0.5">
               {materialsPayment
-                ? 'لا يمكن تحديد المواد كجاهزة أو تسليمها حتى يسدد العميل دفعة المواد'
-                : 'يجب إضافة دفعة المواد في تاب الدفعات وتسجيل استلامها أولاً'}
+                ? 'تم إنشاء الدفعة — المواد لن تُسلَّم حتى يسدد العميل ولو جزءاً منها'
+                : 'أضف دفعة المواد للدفعات ثم سجّل استلامها للسماح بالتسليم'}
             </p>
           </div>
         </div>
@@ -444,7 +444,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       {/* ══════════════════════════════════════════════
           STEP 2 — المواد جاهزة
       ══════════════════════════════════════════════ */}
-      {(draftItems.length > 0 || requestDocs.length > 0) && !isReady && !isDelivered && canManage && !isActionLocked && (
+      {(draftItems.length > 0 || requestDocs.length > 0) && !isReady && !isDelivered && canManage && (
         <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <StepLabel number={2} done={false} label="المواد جاهزة للتوريد" />
@@ -456,35 +456,70 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       )}
 
       {/* ══════════════════════════════════════════════
-          STEP 3 — التوريد (status = ready)
+          STEP 3 — المواد جاهزة + الفاتورة + التوريد
       ══════════════════════════════════════════════ */}
       {isReady && (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50/20 p-5 space-y-4">
-          <StepLabel number={3} done={false} label="مرحلة التوريد" />
+        <div className="space-y-4">
 
+          {/* ── Invoice card ── */}
+          {draftItems.length > 0 && (
+            <div className="rounded-2xl border border-brand-200 bg-white p-5 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100">
+                    <FileText className="h-4 w-4 text-brand-700" />
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-900">فاتورة المواد</h4>
+                </div>
+                {materialsPayment ? (
+                  <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
+                    تم إنشاء الدفعة ✓
+                  </span>
+                ) : canManage ? (
+                  <Button size="sm"
+                    onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
+                    إضافة للدفعات
+                  </Button>
+                ) : null}
+              </div>
+
+              <ItemsTable items={draftItems} />
+
+              {itemsTotal > 0 && (
+                <div className="flex items-center justify-between rounded-xl bg-brand-50 border border-brand-100 px-4 py-3">
+                  <span className="text-sm font-semibold text-brand-800">الإجمالي</span>
+                  <span className="text-lg font-bold text-brand-700">{itemsTotal.toLocaleString('en')} ر.س</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Request docs ── */}
           {requestDocs.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">مستندات الطلب</p>
               {requestDocs.map((d) => <DocRow key={d.id} doc={d} />)}
             </div>
           )}
-          {draftItems.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد</p>
-              <ItemsTable items={draftItems} />
-            </div>
-          )}
 
+          {/* ── Delivery action ── */}
           {canManage && (
-            <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-white p-4 gap-3">
+            <div className="flex items-center justify-between rounded-xl border bg-white p-4 gap-3"
+              style={{ borderColor: isDeliveryLocked ? '#fde68a' : '#bfdbfe' }}>
               <div>
                 <p className="text-sm font-semibold text-gray-800">تأكيد استلام المواد</p>
-                <p className="text-xs text-gray-500 mt-0.5">سيتم رفع وصل الاستلام بعد التأكيد</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {isDeliveryLocked
+                    ? 'مقفول — يجب تسديد ولو جزء من دفعة المواد أولاً'
+                    : 'بعد التأكيد ارفع وصل الاستلام الموقّع من العميل'}
+                </p>
               </div>
-              <Button size="sm" loading={isPending} onClick={handleConfirmDelivery}
-                className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
+              <Button size="sm" loading={isPending}
+                onClick={isDeliveryLocked ? undefined : handleConfirmDelivery}
+                disabled={isDeliveryLocked}
+                className={`shrink-0 ${isDeliveryLocked ? '' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
                 <Truck className="h-3.5 w-3.5" />
-                استلمنا المواد
+                {isDeliveryLocked ? 'مقفول' : 'استلمنا المواد'}
               </Button>
             </div>
           )}
