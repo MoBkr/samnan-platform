@@ -142,6 +142,8 @@ export function ProjectDetail({
 
   const canManage = currentProfile.role === 'admin'
     || (currentProfile.role === 'coordinator' && project.coordinator_id === currentProfile.id)
+  // Any coordinator or admin can add/edit materials and manage installation
+  const canEditContent = currentProfile.role === 'admin' || currentProfile.role === 'coordinator'
   const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'
@@ -490,10 +492,10 @@ export function ProjectDetail({
           <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} />
         )}
         {activeTab === 'installation' && (
-          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} />
+          <InstallationTab installations={installations} projectId={project.id} canManage={canEditContent} currentProfile={currentProfile} />
         )}
         {activeTab === 'materials' && (
-          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} />
+          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canEditContent} payments={payments} />
         )}
         {activeTab === 'attachments' && (
           <AttachmentsTab
