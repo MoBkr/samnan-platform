@@ -72,6 +72,11 @@ export default function RequestAdminResetPage() {
                 {loading ? 'جاري الإرسال...' : 'إرسال الطلب للإدارة'}
               </Button>
             </form>
+
+            <p className="mt-4 text-xs text-gray-400 leading-relaxed border-t border-gray-100 pt-4">
+              هذا الخيار متاح لأصحاب الحسابات على المنصة فقط. حسابات الإدارة تُستعاد
+              عبر <Link href="/forgot-password/email" className="text-brand-600 hover:underline font-medium">البريد الإلكتروني</Link>.
+            </p>
           </div>
 
           <p className="mt-6 text-center text-sm text-gray-500">

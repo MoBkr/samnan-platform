@@ -42,9 +42,15 @@ export async function signIn(formData: FormData) {
 
   const result = (await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_active')
     .eq('id', user.id)
-    .single()) as QueryResult<{ role: UserRole }>
+    .single()) as QueryResult<{ role: UserRole; is_active: boolean }>
+
+  // Block accounts that are pending approval or deactivated by an admin.
+  if (result.data && result.data.is_active === false) {
+    await supabase.auth.signOut()
+    return { error: 'حسابك قيد المراجعة من الإدارة. سيتم تفعيله بعد الموافقة عليه.' }
+  }
 
   const role = result.data?.role ?? 'coordinator'
   revalidatePath('/', 'layout')
@@ -101,10 +107,32 @@ export async function createUser(formData: FormData) {
   }
 
   if (data.user) {
+    // Admin-created accounts are pre-approved (active immediately).
     await (service
       .from('profiles')
-      .upsert({ id: data.user.id, full_name: fullName, role } as never) as unknown as Promise<{ error: Error | null }>)
+      .upsert({ id: data.user.id, full_name: fullName, role, is_active: true } as never) as unknown as Promise<{ error: Error | null }>)
   }
+
+  revalidatePath('/users')
+  return { success: true }
+}
+
+export async function approveUser(userId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const profileResult = (await supabase
+    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
+  if (profileResult.data?.role !== 'admin') return { error: 'الموافقة متاحة للإدارة فقط' }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('profiles')
+    .update({ is_active: true } as never)
+    .eq('id', userId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل تفعيل الحساب' }
 
   revalidatePath('/users')
   return { success: true }
@@ -155,16 +183,15 @@ export async function signUp(formData: FormData) {
   }
 
   if (data.user) {
+    // New self-signups start INACTIVE — an admin must approve them before they
+    // can log in. This ensures only real company members get platform access.
     await (service
       .from('profiles')
-      .upsert({ id: data.user.id, full_name: fullName, role } as never) as unknown as Promise<{ error: Error | null }>)
+      .upsert({ id: data.user.id, full_name: fullName, role, is_active: false } as never) as unknown as Promise<{ error: Error | null }>)
   }
 
-  const supabase = await createClient()
-  await supabase.auth.signInWithPassword({ email, password })
-
-  revalidatePath('/', 'layout')
-  return { redirectTo: ROLE_REDIRECTS[role] ?? '/dashboard' }
+  // Do NOT sign the user in — the account is pending admin approval.
+  return { pending: true }
 }
 
 // ── Forgot-password: request reset from the manager (no auth, public) ──
@@ -175,22 +202,37 @@ export async function requestAdminPasswordReset(formData: FormData) {
 
   const service = createServiceClient()
 
-  // Avoid duplicate pending requests for the same email
-  const existing = (await service
-    .from('password_reset_requests')
-    .select('id')
-    .eq('email', email)
-    .eq('status', 'pending')
-    .limit(1)) as unknown as { data: { id: string }[] | null }
+  // SECURITY: only create a request for an email that actually belongs to an
+  // active platform account — and never for admin accounts (admins recover via
+  // email only). We always return a generic success either way so the form
+  // can't be used to enumerate which emails exist.
+  const userId = await findAuthUserIdByEmail(service, email)
+  if (userId) {
+    const profileRes = (await service
+      .from('profiles').select('role, is_active').eq('id', userId).single()) as unknown as {
+        data: { role: string; is_active: boolean } | null
+      }
+    const profile = profileRes.data
 
-  if (!existing.data || existing.data.length === 0) {
-    const { error } = (await service
-      .from('password_reset_requests')
-      .insert({ email, full_name: fullName || null, status: 'pending' } as never)) as unknown as { error: Error | null }
-    if (error) return { error: 'تعذّر إرسال الطلب. حاول مرة أخرى' }
+    const eligible = profile && profile.is_active !== false && profile.role !== 'admin'
+    if (eligible) {
+      // Avoid duplicate pending requests for the same email
+      const existing = (await service
+        .from('password_reset_requests')
+        .select('id')
+        .eq('email', email)
+        .eq('status', 'pending')
+        .limit(1)) as unknown as { data: { id: string }[] | null }
+
+      if (!existing.data || existing.data.length === 0) {
+        await (service
+          .from('password_reset_requests')
+          .insert({ email, full_name: fullName || null, status: 'pending' } as never) as unknown as Promise<unknown>)
+      }
+    }
   }
 
-  // Always succeed (never reveal whether the email exists)
+  // Always succeed (never reveal whether the email exists or its role)
   return { success: true }
 }
 
@@ -345,6 +387,12 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   if (!result.data) {
     // Auth session exists but profile was deleted — sign out to prevent redirect loop
+    await supabase.auth.signOut()
+    return null
+  }
+
+  // Account deactivated / pending approval — revoke the session.
+  if (result.data.is_active === false) {
     await supabase.auth.signOut()
     return null
   }

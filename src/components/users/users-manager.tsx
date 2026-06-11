@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { UserPlus, Trash2, KeyRound, Copy, Check, RefreshCw, MailWarning, Clock } from 'lucide-react'
+import { UserPlus, Trash2, KeyRound, Copy, Check, RefreshCw, MailWarning, Clock, UserCheck, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmpty } from '@/components/ui/table'
-import { createUser, updateUserRole, deleteUser, adminResetUserPassword, resolveResetRequest } from '@/lib/actions/auth'
+import { createUser, updateUserRole, deleteUser, adminResetUserPassword, resolveResetRequest, approveUser } from '@/lib/actions/auth'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateShort } from '@/lib/utils'
 import type { Profile, UserRole, PasswordResetRequest } from '@/types/database'
@@ -64,6 +64,22 @@ export function UsersManager({ users, currentUserId, resetRequests = [] }: Users
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch { toast.error('تعذّر النسخ') }
+  }
+
+  // ── Account approval ──
+  const pendingUsers = users.filter((u) => u.is_active === false)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+
+  function handleApprove(user: Profile) {
+    setApprovingId(user.id)
+    startTransition(async () => {
+      try {
+        const result = await approveUser(user.id)
+        if (result?.error) toast.error(result.error)
+        else toast.success(`تم تفعيل حساب ${user.full_name}`)
+      } catch { toast.error('حدث خطأ غير متوقع') }
+      finally { setApprovingId(null) }
+    })
   }
 
   // ── Reset request resolution ──
@@ -146,6 +162,46 @@ export function UsersManager({ users, currentUserId, resetRequests = [] }: Users
 
   return (
     <>
+      {/* Pending account approvals */}
+      {pendingUsers.length > 0 && (
+        <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100">
+              <ShieldCheck className="h-4 w-4 text-blue-700" />
+            </div>
+            <h3 className="text-sm font-bold text-blue-900">حسابات بانتظار الموافقة</h3>
+            <span className="rounded-full bg-blue-200 px-2 py-0.5 text-xs font-bold text-blue-800">
+              {pendingUsers.length}
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-blue-700/80 leading-relaxed">
+            هذه الحسابات سجّلت بنفسها ولا يمكنها الدخول حتى توافق عليها. تأكّد أن الشخص تابع للشركة قبل التفعيل.
+          </p>
+          <div className="space-y-2">
+            {pendingUsers.map((u) => (
+              <div key={u.id} className="flex items-center gap-3 rounded-xl border border-blue-100 bg-white p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
+                  <p className="text-xs text-gray-500 truncate">{ROLE_LABELS[u.role]} • {formatDateShort(u.created_at)}</p>
+                </div>
+                <Button size="sm" loading={isPending && approvingId === u.id}
+                  onClick={() => handleApprove(u)} className="shrink-0 gap-1.5 bg-green-600 hover:bg-green-700 text-white">
+                  <UserCheck className="h-3.5 w-3.5" />
+                  موافقة وتفعيل
+                </Button>
+                <button
+                  onClick={() => setDeleteTarget(u)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shrink-0"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  رفض
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Pending password reset requests */}
       {resetRequests.length > 0 && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
