@@ -1,95 +1,56 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, MailCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { ArrowRight, Mail, UserCog, ChevronLeft } from 'lucide-react'
 import { AuthShell } from '@/components/auth/auth-shell'
-import { requestPasswordReset } from '@/lib/actions/auth'
 
-export default function ForgotPasswordPage() {
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [sentTo, setSentTo] = useState('')
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-    const formData = new FormData(e.currentTarget)
-    const email = (formData.get('email') as string) ?? ''
-    const result = await requestPasswordReset(formData)
-    setLoading(false)
-    if (result?.error) {
-      setError(result.error)
-    } else {
-      setSentTo(email)
-      setSent(true)
-    }
-  }
-
+export default function ForgotPasswordChoicePage() {
   return (
     <AuthShell
-      heading={sent ? 'تحقّق من بريدك' : 'استعادة كلمة المرور'}
-      subheading={sent ? 'أرسلنا لك رابط إعادة التعيين' : 'أدخل بريدك وسنرسل لك رابطاً لإعادة التعيين'}
+      heading="استعادة كلمة المرور"
+      subheading="اختر الطريقة المناسبة لاستعادة حسابك"
       brandTitleAccent="الداخلية"
     >
-      {sent ? (
-        <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100 text-center">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-50 border border-green-100">
-            <MailCheck className="h-7 w-7 text-green-600" />
+      <div className="space-y-3">
+        {/* Option A — via email */}
+        <Link href="/forgot-password/email" className="block group">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 hover:border-brand-300 hover:shadow-md transition-all flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 border border-brand-100 group-hover:bg-brand-100 transition-colors">
+              <Mail className="h-6 w-6 text-brand-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-gray-900">عبر البريد الإلكتروني</h3>
+              <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
+                نرسل لك رابطاً على بريدك لتعيين كلمة مرور جديدة بنفسك
+              </p>
+            </div>
+            <ChevronLeft className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors shrink-0" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">تم إرسال الرابط</h2>
-          <p className="mt-2 text-sm text-gray-500 leading-relaxed">
-            إذا كان <span className="font-semibold text-gray-700" dir="ltr">{sentTo}</span> مسجلاً لدينا،
-            فستصلك رسالة تحتوي على رابط لإعادة تعيين كلمة المرور.
-          </p>
-          <p className="mt-3 text-xs text-gray-400 leading-relaxed">
-            لم تصلك الرسالة؟ تحقّق من مجلد البريد المزعج (Spam)، أو أعد المحاولة بعد دقيقة.
-          </p>
-          <div className="mt-6 space-y-2">
-            <Button variant="outline" className="w-full h-11 rounded-xl"
-              onClick={() => { setSent(false); setError(null) }}>
-              إرسال إلى بريد آخر
-            </Button>
-            <Link href="/login" className="block">
-              <Button variant="ghost" className="w-full h-11 rounded-xl gap-1.5">
-                <ArrowRight className="h-4 w-4" />
-                العودة لتسجيل الدخول
-              </Button>
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">البريد الإلكتروني</Label>
-                <Input id="email" name="email" type="email" placeholder="you@samnan.sa"
-                  required autoComplete="email" dir="ltr" className="h-12 text-start" />
-              </div>
-              {error && (
-                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
-                  <span className="mt-px shrink-0">⚠</span>
-                  <span>{error}</span>
-                </div>
-              )}
-              <Button type="submit" className="w-full h-12 text-base font-semibold rounded-xl" loading={loading}>
-                {loading ? 'جاري الإرسال...' : 'إرسال رابط الاستعادة'}
-              </Button>
-            </form>
-          </div>
+        </Link>
 
-          <p className="mt-6 text-center text-sm text-gray-500">
-            تذكّرت كلمة المرور؟{' '}
-            <Link href="/login" className="font-semibold text-brand-600 hover:underline">تسجيل الدخول</Link>
-          </p>
-        </>
-      )}
+        {/* Option B — request from manager */}
+        <Link href="/forgot-password/request-admin" className="block group">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 hover:border-brand-300 hover:shadow-md transition-all flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 border border-amber-100 group-hover:bg-amber-100 transition-colors">
+              <UserCog className="h-6 w-6 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-gray-900">طلب من المدير</h3>
+              <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
+                يصل طلبك للإدارة، ويتم إرسال كلمة مرور جديدة على بريدك
+              </p>
+            </div>
+            <ChevronLeft className="h-5 w-5 text-gray-300 group-hover:text-brand-500 transition-colors shrink-0" />
+          </div>
+        </Link>
+      </div>
+
+      <p className="mt-6 text-center text-sm text-gray-500">
+        <Link href="/login" className="inline-flex items-center gap-1.5 font-semibold text-brand-600 hover:underline">
+          <ArrowRight className="h-4 w-4" />
+          العودة لتسجيل الدخول
+        </Link>
+      </p>
     </AuthShell>
   )
 }

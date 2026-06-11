@@ -167,6 +167,110 @@ export async function signUp(formData: FormData) {
   return { redirectTo: ROLE_REDIRECTS[role] ?? '/dashboard' }
 }
 
+// ── Forgot-password: request reset from the manager (no auth, public) ──
+export async function requestAdminPasswordReset(formData: FormData) {
+  const email = (formData.get('email') as string)?.trim().toLowerCase()
+  const fullName = ((formData.get('full_name') as string) ?? '').trim()
+  if (!email) return { error: 'يرجى إدخال البريد الإلكتروني' }
+
+  const service = createServiceClient()
+
+  // Avoid duplicate pending requests for the same email
+  const existing = (await service
+    .from('password_reset_requests')
+    .select('id')
+    .eq('email', email)
+    .eq('status', 'pending')
+    .limit(1)) as unknown as { data: { id: string }[] | null }
+
+  if (!existing.data || existing.data.length === 0) {
+    const { error } = (await service
+      .from('password_reset_requests')
+      .insert({ email, full_name: fullName || null, status: 'pending' } as never)) as unknown as { error: Error | null }
+    if (error) return { error: 'تعذّر إرسال الطلب. حاول مرة أخرى' }
+  }
+
+  // Always succeed (never reveal whether the email exists)
+  return { success: true }
+}
+
+async function findAuthUserIdByEmail(service: ReturnType<typeof createServiceClient>, email: string): Promise<string | null> {
+  // Internal team is small — scan the auth user list and match by email.
+  const target = email.trim().toLowerCase()
+  let page = 1
+  // Up to 10 pages of 1000 = 10k users; far beyond an internal team.
+  while (page <= 10) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage: 1000 })
+    if (error || !data?.users?.length) return null
+    const match = data.users.find((u) => u.email?.toLowerCase() === target)
+    if (match) return match.id
+    if (data.users.length < 1000) return null
+    page++
+  }
+  return null
+}
+
+export async function getPendingResetRequests() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const profileResult = (await supabase
+    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
+  if (profileResult.data?.role !== 'admin') return []
+
+  const service = createServiceClient()
+  const result = (await service
+    .from('password_reset_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })) as unknown as { data: import('@/types/database').PasswordResetRequest[] | null }
+  return result.data ?? []
+}
+
+export async function resolveResetRequest(requestId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const profileResult = (await supabase
+    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
+  if (profileResult.data?.role !== 'admin') return { error: 'متاح للإدارة فقط' }
+
+  const service = createServiceClient()
+
+  const reqResult = (await service
+    .from('password_reset_requests').select('*').eq('id', requestId).single()) as unknown as { data: import('@/types/database').PasswordResetRequest | null }
+  const req = reqResult.data
+  if (!req) return { error: 'الطلب غير موجود' }
+
+  const targetId = await findAuthUserIdByEmail(service, req.email)
+  if (!targetId) {
+    return { error: 'لا يوجد حساب مسجّل بهذا البريد الإلكتروني' }
+  }
+
+  // Generate a strong password
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let newPassword = ''
+  for (let i = 0; i < 10; i++) newPassword += chars[Math.floor(Math.random() * chars.length)]
+
+  const { error: pwError } = await service.auth.admin.updateUserById(targetId, { password: newPassword })
+  if (pwError) return { error: 'فشل إعادة تعيين كلمة المرور' }
+
+  // Mark request resolved
+  await (service
+    .from('password_reset_requests')
+    .update({ status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: user.id } as never)
+    .eq('id', requestId) as unknown as Promise<unknown>)
+
+  // Email the new password to the employee
+  const { sendNewPasswordEmail } = await import('@/lib/email')
+  const mail = await sendNewPasswordEmail(req.email, req.full_name, newPassword)
+
+  revalidatePath('/users')
+  return { success: true, password: newPassword, emailSent: mail.sent, emailSkipped: mail.skipped ?? false }
+}
+
 export async function adminResetUserPassword(targetUserId: string, newPassword: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

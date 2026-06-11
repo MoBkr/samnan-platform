@@ -134,6 +134,16 @@ export interface Notification {
   created_at: string
 }
 
+export interface PasswordResetRequest {
+  id: string
+  email: string
+  full_name: string | null
+  status: 'pending' | 'resolved'
+  created_at: string
+  resolved_at: string | null
+  resolved_by: string | null
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -208,6 +218,12 @@ export type Database = {
         Row: Notification
         Insert: Omit<Notification, 'id' | 'created_at'> & { id?: string; created_at?: string }
         Update: Partial<Omit<Notification, 'id'>>
+        Relationships: []
+      }
+      password_reset_requests: {
+        Row: PasswordResetRequest
+        Insert: Omit<PasswordResetRequest, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Omit<PasswordResetRequest, 'id'>>
         Relationships: []
       }
     }
