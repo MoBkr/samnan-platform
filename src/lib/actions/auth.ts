@@ -2,12 +2,22 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { UserRole } from '@/types/database'
 import { ROLE_REDIRECTS } from '@/lib/constants'
 import type { QueryResult } from '@/lib/supabase/typed'
 import type { Profile } from '@/types/database'
+
+async function getOrigin() {
+  const h = await headers()
+  const origin = h.get('origin')
+  if (origin) return origin
+  const host = h.get('x-forwarded-host') ?? h.get('host')
+  const proto = h.get('x-forwarded-proto') ?? 'https'
+  return `${proto}://${host}`
+}
 
 export async function signIn(formData: FormData) {
   const email = formData.get('email') as string
@@ -46,6 +56,22 @@ export async function signOut() {
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
   redirect('/login')
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = (formData.get('email') as string)?.trim()
+  if (!email) return { error: 'يرجى إدخال البريد الإلكتروني' }
+
+  const origin = await getOrigin()
+  const supabase = await createClient()
+
+  // Send the reset email. We intentionally always return success (even if the
+  // email isn't registered) so we never reveal which emails exist in the system.
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/reset-password`,
+  })
+
+  return { success: true }
 }
 
 export async function createUser(formData: FormData) {

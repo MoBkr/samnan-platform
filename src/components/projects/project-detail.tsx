@@ -142,8 +142,6 @@ export function ProjectDetail({
 
   const canManage = currentProfile.role === 'admin'
     || (currentProfile.role === 'coordinator' && project.coordinator_id === currentProfile.id)
-  // Any coordinator or admin can add/edit materials and manage installation
-  const canEditContent = currentProfile.role === 'admin' || currentProfile.role === 'coordinator'
   const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'

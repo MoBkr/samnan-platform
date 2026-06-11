@@ -54,7 +54,12 @@ export default function LoginPage() {
                   required autoComplete="email" dir="ltr" className="h-12 text-start" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password">كلمة المرور</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">كلمة المرور</Label>
+                  <Link href="/forgot-password" className="text-xs font-medium text-brand-600 hover:underline">
+                    نسيت كلمة المرور؟
+                  </Link>
+                </div>
                 <Input id="password" name="password" type="password" placeholder="••••••••"
                   required autoComplete="current-password" dir="ltr" className="h-12 text-start" />
               </div>
