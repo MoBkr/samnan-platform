@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { UserPlus, Trash2, KeyRound, Copy, Check, RefreshCw, MailWarning, Clock, UserCheck, ShieldCheck } from 'lucide-react'
+import { UserPlus, Trash2, KeyRound, Copy, Check, RefreshCw, UserCheck, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,10 +10,10 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableEmpty } from '@/components/ui/table'
-import { createUser, updateUserRole, deleteUser, adminResetUserPassword, resolveResetRequest, approveUser } from '@/lib/actions/auth'
+import { createUser, updateUserRole, deleteUser, adminResetUserPassword, approveUser } from '@/lib/actions/auth'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDateShort } from '@/lib/utils'
-import type { Profile, UserRole, PasswordResetRequest } from '@/types/database'
+import type { Profile, UserRole } from '@/types/database'
 
 function generatePassword(length = 10) {
   const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -27,10 +27,9 @@ function generatePassword(length = 10) {
 interface UsersManagerProps {
   users: Profile[]
   currentUserId: string
-  resetRequests?: PasswordResetRequest[]
 }
 
-export function UsersManager({ users, currentUserId, resetRequests = [] }: UsersManagerProps) {
+export function UsersManager({ users, currentUserId }: UsersManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
   const [resetTarget, setResetTarget] = useState<Profile | null>(null)
@@ -80,43 +79,6 @@ export function UsersManager({ users, currentUserId, resetRequests = [] }: Users
       } catch { toast.error('حدث خطأ غير متوقع') }
       finally { setApprovingId(null) }
     })
-  }
-
-  // ── Reset request resolution ──
-  const [resolvingId, setResolvingId] = useState<string | null>(null)
-  const [requestResult, setRequestResult] = useState<{
-    name: string; email: string; password: string; emailSent: boolean; emailSkipped: boolean
-  } | null>(null)
-  const [resultCopied, setResultCopied] = useState(false)
-
-  function handleResolveRequest(req: PasswordResetRequest) {
-    setResolvingId(req.id)
-    startTransition(async () => {
-      try {
-        const result = await resolveResetRequest(req.id)
-        if (result?.error) toast.error(result.error)
-        else if (result?.success) {
-          setRequestResult({
-            name: req.full_name || req.email,
-            email: req.email,
-            password: result.password,
-            emailSent: result.emailSent,
-            emailSkipped: result.emailSkipped,
-          })
-          setResultCopied(false)
-        }
-      } catch { toast.error('حدث خطأ غير متوقع') }
-      finally { setResolvingId(null) }
-    })
-  }
-
-  async function copyResultPassword() {
-    if (!requestResult) return
-    try {
-      await navigator.clipboard.writeText(requestResult.password)
-      setResultCopied(true)
-      setTimeout(() => setResultCopied(false), 2000)
-    } catch { toast.error('تعذّر النسخ') }
   }
 
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
@@ -196,40 +158,6 @@ export function UsersManager({ users, currentUserId, resetRequests = [] }: Users
                   <Trash2 className="h-3.5 w-3.5" />
                   رفض
                 </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Pending password reset requests */}
-      {resetRequests.length > 0 && (
-        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
-              <KeyRound className="h-4 w-4 text-amber-700" />
-            </div>
-            <h3 className="text-sm font-bold text-amber-900">طلبات إعادة تعيين كلمة المرور</h3>
-            <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
-              {resetRequests.length}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {resetRequests.map((req) => (
-              <div key={req.id} className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white p-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{req.full_name || 'موظف'}</p>
-                  <p className="text-xs text-gray-500 truncate" dir="ltr">{req.email}</p>
-                </div>
-                <span className="hidden sm:flex items-center gap-1 text-xs text-gray-400 shrink-0">
-                  <Clock className="h-3.5 w-3.5" />
-                  {formatDateShort(req.created_at)}
-                </span>
-                <Button size="sm" loading={isPending && resolvingId === req.id}
-                  onClick={() => handleResolveRequest(req)} className="shrink-0 gap-1.5">
-                  <KeyRound className="h-3.5 w-3.5" />
-                  إعادة تعيين وإرسال
-                </Button>
               </div>
             ))}
           </div>
@@ -376,50 +304,6 @@ export function UsersManager({ users, currentUserId, resetRequests = [] }: Users
               </Button>
             </>
           )}
-        </DialogFooter>
-      </Dialog>
-
-      {/* Reset request result dialog */}
-      <Dialog open={!!requestResult} onClose={() => setRequestResult(null)}>
-        <DialogHeader>
-          <DialogTitle>تمت إعادة التعيين</DialogTitle>
-          <DialogClose onClose={() => setRequestResult(null)} />
-        </DialogHeader>
-        <DialogContent>
-          <div className="space-y-4">
-            {requestResult?.emailSent ? (
-              <div className="flex items-start gap-2.5 rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-800">
-                <Check className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>
-                  تم تعيين كلمة مرور جديدة لـ <strong>{requestResult?.name}</strong> وإرسالها على بريده
-                  <span dir="ltr"> ({requestResult?.email})</span>.
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-                <MailWarning className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>
-                  تم تعيين كلمة مرور جديدة، لكن <strong>تعذّر إرسال الإيميل تلقائياً</strong>
-                  {requestResult?.emailSkipped ? ' (خدمة الإيميل غير مُفعّلة بعد)' : ''}.
-                  انسخ كلمة المرور وسلّمها للموظف يدوياً.
-                </span>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label>كلمة المرور الجديدة</Label>
-              <div className="flex items-center gap-2">
-                <Input value={requestResult?.password ?? ''} readOnly dir="ltr"
-                  className="h-11 text-start font-mono tracking-wide" />
-                <Button type="button" variant="outline" className="h-11 shrink-0 gap-1.5" onClick={copyResultPassword}>
-                  {resultCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  {resultCopied ? 'تم النسخ' : 'نسخ'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-        <DialogFooter>
-          <Button onClick={() => setRequestResult(null)}>تم</Button>
         </DialogFooter>
       </Dialog>
 

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCurrentProfile, getPendingResetRequests } from '@/lib/actions/auth'
+import { getCurrentProfile } from '@/lib/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
 import { UsersManager } from '@/components/users/users-manager'
@@ -16,12 +16,10 @@ export default async function UsersPage() {
     .select('*')
     .order('created_at', { ascending: false })) as QueryResultMany<Profile>
 
-  const resetRequests = await getPendingResetRequests()
-
   return (
     <div className="space-y-6">
       <PageHeader title="إدارة المستخدمين" description="إنشاء وإدارة حسابات المستخدمين" />
-      <UsersManager users={result.data ?? []} currentUserId={profile.id} resetRequests={resetRequests} />
+      <UsersManager users={result.data ?? []} currentUserId={profile.id} />
     </div>
   )
 }
