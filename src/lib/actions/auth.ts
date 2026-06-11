@@ -167,6 +167,30 @@ export async function signUp(formData: FormData) {
   return { redirectTo: ROLE_REDIRECTS[role] ?? '/dashboard' }
 }
 
+export async function adminResetUserPassword(targetUserId: string, newPassword: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const profileResult = (await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()) as QueryResult<{ role: string }>
+
+  if (profileResult.data?.role !== 'admin') return { error: 'إعادة التعيين متاحة للإدارة فقط' }
+  if (!newPassword || newPassword.length < 6) {
+    return { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }
+  }
+
+  const service = createServiceClient()
+  const { error } = await service.auth.admin.updateUserById(targetUserId, { password: newPassword })
+
+  if (error) return { error: 'فشل إعادة تعيين كلمة المرور. حاول مرة أخرى' }
+
+  return { success: true }
+}
+
 export async function deleteUser(targetUserId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
