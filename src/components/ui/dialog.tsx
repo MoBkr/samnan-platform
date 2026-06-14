@@ -73,10 +73,7 @@ function DialogContent({ className, ...props }: React.HTMLAttributes<HTMLDivElem
 function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'sticky bottom-0 z-10 -mx-6 -mb-6 mt-6 flex justify-end gap-3 rounded-b-xl border-t border-gray-100 bg-white px-6 py-4',
-        className
-      )}
+      className={cn('mt-5 flex justify-end gap-3 border-t border-gray-100 pt-4', className)}
       {...props}
     />
   )

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink, Copy, Check, ScanLine, Keyboard } from 'lucide-react'
+import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,7 +12,6 @@ import { PaymentStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
 import { createPayment, recordPayment, deletePayment, editPayment } from '@/lib/actions/payments'
 import { savePaymentAttachment, deleteAttachment, deletePaymentReceipt } from '@/lib/actions/attachments'
-import { extractInvoice } from '@/lib/actions/ocr'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
@@ -36,11 +35,7 @@ interface PaymentsTabProps {
 export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [] }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addType, setAddType] = useState('')
-  const [addMode, setAddMode] = useState<'manual' | 'ocr'>('manual')
-  const [extracting, setExtracting] = useState(false)
-  const [invoiceUrl, setInvoiceUrl] = useState('')
   const [inv, setInv] = useState({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
-  const invoiceInputRef = useRef<HTMLInputElement>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [recordPaymentId, setRecordPaymentId] = useState<string | null>(null)
   const [editPaymentId, setEditPaymentId] = useState<string | null>(null)
@@ -66,8 +61,6 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
 
   function openAddDialog() {
     setAddType('')
-    setAddMode('manual')
-    setInvoiceUrl('')
     setInv({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
     setShowAddDialog(true)
   }
@@ -75,35 +68,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   function closeAddDialog() {
     setShowAddDialog(false)
     setAddType('')
-    setInvoiceUrl('')
     setInv({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
-  }
-
-  function handleInvoiceScan(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    setExtracting(true)
-    startTransition(async () => {
-      try {
-        const up = await uploadFileDirect(file, 'invoices')
-        if ('error' in up) { toast.error(up.error); setExtracting(false); return }
-        setInvoiceUrl(up.url)
-        const result = await extractInvoice(up.url, file.type)
-        if ('error' in result) {
-          toast.error(result.error)
-        } else {
-          setInv({
-            invoice_number: result.data.invoice_number,
-            invoice_date: result.data.invoice_date,
-            seller_name: result.data.seller_name,
-            customer_account: result.data.customer_account,
-          })
-          toast.success('تم استخراج بيانات الفاتورة — راجعها وعدّل إن لزم')
-        }
-      } catch { toast.error('تعذّرت قراءة الفاتورة') }
-      finally { setExtracting(false) }
-    })
   }
 
   function handleAddPayment(e: React.FormEvent<HTMLFormElement>) {
@@ -119,10 +84,6 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
       try {
         const result = await createPayment(formData)
         if (result?.error) { toast.error(result.error); return }
-        // If an invoice file was uploaded for OCR, keep it as a payment attachment
-        if (invoiceUrl && 'paymentId' in result && result.paymentId) {
-          await savePaymentAttachment(projectId, result.paymentId, 'invoice', invoiceUrl, inv.invoice_number ? `فاتورة ${inv.invoice_number}` : 'فاتورة ضريبية')
-        }
         toast.success('تم إضافة الدفعة بنجاح')
         closeAddDialog()
       } catch { toast.error('حدث خطأ غير متوقع') }
@@ -402,34 +363,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
           <DialogTitle>إضافة دفعة جديدة</DialogTitle>
           <DialogClose onClose={closeAddDialog} />
         </DialogHeader>
-        <DialogContent>
-          {/* Mode toggle */}
-          <div className="mb-4 flex items-center gap-1 rounded-xl bg-gray-100 p-1">
-            <button type="button" onClick={() => setAddMode('manual')}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${addMode === 'manual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <Keyboard className="h-4 w-4" />
-              إدخال يدوي
-            </button>
-            <button type="button" onClick={() => setAddMode('ocr')}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${addMode === 'ocr' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <ScanLine className="h-4 w-4" />
-              قراءة فاتورة (OCR)
-            </button>
-          </div>
-
-          {/* OCR upload zone */}
-          {addMode === 'ocr' && (
-            <div className="mb-4">
-              <button type="button" onClick={() => invoiceInputRef.current?.click()} disabled={extracting}
-                className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50/40 py-5 text-center hover:border-brand-300 hover:bg-brand-50 transition-colors disabled:opacity-60">
-                {extracting ? <ScanLine className="h-6 w-6 text-brand-500 animate-pulse" /> : <Upload className="h-6 w-6 text-brand-500" />}
-                <p className="text-sm font-medium text-brand-700">{extracting ? 'جاري قراءة الفاتورة...' : 'ارفع صورة/PDF الفاتورة لاستخراج البيانات'}</p>
-                <p className="text-xs text-gray-400">سيتم ملء الحقول تلقائياً مع إمكانية التعديل</p>
-              </button>
-              <input ref={invoiceInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleInvoiceScan} />
-            </div>
-          )}
-
+        <DialogContent className="max-h-[60vh] overflow-y-auto">
           <form id="add-payment-form" onSubmit={handleAddPayment} className="space-y-4">
             <div className="space-y-1.5">
               <Label>نوع الدفعة</Label>
