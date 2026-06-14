@@ -1,24 +1,47 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import { FolderKanban, AlertTriangle, Users, ArrowLeft, FileBarChart2, Wallet, CheckCircle2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
+import { ProgressOverview } from '@/components/dashboard/progress-overview'
+import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/lib/constants'
-import type { Profile, Project, Payment } from '@/types/database'
+import type { Profile, Project, Payment, Installation } from '@/types/database'
 
 interface AdminDashboardProps {
   profile: Profile
   projects: Project[]
+  myProjects: Project[]
   overduePayments: (Payment & { project: { id: string; client_name: string; project_name: string } })[]
+  installations: (Installation & { project: { id: string; client_name: string; project_name: string } })[]
   users: Profile[]
+  payments: PaymentLite[]
+  materials: MaterialLite[]
+  installationsLite: InstallationLite[]
 }
 
-export function AdminDashboard({ profile, projects, overduePayments, users }: AdminDashboardProps) {
-  const activeProjects = projects.filter((p) => p.status === 'active')
-  const completedProjects = projects.filter((p) => p.status === 'completed')
-  const overdueValue = overduePayments.reduce((s, p) => s + (p.amount - p.paid_amount), 0)
+type Scope = 'mine' | 'all'
+
+export function AdminDashboard({
+  profile, projects, myProjects, overduePayments, users, payments, materials, installationsLite,
+}: AdminDashboardProps) {
+  const hasMine = myProjects.length > 0
+  const [scope, setScope] = useState<Scope>('all')
+
+  const isMine = scope === 'mine' && hasMine
+  const scoped = isMine ? myProjects : projects
+  const ids = new Set(scoped.map((p) => p.id))
+
+  const activeProjects = scoped.filter((p) => p.status === 'active')
+  const completedProjects = scoped.filter((p) => p.status === 'completed')
+  const scopedOverdue = overduePayments.filter((op) => ids.has(op.project.id))
+  const overdueValue = scopedOverdue.reduce((s, p) => s + (p.amount - p.paid_amount), 0)
 
   const VISIBLE_ROLES = ['coordinator', 'sales_engineer', 'installation', 'admin']
   const roleCount = users.reduce<Record<string, number>>((acc, u) => {
@@ -39,7 +62,7 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
           <p className="text-slate-400 text-sm">لوحة الإدارة العليا</p>
           <h1 className="text-2xl font-bold mt-1">مرحباً، {profile.full_name}</h1>
           <p className="text-slate-400 text-sm mt-1">
-            {projects.length} مشروع إجمالي — {activeProjects.length} نشط — {completedProjects.length} مكتمل
+            {projects.length} مشروع إجمالي — {projects.filter((p) => p.status === 'active').length} نشط — {projects.filter((p) => p.status === 'completed').length} مكتمل
           </p>
         </div>
       </div>
@@ -60,50 +83,59 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
         </div>
       </Link>
 
+      {/* Scope toggle — only if admin also coordinates projects */}
+      {hasMine && (
+        <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+          {([['all', 'كل المشاريع', projects.length], ['mine', 'مشاريعي', myProjects.length]] as const).map(([val, label, count]) => (
+            <button
+              key={val}
+              onClick={() => setScope(val)}
+              className={cn(
+                'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+                scope === val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              {label}
+              <span className={cn('rounded-full px-1.5 py-0.5 text-xs font-bold leading-none', scope === val ? 'bg-brand-600 text-white' : 'bg-gray-300 text-gray-600')}>
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          href="/projects"
-          icon={<FolderKanban className="h-6 w-6" />}
-          bg="bg-blue-50 text-blue-700"
-          value={activeProjects.length}
-          label="مشاريع نشطة"
-        />
-        <RevenueBreakdownCard projects={projects} label="إجمالي القيمة" />
-        <KpiCard
-          href="/payments"
-          icon={<AlertTriangle className="h-6 w-6" />}
-          bg="bg-red-50 text-red-700"
-          value={overduePayments.length}
-          label="مدفوعات متأخرة"
-          sub={overduePayments.length > 0 ? `متأخر: ${overdueValue.toLocaleString('en')} ريال` : undefined}
-          urgent={overduePayments.length > 0}
-        />
-        <KpiCard
-          href="/users"
-          icon={<Users className="h-6 w-6" />}
-          bg="bg-purple-50 text-purple-700"
-          value={users.length}
-          label="المستخدمون"
-        />
+        <KpiCard href="/projects" icon={<FolderKanban className="h-6 w-6" />} bg="bg-blue-50 text-blue-700"
+          value={activeProjects.length} label="مشاريع نشطة" sub={`${completedProjects.length} مكتمل`} />
+        <RevenueBreakdownCard projects={scoped} label="إجمالي القيمة" />
+        <KpiCard href="/payments" icon={<AlertTriangle className="h-6 w-6" />} bg="bg-red-50 text-red-700"
+          value={scopedOverdue.length} label="مدفوعات متأخرة"
+          sub={scopedOverdue.length > 0 ? `متأخر: ${overdueValue.toLocaleString('en')} ريال` : undefined}
+          urgent={scopedOverdue.length > 0} />
+        <KpiCard href="/users" icon={<Users className="h-6 w-6" />} bg="bg-purple-50 text-purple-700"
+          value={users.length} label="المستخدمون" />
       </div>
 
-      {/* Overdue payments — collapsible, urgent */}
+      {/* Progress ratios */}
+      <ProgressOverview projects={scoped} payments={payments} materials={materials} installations={installationsLite} />
+
+      {/* Overdue payments — scoped */}
       <CollapsibleSection
         title="المدفوعات المتأخرة"
         icon={<Wallet className="h-5 w-5" />}
         iconBg="bg-red-100 text-red-700"
-        count={overduePayments.length}
-        urgent={overduePayments.length > 0}
-        defaultOpen={overduePayments.length > 0}
+        count={scopedOverdue.length}
+        urgent={scopedOverdue.length > 0}
+        defaultOpen={scopedOverdue.length > 0}
       >
-        {overduePayments.length === 0 ? (
+        {scopedOverdue.length === 0 ? (
           <EmptyRow icon={<CheckCircle2 className="h-6 w-6 text-green-500" />} iconBg="bg-green-50"
             title="لا توجد مدفوعات متأخرة" sub="جميع المدفوعات في موعدها" />
         ) : (
           <>
             <ul className="divide-y divide-gray-50">
-              {overduePayments.slice(0, 8).map((p) => (
+              {scopedOverdue.slice(0, 8).map((p) => (
                 <li key={p.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
                   <p className="truncate text-sm font-semibold text-gray-900">{p.project.project_name}</p>
                   <div className="flex shrink-0 items-center gap-3">
@@ -118,20 +150,20 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
         )}
       </CollapsibleSection>
 
-      {/* All projects — collapsible, open */}
+      {/* Projects — scoped, open */}
       <CollapsibleSection
-        title="جميع المشاريع"
+        title={isMine ? 'مشاريعي' : 'جميع المشاريع'}
         icon={<FolderKanban className="h-5 w-5" />}
         iconBg="bg-blue-50 text-blue-700"
-        count={projects.length}
+        count={scoped.length}
         defaultOpen
       >
-        {projects.length === 0 ? (
+        {scoped.length === 0 ? (
           <EmptyRow icon={<FolderKanban className="h-6 w-6 text-gray-300" />} iconBg="bg-gray-50" title="لا توجد مشاريع" />
         ) : (
           <>
             <ul className="divide-y divide-gray-50">
-              {projects.slice(0, 8).map((project) => (
+              {scoped.slice(0, 8).map((project) => (
                 <li key={project.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50/50">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{project.project_name}</p>
@@ -144,18 +176,13 @@ export function AdminDashboard({ profile, projects, overduePayments, users }: Ad
                 </li>
               ))}
             </ul>
-            <ViewAllFooter href="/projects" label={`عرض جميع المشاريع (${projects.length})`} />
+            <ViewAllFooter href="/projects" label={`عرض جميع المشاريع (${scoped.length})`} />
           </>
         )}
       </CollapsibleSection>
 
-      {/* Team breakdown — collapsible, closed */}
-      <CollapsibleSection
-        title="الفريق"
-        icon={<Users className="h-5 w-5" />}
-        iconBg="bg-purple-50 text-purple-700"
-        count={users.length}
-      >
+      {/* Team breakdown — closed */}
+      <CollapsibleSection title="الفريق" icon={<Users className="h-5 w-5" />} iconBg="bg-purple-50 text-purple-700" count={users.length}>
         <div className="p-5 space-y-3">
           {Object.entries(roleCount).map(([role, count]) => (
             <div key={role} className="flex items-center justify-between">

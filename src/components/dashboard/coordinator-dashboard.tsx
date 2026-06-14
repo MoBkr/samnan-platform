@@ -1,13 +1,19 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   FolderKanban, AlertTriangle, Hammer,
-  Plus, CheckCircle2, ArrowLeft, Eye, Wallet,
+  Plus, CheckCircle2, ArrowLeft, Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
+import { ProgressOverview } from '@/components/dashboard/progress-overview'
+import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
 import type { Profile, Project, Payment, Installation } from '@/types/database'
 
@@ -17,7 +23,12 @@ interface CoordinatorDashboardProps {
   allProjects: Project[]
   overduePayments: (Payment & { project: { id: string; client_name: string; project_name: string } })[]
   installations: (Installation & { project: { id: string; client_name: string; project_name: string } })[]
+  payments: PaymentLite[]
+  materials: MaterialLite[]
+  installationsLite: InstallationLite[]
 }
+
+type Scope = 'mine' | 'all'
 
 export function CoordinatorDashboard({
   profile,
@@ -25,19 +36,30 @@ export function CoordinatorDashboard({
   allProjects,
   overduePayments,
   installations,
+  payments,
+  materials,
+  installationsLite,
 }: CoordinatorDashboardProps) {
-  const todayStr = new Date().toISOString().split('T')[0]
-  const todayInstallations = installations.filter((i) => i.scheduled_date === todayStr)
-  const upcomingInstallations = installations.filter((i) => i.scheduled_date && i.scheduled_date > todayStr)
+  const [scope, setScope] = useState<Scope>('mine')
 
   const now = new Date()
   const hour = now.getHours()
   const greeting = hour < 12 ? 'صباح الخير' : hour < 17 ? 'مساء الخير' : 'مساء النور'
   const dayName = now.toLocaleDateString('ar-SA-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const todayStr = now.toISOString().split('T')[0]
 
-  const myActiveProjects = myProjects.filter((p) => p.status === 'active')
-  const myCompletedCount = myProjects.filter((p) => p.status === 'completed').length
-  const myOverduePayments = overduePayments.filter((op) => myProjects.some((p) => p.id === op.project.id))
+  // ── Scope-aware data ──
+  const isMine = scope === 'mine'
+  const projects = isMine ? myProjects : allProjects
+  const ids = new Set(projects.map((p) => p.id))
+
+  const scopedOverdue = overduePayments.filter((op) => ids.has(op.project.id))
+  const scopedInstalls = installations.filter((i) => ids.has(i.project_id))
+  const todayInstallations = scopedInstalls.filter((i) => i.scheduled_date === todayStr)
+  const upcomingInstallations = scopedInstalls.filter((i) => i.scheduled_date && i.scheduled_date > todayStr)
+
+  const activeProjects = projects.filter((p) => p.status === 'active')
+  const completedCount = projects.filter((p) => p.status === 'completed').length
 
   return (
     <div className="space-y-5">
@@ -62,24 +84,27 @@ export function CoordinatorDashboard({
         </div>
       </div>
 
+      {/* Scope toggle */}
+      <ScopeToggle scope={scope} setScope={setScope} mineCount={myProjects.length} allCount={allProjects.length} />
+
       {/* KPI stats */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatsCard
           href="/projects"
           icon={<FolderKanban className="h-6 w-6" />}
           iconBg="bg-blue-100 text-blue-700"
-          value={myActiveProjects.length}
-          label="مشاريعي النشطة"
-          sub={`${myCompletedCount} مكتمل`}
+          value={activeProjects.length}
+          label={isMine ? 'مشاريعي النشطة' : 'المشاريع النشطة'}
+          sub={`${completedCount} مكتمل`}
         />
         <StatsCard
           href="/payments"
           icon={<AlertTriangle className="h-6 w-6" />}
           iconBg="bg-red-100 text-red-700"
-          value={myOverduePayments.length}
+          value={scopedOverdue.length}
           label="مدفوعات متأخرة"
-          sub={myOverduePayments.length > 0 ? 'تحتاج متابعة' : 'لا توجد متأخرات'}
-          urgent={myOverduePayments.length > 0}
+          sub={scopedOverdue.length > 0 ? 'تحتاج متابعة' : 'لا توجد متأخرات'}
+          urgent={scopedOverdue.length > 0}
         />
         <StatsCard
           href="/installation"
@@ -90,13 +115,16 @@ export function CoordinatorDashboard({
           sub={`${upcomingInstallations.length} قادم`}
         />
         <RevenueBreakdownCard
-          projects={myProjects}
-          label="إجمالي قيمة مشاريعي"
+          projects={projects}
+          label={isMine ? 'إجمالي قيمة مشاريعي' : 'إجمالي قيمة المشاريع'}
           iconBg="bg-purple-100 text-purple-700"
         />
       </div>
 
-      {/* Today's installations — time-sensitive, always visible */}
+      {/* Progress ratios */}
+      <ProgressOverview projects={projects} payments={payments} materials={materials} installations={installationsLite} />
+
+      {/* Today's installations — time-sensitive */}
       {todayInstallations.length > 0 && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex items-start gap-3">
@@ -128,26 +156,22 @@ export function CoordinatorDashboard({
         </div>
       )}
 
-      {/* Overdue payments — collapsible, urgent, open when there are any */}
+      {/* Overdue payments — scoped */}
       <CollapsibleSection
         title="المدفوعات المتأخرة"
         icon={<Wallet className="h-5 w-5" />}
         iconBg="bg-red-100 text-red-700"
-        count={myOverduePayments.length}
-        urgent={myOverduePayments.length > 0}
-        defaultOpen={myOverduePayments.length > 0}
+        count={scopedOverdue.length}
+        urgent={scopedOverdue.length > 0}
+        defaultOpen={scopedOverdue.length > 0}
       >
-        {myOverduePayments.length === 0 ? (
-          <EmptyRow
-            icon={<CheckCircle2 className="h-6 w-6 text-green-500" />}
-            iconBg="bg-green-50"
-            title="لا توجد مدفوعات متأخرة"
-            sub="جميع المدفوعات في موعدها"
-          />
+        {scopedOverdue.length === 0 ? (
+          <EmptyRow icon={<CheckCircle2 className="h-6 w-6 text-green-500" />} iconBg="bg-green-50"
+            title="لا توجد مدفوعات متأخرة" sub="جميع المدفوعات في موعدها" />
         ) : (
           <>
             <ul className="divide-y divide-gray-50">
-              {myOverduePayments.slice(0, 6).map((payment) => (
+              {scopedOverdue.slice(0, 6).map((payment) => (
                 <li key={payment.id} className="px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -170,15 +194,15 @@ export function CoordinatorDashboard({
         )}
       </CollapsibleSection>
 
-      {/* My active projects — collapsible, open by default */}
+      {/* Active projects — scoped, open */}
       <CollapsibleSection
-        title="مشاريعي النشطة"
+        title={isMine ? 'مشاريعي النشطة' : 'المشاريع النشطة'}
         icon={<FolderKanban className="h-5 w-5" />}
         iconBg="bg-brand-100 text-brand-700"
-        count={myActiveProjects.length}
+        count={activeProjects.length}
         defaultOpen
       >
-        {myActiveProjects.length === 0 ? (
+        {activeProjects.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
               <FolderKanban className="h-6 w-6 text-blue-400" />
@@ -194,36 +218,32 @@ export function CoordinatorDashboard({
         ) : (
           <>
             <ul className="divide-y divide-gray-50">
-              {myActiveProjects.slice(0, 6).map((project) => (
-                <ProjectRow key={project.id} project={project} />
+              {activeProjects.slice(0, 6).map((project) => (
+                <ProjectRow key={project.id} project={project} mineTag={!isMine && project.coordinator_id === profile.id} />
               ))}
             </ul>
-            <ViewAllFooter href="/projects" label="عرض مشاريعي" />
+            <ViewAllFooter href="/projects" label="عرض المشاريع" />
           </>
         )}
       </CollapsibleSection>
 
-      {/* All projects — collapsible, closed by default (read-only) */}
+      {/* All projects in scope — closed */}
       <CollapsibleSection
-        title="كل المشاريع"
-        icon={<Eye className="h-5 w-5" />}
-        count={allProjects.length}
-        hint="استعراض فقط"
+        title={isMine ? 'كل مشاريعي' : 'كل المشاريع'}
+        icon={<FolderKanban className="h-5 w-5" />}
+        iconBg="bg-gray-100 text-gray-600"
+        count={projects.length}
       >
-        {allProjects.length === 0 ? (
-          <EmptyRow
-            icon={<FolderKanban className="h-6 w-6 text-gray-300" />}
-            iconBg="bg-gray-50"
-            title="لا توجد مشاريع"
-          />
+        {projects.length === 0 ? (
+          <EmptyRow icon={<FolderKanban className="h-6 w-6 text-gray-300" />} iconBg="bg-gray-50" title="لا توجد مشاريع" />
         ) : (
           <>
             <ul className="divide-y divide-gray-50">
-              {allProjects.slice(0, 10).map((project) => (
-                <ProjectRow key={project.id} project={project} mineTag={project.coordinator_id === profile.id} />
+              {projects.slice(0, 10).map((project) => (
+                <ProjectRow key={project.id} project={project} mineTag={!isMine && project.coordinator_id === profile.id} />
               ))}
             </ul>
-            <ViewAllFooter href="/projects" label={`عرض جميع المشاريع (${allProjects.length})`} />
+            <ViewAllFooter href="/projects" label={`عرض جميع المشاريع (${projects.length})`} />
           </>
         )}
       </CollapsibleSection>
@@ -231,8 +251,33 @@ export function CoordinatorDashboard({
   )
 }
 
-/* ── Shared rows ── */
+/* ── Scope toggle ── */
+function ScopeToggle({ scope, setScope, mineCount, allCount }: { scope: Scope; setScope: (s: Scope) => void; mineCount: number; allCount: number }) {
+  return (
+    <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+      {([['mine', 'مشاريعي', mineCount], ['all', 'كل المشاريع', allCount]] as const).map(([val, label, count]) => (
+        <button
+          key={val}
+          onClick={() => setScope(val)}
+          className={cn(
+            'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+            scope === val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          )}
+        >
+          {label}
+          <span className={cn(
+            'rounded-full px-1.5 py-0.5 text-xs font-bold leading-none',
+            scope === val ? 'bg-brand-600 text-white' : 'bg-gray-300 text-gray-600'
+          )}>
+            {count}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
+/* ── Shared rows ── */
 function ProjectRow({ project, mineTag }: { project: Project; mineTag?: boolean }) {
   return (
     <li className="px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
