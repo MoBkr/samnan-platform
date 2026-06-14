@@ -182,7 +182,8 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
             const overdue = isOverdue(payment.due_date, payment.status)
             const displayStatus = overdue && payment.status === 'pending' ? 'overdue' : payment.status
             const paidPct = payment.amount > 0 ? Math.min(100, Math.round((payment.paid_amount / payment.amount) * 100)) : 0
-            const canEdit = canManage && payment.status !== 'paid' && payment.status !== 'cancelled'
+            // Editing allowed at any stage (even paid) — every change is audited
+            const canEdit = canManage && payment.status !== 'cancelled'
             const canDelete = canManage && payment.status !== 'cancelled'
 
             return (

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { formatCurrency } from '@/lib/utils'
+import { PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import type { Payment, PaymentType } from '@/types/database'
 import type { QueryResultMany } from '@/lib/supabase/typed'
 
@@ -176,13 +178,18 @@ export async function editPayment(formData: FormData) {
 
   const { data: payment } = (await service
     .from('payments')
-    .select('status, paid_amount')
+    .select('status, paid_amount, amount, due_date, notes, paid_at, type')
     .eq('id', paymentId)
-    .single()) as unknown as { data: { status: string; paid_amount: number } | null }
+    .single()) as unknown as {
+      data: { status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null; paid_at: string | null; type: string } | null
+    }
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
-  if (payment.status === 'paid') return { error: 'لا يمكن تعديل دفعة مؤكدة الدفع' }
-  if (amount < payment.paid_amount) return { error: 'المبلغ الجديد لا يمكن أن يكون أقل من المبلغ المحصّل' }
+
+  // Editing allowed at ANY stage (even after full payment). Status is
+  // recomputed against the collected amount so the record stays consistent.
+  const newStatus = payment.paid_amount >= amount ? 'paid' : payment.paid_amount > 0 ? 'partial' : 'pending'
+  const newPaidAt = newStatus === 'paid' ? (payment.paid_at ?? new Date().toISOString()) : null
 
   const { error } = (await service
     .from('payments')
@@ -190,16 +197,33 @@ export async function editPayment(formData: FormData) {
       amount,
       due_date: dueDate || null,
       notes: notes || null,
+      status: newStatus,
+      paid_at: newPaidAt,
     } as never)
     .eq('id', paymentId)) as unknown as { error: Error | null }
 
   if (error) return { error: 'فشل تعديل الدفعة' }
 
+  // ── Audit log: record old → new for each changed field ──
+  const changes: Record<string, { from: string; to: string }> = {}
+  if (payment.amount !== amount) {
+    changes['المبلغ'] = { from: formatCurrency(payment.amount), to: formatCurrency(amount) }
+  }
+  if ((payment.due_date ?? '') !== (dueDate || '')) {
+    changes['تاريخ الاستحقاق'] = { from: payment.due_date || '—', to: dueDate || '—' }
+  }
+  if ((payment.notes ?? '') !== (notes || '')) {
+    changes['ملاحظات'] = { from: payment.notes || '—', to: notes || '—' }
+  }
+  if (payment.status !== newStatus) {
+    changes['الحالة'] = { from: PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status, to: PAYMENT_STATUS_LABELS[newStatus] ?? newStatus }
+  }
+
   await service.from('activity_log').insert({
     project_id: projectId,
     user_id: user.id,
-    action: 'تعديل دفعة',
-    details: { payment_id: paymentId, amount },
+    action: 'تعديل بيانات دفعة',
+    details: { payment_id: paymentId, changes },
   } as never)
 
   revalidatePath(`/projects/${projectId}`)

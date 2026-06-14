@@ -47,6 +47,14 @@ export async function saveDocumentRecord(
       } as never)) as unknown as { error: Error | null }
 
     if (error) return { error: 'فشل حفظ بيانات الملف' }
+
+    await service.from('activity_log').insert({
+      project_id: projectId,
+      user_id: user.id,
+      action: 'رفع مستند',
+      details: { type: docType, description },
+    } as never)
+
     revalidatePath(`/projects/${projectId}`)
     return { success: true }
   } catch (e) {

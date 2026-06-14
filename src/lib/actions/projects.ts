@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { formatCurrency } from '@/lib/utils'
 import type { Project, ProjectStatus } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
@@ -220,6 +221,10 @@ export async function updateProjectAmount(projectId: string, totalAmount: number
   if (!user) return { error: 'غير مصرح' }
 
   const service = createServiceClient()
+
+  const { data: existing } = (await service
+    .from('projects').select('total_amount').eq('id', projectId).single()) as unknown as { data: { total_amount: number | null } | null }
+
   const { error } = (await service
     .from('projects')
     .update({ total_amount: totalAmount } as never)
@@ -227,7 +232,14 @@ export async function updateProjectAmount(projectId: string, totalAmount: number
 
   if (error) return { error: 'فشل تحديث قيمة المشروع' }
 
-  await logActivity(service, projectId, user.id, 'تعديل قيمة المشروع', { total_amount: totalAmount })
+  await logActivity(service, projectId, user.id, 'تعديل قيمة المشروع', {
+    changes: {
+      'قيمة المشروع': {
+        from: existing?.total_amount != null ? formatCurrency(existing.total_amount) : '—',
+        to: formatCurrency(totalAmount),
+      },
+    },
+  })
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
