@@ -275,6 +275,65 @@ export async function uploadContractUrl(formData: FormData) {
   }
 }
 
+// Client document slots stored directly on the project (single-use, view-only)
+const CLIENT_DOC_FIELDS = ['cr_url', 'vat_url', 'national_address_url'] as const
+type ClientDocField = typeof CLIENT_DOC_FIELDS[number]
+const CLIENT_DOC_LABELS: Record<ClientDocField, string> = {
+  cr_url: 'السجل التجاري',
+  vat_url: 'شهادة القيمة المضافة',
+  national_address_url: 'العنوان الوطني',
+}
+
+export async function setClientDoc(projectId: string, field: ClientDocField, url: string) {
+  if (!CLIENT_DOC_FIELDS.includes(field)) return { error: 'حقل غير صالح' }
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'غير مصرح' }
+
+    const service = createServiceClient()
+    const { error } = (await service
+      .from('projects').update({ [field]: url } as never).eq('id', projectId)) as unknown as { error: Error | null }
+    if (error) return { error: 'فشل حفظ المستند' }
+
+    await service.from('activity_log').insert({
+      project_id: projectId, user_id: user.id,
+      action: `رفع ${CLIENT_DOC_LABELS[field]}`, details: {},
+    } as never)
+
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true }
+  } catch (e) {
+    console.error('[setClientDoc]', e)
+    return { error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+export async function clearClientDoc(projectId: string, field: ClientDocField) {
+  if (!CLIENT_DOC_FIELDS.includes(field)) return { error: 'حقل غير صالح' }
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'غير مصرح' }
+
+    const service = createServiceClient()
+    const { error } = (await service
+      .from('projects').update({ [field]: null } as never).eq('id', projectId)) as unknown as { error: Error | null }
+    if (error) return { error: 'فشل حذف المستند' }
+
+    await service.from('activity_log').insert({
+      project_id: projectId, user_id: user.id,
+      action: `حذف ${CLIENT_DOC_LABELS[field]}`, details: {},
+    } as never)
+
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true }
+  } catch (e) {
+    console.error('[clearClientDoc]', e)
+    return { error: 'حدث خطأ غير متوقع' }
+  }
+}
+
 export async function deletePaymentReceipt(paymentId: string, projectId: string) {
   try {
     const supabase = await createClient()

@@ -53,6 +53,7 @@ export function NewProjectForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [contractFile, setContractFile] = useState<File | null>(null)
+  const [hasInstallation, setHasInstallation] = useState(true)
   const [extraFiles, setExtraFiles] = useState<{ file: File; label: string }[]>([])
   const extraFilesRef = useRef<HTMLInputElement>(null)
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState(
@@ -121,9 +122,33 @@ export function NewProjectForm({
               <Input id="client_name" name="client_name" placeholder="أحمد محمد" required />
             </div>
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="location">موقع المشروع</Label>
+              <Input id="location" name="location" placeholder="الرياض — حي النخيل" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="customer_account_no">رقم حساب العميل الداخلي</Label>
+              <Input id="customer_account_no" name="customer_account_no" dir="ltr" className="text-start" placeholder="للمحاسبة ومتابعة المدفوعات" />
+            </div>
+          </div>
+
+          {/* With / without installation */}
           <div className="space-y-1.5">
-            <Label htmlFor="location">موقع المشروع</Label>
-            <Input id="location" name="location" placeholder="الرياض — حي النخيل" />
+            <Label>نوع المشروع</Label>
+            <input type="hidden" name="has_installation" value={hasInstallation ? 'true' : 'false'} />
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setHasInstallation(true)}
+                className={`rounded-xl border p-3 text-sm font-medium transition-all ${hasInstallation ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/15' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}>
+                <div className="font-bold">مع تركيب</div>
+                <div className="text-xs mt-0.5 opacity-80">دورة كاملة: مواد ← تركيب ← إغلاق</div>
+              </button>
+              <button type="button" onClick={() => setHasInstallation(false)}
+                className={`rounded-xl border p-3 text-sm font-medium transition-all ${!hasInstallation ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/15' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}>
+                <div className="font-bold">بدون تركيب</div>
+                <div className="text-xs mt-0.5 opacity-80">يتخطّى خطوات التركيب</div>
+              </button>
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -272,8 +297,8 @@ export function NewProjectForm({
             </div>
           </div>
 
-          {/* Installation person */}
-          {canAssignTeam && (
+          {/* Installation person — only when project has installation */}
+          {canAssignTeam && hasInstallation && (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="installation_id">مسؤول التركيب</Label>

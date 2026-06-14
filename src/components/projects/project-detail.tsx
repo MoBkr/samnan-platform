@@ -121,6 +121,8 @@ export function ProjectDetail({
     project_name: project.project_name,
     client_name: project.client_name,
     location: project.location ?? '',
+    customer_account_no: project.customer_account_no ?? '',
+    has_installation: project.has_installation,
     total_amount: project.total_amount?.toString() ?? '',
     start_date: project.start_date ?? '',
     expected_end_date: project.expected_end_date ?? '',
@@ -159,6 +161,8 @@ export function ProjectDetail({
       project_name: project.project_name,
       client_name: project.client_name,
       location: project.location ?? '',
+      customer_account_no: project.customer_account_no ?? '',
+      has_installation: project.has_installation,
       total_amount: project.total_amount?.toString() ?? '',
       start_date: project.start_date ?? '',
       expected_end_date: project.expected_end_date ?? '',
@@ -196,6 +200,8 @@ export function ProjectDetail({
             project_name: editInfo.project_name,
             client_name: editInfo.client_name,
             location: editInfo.location || null,
+            customer_account_no: editInfo.customer_account_no || null,
+            has_installation: editInfo.has_installation,
             total_amount: editInfo.total_amount ? parseFloat(editInfo.total_amount) : null,
             start_date: editInfo.start_date || null,
             expected_end_date: editInfo.expected_end_date || null,
@@ -268,6 +274,15 @@ export function ProjectDetail({
                   {project.location}
                 </span>
               )}
+              {project.customer_account_no && (
+                <span className="flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4 text-gray-400" />
+                  حساب العميل: <span dir="ltr" className="font-medium">{project.customer_account_no}</span>
+                </span>
+              )}
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${project.has_installation ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                {project.has_installation ? 'مع تركيب' : 'بدون تركيب'}
+              </span>
               {project.start_date && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-gray-400" />
@@ -471,7 +486,7 @@ export function ProjectDetail({
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-0 overflow-x-auto">
-          {TABS.map((tab) => (
+          {TABS.filter((tab) => tab.id !== 'installation' || project.has_installation).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -538,11 +553,33 @@ export function ProjectDetail({
                 placeholder="اسم العميل" required />
             </div>
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_location">موقع المشروع</Label>
+              <Input id="edit_location" value={editInfo.location}
+                onChange={e => setEditInfo(p => ({ ...p, location: e.target.value }))}
+                placeholder="الرياض — حي النخيل" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit_customer_account">رقم حساب العميل الداخلي</Label>
+              <Input id="edit_customer_account" dir="ltr" className="text-start" value={editInfo.customer_account_no}
+                onChange={e => setEditInfo(p => ({ ...p, customer_account_no: e.target.value }))}
+                placeholder="للمحاسبة" />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="edit_location">موقع المشروع</Label>
-            <Input id="edit_location" value={editInfo.location}
-              onChange={e => setEditInfo(p => ({ ...p, location: e.target.value }))}
-              placeholder="الرياض — حي النخيل" />
+            <Label>نوع المشروع</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setEditInfo(p => ({ ...p, has_installation: true }))}
+                className={`rounded-xl border p-2.5 text-sm font-medium transition-all ${editInfo.has_installation ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/15' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}>
+                مع تركيب
+              </button>
+              <button type="button" onClick={() => setEditInfo(p => ({ ...p, has_installation: false }))}
+                className={`rounded-xl border p-2.5 text-sm font-medium transition-all ${!editInfo.has_installation ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/15' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}>
+                بدون تركيب
+              </button>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="edit_total_amount">القيمة الإجمالية (ريال)</Label>

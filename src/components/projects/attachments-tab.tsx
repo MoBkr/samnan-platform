@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import {
   saveDocumentRecord, deleteAttachment,
   deleteContractUrl, uploadContractUrl,
-  deletePaymentReceipt,
+  deletePaymentReceipt, setClientDoc, clearClientDoc,
 } from '@/lib/actions/attachments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { DOCUMENT_TYPE_LABELS, PAYMENT_TYPE_LABELS } from '@/lib/constants'
@@ -17,10 +17,12 @@ import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Document, Payment, Project } from '@/types/database'
 
+type ClientDocField = 'cr_url' | 'vat_url' | 'national_address_url'
+
 interface AttachmentsTabProps {
   attachments: Document[]
   projectId: string
-  project: Pick<Project, 'contract_url' | 'project_name'>
+  project: Pick<Project, 'contract_url' | 'project_name' | 'cr_url' | 'vat_url' | 'national_address_url'>
   payments: Payment[]
   canManage: boolean
 }
@@ -36,6 +38,46 @@ function getDocumentIcon(url: string) {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Riyadh' })
+}
+
+/* ── Optional client document slot (CR / VAT / national address) ── */
+function ClientDocSlot({ field, label, url, canManage, isPending, onUpload, onDelete }: {
+  field: ClientDocField
+  label: string
+  url: string | null
+  canManage: boolean
+  isPending: boolean
+  onUpload: (field: ClientDocField, file: File) => void
+  onDelete: (field: ClientDocField) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-gray-500">{label} <span className="text-gray-300">(اختياري)</span></p>
+      {url ? (
+        <ReadOnlyDocRow
+          label={label}
+          url={url}
+          canManage={canManage}
+          isPending={isPending}
+          onDelete={() => onDelete(field)}
+          onReplace={() => ref.current?.click()}
+        />
+      ) : (
+        <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-200 bg-white p-4">
+          <p className="text-sm text-gray-400">لم يُرفع بعد</p>
+          {canManage && (
+            <Button size="sm" variant="outline" onClick={() => ref.current?.click()} disabled={isPending}>
+              <Upload className="h-3.5 w-3.5" />
+              رفع
+            </Button>
+          )}
+        </div>
+      )}
+      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onUpload(field, f) }} />
+    </div>
+  )
 }
 
 /* ── Read-only doc row (contract / receipt) ── */
@@ -182,6 +224,29 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
     })
   }
 
+  function handleClientDoc(field: ClientDocField, file: File) {
+    startTransition(async () => {
+      try {
+        const up = await uploadFileDirect(file, field)
+        if ('error' in up) { toast.error(up.error); return }
+        const res = await setClientDoc(projectId, field, up.url)
+        if (res?.error) toast.error(res.error)
+        else toast.success('تم رفع المستند')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function handleClientDocDelete(field: ClientDocField) {
+    if (!confirm('هل تريد حذف هذا المستند؟')) return
+    startTransition(async () => {
+      try {
+        const res = await clearClientDoc(projectId, field)
+        if (res?.error) toast.error(res.error)
+        else toast.success('تم حذف المستند')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
   function handleDeleteContract() {
     if (!confirm('هل تريد حذف العقد الأساسي؟ لن يمكن التراجع عن هذا الإجراء')) return
     startTransition(async () => {
@@ -244,32 +309,42 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
         </div>
       )}
 
-      {/* ── Contract ── */}
+      {/* ── Client documents (contract + CR + VAT + national address) ── */}
       <div className="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">العقد الأساسي</h3>
-          <span className="text-xs text-gray-400 bg-gray-200 rounded-full px-2 py-0.5">تلقائي</span>
+        <h3 className="font-semibold text-gray-900">مستندات العميل</h3>
+
+        {/* Contract */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-gray-500">العقد</p>
+          {project.contract_url ? (
+            <ReadOnlyDocRow
+              label={`عقد — ${project.project_name}`}
+              url={project.contract_url}
+              canManage={canManage}
+              isPending={isPending}
+              onDelete={handleDeleteContract}
+              onReplace={() => setContractDialog(true)}
+            />
+          ) : (
+            <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-200 bg-white p-4">
+              <p className="text-sm text-gray-400">لا يوجد عقد مرفق</p>
+              {canManage && (
+                <Button size="sm" variant="outline" onClick={() => setContractDialog(true)}>
+                  <Upload className="h-3.5 w-3.5" />
+                  رفع عقد
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-        {project.contract_url ? (
-          <ReadOnlyDocRow
-            label={`عقد — ${project.project_name}`}
-            url={project.contract_url}
-            canManage={canManage}
-            isPending={isPending}
-            onDelete={handleDeleteContract}
-            onReplace={() => setContractDialog(true)}
-          />
-        ) : (
-          <div className="flex items-center justify-between rounded-xl border border-dashed border-gray-200 bg-white p-4">
-            <p className="text-sm text-gray-400">لا يوجد عقد مرفق</p>
-            {canManage && (
-              <Button size="sm" variant="outline" onClick={() => setContractDialog(true)}>
-                <Upload className="h-3.5 w-3.5" />
-                رفع عقد
-              </Button>
-            )}
-          </div>
-        )}
+
+        {/* Optional client documents */}
+        <ClientDocSlot field="cr_url" label="السجل التجاري" url={project.cr_url}
+          canManage={canManage} isPending={isPending} onUpload={handleClientDoc} onDelete={handleClientDocDelete} />
+        <ClientDocSlot field="vat_url" label="شهادة القيمة المضافة" url={project.vat_url}
+          canManage={canManage} isPending={isPending} onUpload={handleClientDoc} onDelete={handleClientDocDelete} />
+        <ClientDocSlot field="national_address_url" label="العنوان الوطني" url={project.national_address_url}
+          canManage={canManage} isPending={isPending} onUpload={handleClientDoc} onDelete={handleClientDocDelete} />
       </div>
 
       {/* ── Payment Receipts ── */}

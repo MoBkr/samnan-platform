@@ -20,10 +20,15 @@ export interface Project {
   client_name: string
   location: string | null
   project_name: string
+  customer_account_no: string | null
+  has_installation: boolean
   coordinator_id: string | null
   sales_engineer_id: string | null
   installation_id: string | null
   contract_url: string | null
+  cr_url: string | null
+  vat_url: string | null
+  national_address_url: string | null
   status: ProjectStatus
   total_amount: number | null
   start_date: string | null

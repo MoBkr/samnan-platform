@@ -63,6 +63,8 @@ export async function createProject(formData: FormData) {
   const totalAmount = formData.get('total_amount') as string
   const startDate = formData.get('start_date') as string
   const expectedEndDate = formData.get('expected_end_date') as string
+  const customerAccountNo = formData.get('customer_account_no') as string
+  const hasInstallation = formData.get('has_installation') !== 'false' // default true
   const coordinatorId = formData.get('coordinator_id') as string
   const salesEngineerId = formData.get('sales_engineer_id') as string
   const installationId = formData.get('installation_id') as string
@@ -77,12 +79,14 @@ export async function createProject(formData: FormData) {
     client_name: clientName,
     project_name: projectName,
     location: locationValue || null,
+    customer_account_no: customerAccountNo || null,
+    has_installation: hasInstallation,
     total_amount: totalAmount ? parseFloat(totalAmount) : null,
     start_date: startDate || null,
     expected_end_date: expectedEndDate || null,
     coordinator_id: coordinatorId || null,
     sales_engineer_id: salesEngineerId || null,
-    installation_id: installationId || null,
+    installation_id: hasInstallation ? (installationId || null) : null,
     contract_url: contractUrl || null,
     status: 'active',
   } as never).select().single()) as unknown as { data: Project | null; error: Error | null }
@@ -178,6 +182,8 @@ export async function updateProjectInfo(
     project_name: string
     client_name: string
     location: string | null
+    customer_account_no: string | null
+    has_installation: boolean
     total_amount: number | null
     start_date: string | null
     expected_end_date: string | null
@@ -198,6 +204,8 @@ export async function updateProjectInfo(
       project_name: data.project_name.trim(),
       client_name: data.client_name.trim(),
       location: data.location || null,
+      customer_account_no: data.customer_account_no || null,
+      has_installation: data.has_installation,
       total_amount: data.total_amount,
       start_date: data.start_date || null,
       expected_end_date: data.expected_end_date || null,
