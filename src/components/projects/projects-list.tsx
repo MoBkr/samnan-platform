@@ -42,7 +42,7 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
   const [search, setSearch] = useState('')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedPeople, setSelectedPeople] = useState<string[]>([])
-  const [visibleCount, setVisibleCount] = useState(6)
+  const [visibleCount, setVisibleCount] = useState(12)
 
   const myProjects = useMemo(() => projects.filter((p) => myProjectIds.has(p.id)), [projects, myProjectIds])
   const baseList = isAdmin ? projects : view === 'mine' ? myProjects : projects
@@ -85,10 +85,12 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
     })
   }, [baseList, statusFilter, selectedCities, selectedPeople, search])
 
-  // Incremental reveal ("load more" — starts at 6, doubles each click)
-  const INITIAL_COUNT = 6
+  // Incremental reveal ("load more" — starts at 12, +12 each click)
+  const INITIAL_COUNT = 12
+  const STEP = 12
   const paged = displayed.slice(0, visibleCount)
   const remaining = displayed.length - paged.length
+  const nextChunk = Math.min(STEP, remaining)
 
   // Reset back to the initial count whenever the result set changes
   useEffect(() => {
@@ -288,11 +290,11 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
             <div className="flex flex-col items-center gap-2 pt-2">
               <Button
                 variant="outline"
-                onClick={() => setVisibleCount((c) => c * 2)}
+                onClick={() => setVisibleCount((c) => c + STEP)}
                 className="gap-2 rounded-xl px-6"
               >
                 <ChevronDown className="h-4 w-4" />
-                عرض المزيد
+                عرض {nextChunk} أخرى
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500">
                   متبقي {remaining}
                 </span>
