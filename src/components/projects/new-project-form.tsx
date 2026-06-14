@@ -231,20 +231,15 @@ export function NewProjectForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="coordinator_id">الكوردنيتر</Label>
-              {isCoordinator ? (
-                <>
-                  <input type="hidden" name="coordinator_id" value={currentProfile.id} />
-                  <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">{currentProfile.full_name}</div>
-                  <WorkloadBadge count={coordinatorWorkload[currentProfile.id] ?? 0} />
-                </>
-              ) : isSalesEngineer ? (
+              {isSalesEngineer ? (
                 <>
                   <input type="hidden" name="coordinator_id" value="" />
-                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">سيتم التعيين من الإدارة</div>
+                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">سيتم التعيين من الكوردنيتر أو الإدارة</div>
                 </>
               ) : (
                 <>
-                  <Select id="coordinator_id" name="coordinator_id" placeholder="اختر الكوردنيتر" defaultValue=""
+                  {/* Admin AND coordinators can assign any coordinator (defaults to self) */}
+                  <Select id="coordinator_id" name="coordinator_id" placeholder="اختر الكوردنيتر" defaultValue={selectedCoordinatorId}
                     onChange={(e) => setSelectedCoordinatorId(e.target.value)}>
                     {coordinators.map((c) => (
                       <option key={c.id} value={c.id}>{c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}</option>

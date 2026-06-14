@@ -140,8 +140,9 @@ export function ProjectDetail({
 
   const { stage, label: stageLabel } = getLifecycleStage(payments, installations, material, attachments)
 
-  const canManage = currentProfile.role === 'admin'
-    || (currentProfile.role === 'coordinator' && project.coordinator_id === currentProfile.id)
+  // The coordinator is the operational manager: ANY coordinator (and admin)
+  // can view and manage every project, not just the one they're assigned to.
+  const canManage = currentProfile.role === 'admin' || currentProfile.role === 'coordinator'
   const isCoordinator = currentProfile.role === 'coordinator'
   const isActive = project.status === 'active'
   const isOnHold = project.status === 'on_hold'
