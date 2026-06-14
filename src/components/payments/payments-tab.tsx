@@ -175,9 +175,10 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   const activePayments = payments.filter((p) => p.status !== 'cancelled')
   const totalAmount = activePayments.reduce((s, p) => s + (p.amount ?? 0), 0)
   const totalPaid = activePayments.reduce((s, p) => s + (p.paid_amount ?? 0), 0)
-  const collectionPct = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+  // Collection % = how much of the PROJECT VALUE has been collected
   const baseValue = projectTotal != null && projectTotal > 0 ? projectTotal : totalAmount
   const remaining = Math.max(0, baseValue - totalPaid)
+  const collectionPct = baseValue > 0 ? Math.round((totalPaid / baseValue) * 100) : 0
 
   return (
     <div className="space-y-4">
@@ -207,12 +208,12 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
             <SummaryFigure label="إجمالي المدفوع" value={formatCurrency(totalPaid)} tone="text-emerald-600" />
             <SummaryFigure label="المتبقي" value={formatCurrency(remaining)} tone={remaining > 0 ? 'text-amber-600' : 'text-emerald-600'} highlight />
           </div>
-          {totalAmount > 0 && (
+          {baseValue > 0 && (
             <>
               <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                <div className={`h-full rounded-full transition-all duration-500 ${collectionPct === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${collectionPct}%` }} />
+                <div className={`h-full rounded-full transition-all duration-500 ${collectionPct >= 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(100, collectionPct)}%` }} />
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">{collectionPct}% مُحصَّل من إجمالي الدفعات</p>
+              <p className="text-xs text-gray-400 mt-1.5">{collectionPct}% مُحصَّل من قيمة المشروع</p>
             </>
           )}
         </div>

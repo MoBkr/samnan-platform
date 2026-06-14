@@ -45,7 +45,7 @@ export function AdminDashboard({
   const scopedOverdue = overduePayments.filter((op) => ids.has(op.project.id))
   const overdueValue = scopedOverdue.reduce((s, p) => s + (p.amount - p.paid_amount), 0)
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date())
   const scopedInstalls = installations.filter((i) => ids.has(i.project_id))
   const todayInstalls = scopedInstalls.filter((i) => i.scheduled_date === todayStr)
   const awaitingConfirmation = scopedInstalls.filter((i) => !i.installation_team_confirmed && i.status !== 'completed')

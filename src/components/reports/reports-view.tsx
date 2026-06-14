@@ -44,7 +44,7 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
 
   const tabLabel = TABS.find(t => t.id === activeTab)?.label ?? ''
   const printDate = new Date().toLocaleDateString('ar-SA-u-nu-latn', {
-    year: 'numeric', month: 'long', day: 'numeric',
+    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Riyadh',
   })
 
   return (
@@ -257,10 +257,10 @@ function ActivityLogTable({ activity }: { activity: ActivityLogReport[] }) {
         rows={activity.map(log => [
           <span key="date" className="text-xs text-gray-500 whitespace-nowrap">
             {new Date(log.created_at).toLocaleDateString('ar-SA-u-nu-latn', {
-              year: 'numeric', month: '2-digit', day: '2-digit',
+              year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Riyadh',
             })}
             {' '}
-            {new Date(log.created_at).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(log.created_at).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Riyadh' })}
           </span>,
           log.user?.full_name ?? '—',
           log.project ? (

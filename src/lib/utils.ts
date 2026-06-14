@@ -15,12 +15,15 @@ export function formatCurrency(amount: number | null | undefined): string {
   }).format(amount)
 }
 
+const SA_TZ = 'Asia/Riyadh'
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: SA_TZ,
   }).format(new Date(dateStr))
 }
 
@@ -30,6 +33,19 @@ export function formatDateShort(dateStr: string | null | undefined): string {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    timeZone: SA_TZ,
+  }).format(new Date(dateStr))
+}
+
+export function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  return new Intl.DateTimeFormat('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: SA_TZ,
   }).format(new Date(dateStr))
 }
 

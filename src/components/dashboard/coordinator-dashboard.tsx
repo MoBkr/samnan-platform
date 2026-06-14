@@ -51,8 +51,9 @@ export function CoordinatorDashboard({
   const now = new Date()
   const hour = now.getHours()
   const greeting = hour < 12 ? 'صباح الخير' : hour < 17 ? 'مساء الخير' : 'مساء النور'
-  const dayName = now.toLocaleDateString('ar-SA-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  const todayStr = now.toISOString().split('T')[0]
+  const dayName = now.toLocaleDateString('ar-SA-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Riyadh' })
+  // "today" computed in Saudi timezone (YYYY-MM-DD)
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(now)
 
   // ── Scope-aware data ──
   const isMine = scope === 'mine'
