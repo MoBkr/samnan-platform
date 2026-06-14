@@ -11,80 +11,101 @@ export interface InvoiceFields {
 
 type OcrResult = { data: InvoiceFields } | { error: string }
 
-// Extracts structured fields from a tax-invoice image/PDF using Claude vision.
-// The tax registration number is intentionally NOT extracted (fixed & known).
+function normalizeDate(raw: string): string {
+  // Accepts YYYY-MM-DD or DD/MM/YYYY (or with -) → returns YYYY-MM-DD
+  const ymd = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+  if (ymd) return `${ymd[1]}-${ymd[2].padStart(2, '0')}-${ymd[3].padStart(2, '0')}`
+  const dmy = raw.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`
+  return raw
+}
+
+function parseInvoiceFields(text: string): InvoiceFields {
+  const joined = text.replace(/[ \t]+/g, ' ')
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+
+  // Invoice number
+  let invoice_number = ''
+  const invPatterns = [
+    /(?:invoice\s*(?:no\.?|number|#)|رقم\s*الفاتورة|فاتورة\s*رقم|رقم\s*فاتورة)\s*[:#\-]?\s*([A-Za-z0-9\-/]+)/i,
+    /\bINV[-\s]?([A-Za-z0-9\-/]{3,})/i,
+  ]
+  for (const re of invPatterns) {
+    const m = joined.match(re)
+    if (m) { invoice_number = (m[1] || m[0]).trim(); break }
+  }
+
+  // Date
+  let invoice_date = ''
+  const dateM = joined.match(/(\d{4}[-/]\d{1,2}[-/]\d{1,2})|(\d{1,2}[-/]\d{1,2}[-/]\d{4})/)
+  if (dateM) invoice_date = normalizeDate(dateM[0])
+
+  // Customer account / id
+  let customer_account = ''
+  const accM = joined.match(/(?:customer\s*(?:account|no\.?|id)|رقم\s*العميل|حساب\s*العميل|كود\s*العميل|account\s*(?:no\.?|number))\s*[:#\-]?\s*([A-Za-z0-9\-/]+)/i)
+  if (accM) customer_account = accM[1].trim()
+
+  // Seller name — best effort: first meaningful (non-numeric) line near the top
+  let seller_name = ''
+  for (const l of lines.slice(0, 5)) {
+    if (l.length >= 3 && !/^[\d\s\-/.:#]+$/.test(l)) { seller_name = l; break }
+  }
+
+  return { invoice_number, invoice_date, seller_name, customer_account }
+}
+
+// Extracts invoice fields using OCR.space (free). The tax registration
+// number is intentionally NOT extracted (fixed & known).
 export async function extractInvoice(fileUrl: string, mimeType: string): Promise<OcrResult> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'غير مصرح' }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
+    const apiKey = process.env.OCR_SPACE_API_KEY
     if (!apiKey) {
-      return { error: 'خدمة قراءة الفواتير غير مفعّلة بعد. أضف ANTHROPIC_API_KEY في إعدادات Vercel.' }
+      return { error: 'خدمة قراءة الفواتير غير مفعّلة. أضف OCR_SPACE_API_KEY (مجاني) في إعدادات Vercel.' }
     }
 
-    // Fetch the uploaded file and convert to base64
-    const fileRes = await fetch(fileUrl)
-    if (!fileRes.ok) return { error: 'تعذّر قراءة الملف المرفوع' }
-    const buffer = Buffer.from(await fileRes.arrayBuffer())
-    const base64 = buffer.toString('base64')
+    const filetype = mimeType === 'application/pdf' ? 'PDF'
+      : mimeType.includes('png') ? 'PNG'
+      : mimeType.includes('webp') ? 'WEBP'
+      : 'JPG'
 
-    const isPdf = mimeType === 'application/pdf'
-    const mediaType = isPdf ? 'application/pdf' : (mimeType || 'image/jpeg')
+    const body = new URLSearchParams({
+      apikey: apiKey,
+      url: fileUrl,
+      language: 'ara',
+      OCREngine: '1',
+      isOverlayRequired: 'false',
+      scale: 'true',
+      isTable: 'true',
+      filetype,
+    })
 
-    const sourceBlock = isPdf
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
-      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }
-
-    const prompt = `أنت مساعد لاستخراج بيانات الفواتير الضريبية السعودية. استخرج الحقول التالية من الفاتورة المرفقة وأعدها بصيغة JSON فقط بدون أي نص إضافي:
-{
-  "invoice_number": "رقم الفاتورة",
-  "invoice_date": "تاريخ الفاتورة بصيغة YYYY-MM-DD",
-  "seller_name": "اسم الشركة أو البائع",
-  "customer_account": "رقم حساب العميل أو رقم العميل"
-}
-إذا لم تجد حقلاً، اجعل قيمته "". لا تستخرج الرقم الضريبي (السجل الضريبي). أعد JSON صالحاً فقط.`
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
-        messages: [
-          {
-            role: 'user',
-            content: [sourceBlock, { type: 'text', text: prompt }],
-          },
-        ],
-      }),
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
     })
 
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.error('[extractInvoice] anthropic error', res.status, body)
-      return { error: 'فشلت قراءة الفاتورة. يمكنك إدخال البيانات يدوياً.' }
+      console.error('[extractInvoice] ocr.space http', res.status)
+      return { error: 'فشلت قراءة الفاتورة. أدخل البيانات يدوياً.' }
     }
 
     const json = await res.json()
-    const text: string = json?.content?.[0]?.text ?? ''
-    const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return { error: 'تعذّر استخراج البيانات. أدخلها يدوياً.' }
-
-    const parsed = JSON.parse(match[0])
-    return {
-      data: {
-        invoice_number: String(parsed.invoice_number ?? ''),
-        invoice_date: String(parsed.invoice_date ?? ''),
-        seller_name: String(parsed.seller_name ?? ''),
-        customer_account: String(parsed.customer_account ?? ''),
-      },
+    if (json?.IsErroredOnProcessing) {
+      const msg = Array.isArray(json.ErrorMessage) ? json.ErrorMessage.join(' ') : (json.ErrorMessage || '')
+      console.error('[extractInvoice] ocr.space error', msg)
+      if (/file size/i.test(msg)) return { error: 'حجم الفاتورة كبير على الخدمة المجانية (الحد ~1 ميجابايت). صغّر الصورة أو أدخل البيانات يدوياً.' }
+      return { error: 'تعذّرت قراءة الفاتورة. أدخل البيانات يدوياً.' }
     }
+
+    const text: string = json?.ParsedResults?.[0]?.ParsedText ?? ''
+    if (!text.trim()) return { error: 'لم يُقرأ نص من الفاتورة. أدخل البيانات يدوياً.' }
+
+    return { data: parseInvoiceFields(text) }
   } catch (e) {
     console.error('[extractInvoice]', e)
     return { error: 'حدث خطأ أثناء قراءة الفاتورة. أدخل البيانات يدوياً.' }
