@@ -40,6 +40,7 @@ export interface Payment {
   id: string
   project_id: string
   type: PaymentType
+  name: string | null
   percentage: number | null
   amount: number
   due_date: string | null
@@ -104,6 +105,7 @@ export interface Installation {
 export interface Document {
   id: string
   project_id: string
+  payment_id: string | null
   type: DocumentType
   url: string
   uploaded_by: string | null

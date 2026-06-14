@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2 } from 'lucide-react'
+import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,39 +11,51 @@ import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFo
 import { PaymentStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
 import { createPayment, recordPayment, deletePayment, editPayment } from '@/lib/actions/payments'
+import { savePaymentAttachment, deleteAttachment, deletePaymentReceipt } from '@/lib/actions/attachments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
-import type { Payment, Profile } from '@/types/database'
+import type { Payment, Profile, Document } from '@/types/database'
 
 const PAYMENT_TYPES = ['upfront', 'materials', 'installation', 'final', 'custom'] as const
+
+function paymentLabel(p: Payment) {
+  return p.type === 'custom' ? (p.name || 'دفعة أخرى') : PAYMENT_TYPE_LABELS[p.type]
+}
 
 interface PaymentsTabProps {
   payments: Payment[]
   projectId: string
   canManage: boolean
   currentProfile?: Profile
+  projectTotal?: number | null
+  attachments?: Document[]
 }
 
-export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps) {
+export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [] }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [addType, setAddType] = useState('')
   const [recordPaymentId, setRecordPaymentId] = useState<string | null>(null)
   const [editPaymentId, setEditPaymentId] = useState<string | null>(null)
+  const [attachmentsPaymentId, setAttachmentsPaymentId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachInputRef = useRef<HTMLInputElement>(null)
 
   const selectedPayment = payments.find((p) => p.id === recordPaymentId)
   const editingPayment = payments.find((p) => p.id === editPaymentId)
+  const attachmentsPayment = payments.find((p) => p.id === attachmentsPaymentId)
 
-  // Non-custom types that already have a non-cancelled payment — block adding another
   const usedTypes = new Set(
-    payments
-      .filter(p => p.status !== 'cancelled' && p.type !== 'custom')
-      .map(p => p.type)
+    payments.filter((p) => p.status !== 'cancelled' && p.type !== 'custom').map((p) => p.type)
   )
-  // Keep paidTypes for the display hint ("مؤكدة الدفع")
-  const paidTypes = new Set(payments.filter(p => p.status === 'paid').map(p => p.type))
+  const paidTypes = new Set(payments.filter((p) => p.status === 'paid').map((p) => p.type))
+
+  function attachmentsFor(paymentId: string) {
+    return attachments.filter((a) => a.payment_id === paymentId)
+  }
 
   function handleAddPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -58,7 +70,7 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
       try {
         const result = await createPayment(formData)
         if (result?.error) toast.error(result.error)
-        else { toast.success('تم إضافة الدفعة بنجاح'); setShowAddDialog(false) }
+        else { toast.success('تم إضافة الدفعة بنجاح'); setShowAddDialog(false); setAddType('') }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -69,25 +81,18 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
     startTransition(async () => {
       try {
         let receiptUrl = (form.elements.namedItem('receipt_url') as HTMLInputElement)?.value || ''
-
         if (receiptFile) {
           const uploadResult = await uploadFileDirect(receiptFile, 'receipts')
           if ('error' in uploadResult) { toast.error(uploadResult.error); return }
           receiptUrl = uploadResult.url
         }
-
         const formData = new FormData(form)
         formData.set('payment_id', recordPaymentId!)
         formData.set('project_id', projectId)
         formData.set('receipt_url', receiptUrl)
-
         const result = await recordPayment(formData)
         if (result?.error) toast.error(result.error)
-        else {
-          toast.success('تم تسجيل الدفعة بنجاح')
-          setRecordPaymentId(null)
-          setReceiptFile(null)
-        }
+        else { toast.success('تم تسجيل الدفعة بنجاح'); setRecordPaymentId(null); setReceiptFile(null) }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -108,8 +113,8 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
 
   function handleDeletePayment(payment: Payment) {
     const warningText = payment.status === 'paid'
-      ? `تحذير: هذه الدفعة مؤكدة ومدفوعة بالكامل. هل أنت متأكد من حذف دفعة "${PAYMENT_TYPE_LABELS[payment.type]}"؟`
-      : `هل تريد حذف دفعة "${PAYMENT_TYPE_LABELS[payment.type]}"؟`
+      ? `تحذير: هذه الدفعة مؤكدة ومدفوعة بالكامل. هل أنت متأكد من حذف دفعة "${paymentLabel(payment)}"؟`
+      : `هل تريد حذف دفعة "${paymentLabel(payment)}"؟`
     if (!confirm(warningText)) return
     startTransition(async () => {
       try {
@@ -120,14 +125,59 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
     })
   }
 
-  function handleRecordClose() {
-    setRecordPaymentId(null)
-    setReceiptFile(null)
+  function handleAttachmentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length === 0 || !attachmentsPaymentId) return
+    setUploadingAttachment(true)
+    startTransition(async () => {
+      try {
+        let ok = 0
+        let lastError = ''
+        for (const file of files) {
+          const up = await uploadFileDirect(file, 'receipts')
+          if ('error' in up) { lastError = up.error; continue }
+          const res = await savePaymentAttachment(projectId, attachmentsPaymentId, 'receipt', up.url, file.name)
+          if ('error' in res) lastError = res.error
+          else ok++
+        }
+        if (ok > 0) toast.success(ok === 1 ? 'تم رفع المرفق' : `تم رفع ${ok} مرفقات`)
+        if (lastError) toast.error(lastError)
+      } catch { toast.error('حدث خطأ غير متوقع') }
+      finally { setUploadingAttachment(false) }
+    })
   }
 
-  const totalAmount = payments.filter(p => p.status !== 'cancelled').reduce((s, p) => s + (p.amount ?? 0), 0)
-  const totalPaid = payments.filter(p => p.status !== 'cancelled').reduce((s, p) => s + (p.paid_amount ?? 0), 0)
+  function handleDeleteAttachment(docId: string) {
+    if (!confirm('حذف هذا المرفق؟')) return
+    startTransition(async () => {
+      try {
+        const res = await deleteAttachment(docId, projectId)
+        if (res?.error) toast.error(res.error)
+        else toast.success('تم حذف المرفق')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function handleDeleteReceipt(paymentId: string) {
+    if (!confirm('حذف الإيصال الأساسي؟')) return
+    startTransition(async () => {
+      try {
+        const res = await deletePaymentReceipt(paymentId, projectId)
+        if (res?.error) toast.error(res.error)
+        else toast.success('تم حذف الإيصال')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function handleRecordClose() { setRecordPaymentId(null); setReceiptFile(null) }
+
+  const activePayments = payments.filter((p) => p.status !== 'cancelled')
+  const totalAmount = activePayments.reduce((s, p) => s + (p.amount ?? 0), 0)
+  const totalPaid = activePayments.reduce((s, p) => s + (p.paid_amount ?? 0), 0)
   const collectionPct = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0
+  const baseValue = projectTotal != null && projectTotal > 0 ? projectTotal : totalAmount
+  const remaining = Math.max(0, baseValue - totalPaid)
 
   return (
     <div className="space-y-4">
@@ -138,96 +188,76 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
           </div>
           <h3 className="text-base font-semibold text-gray-900">جدول الدفعات</h3>
           {payments.length > 0 && (
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">
-              {payments.length}
-            </span>
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">{payments.length}</span>
           )}
         </div>
         {canManage && (
-          <Button size="sm" onClick={() => setShowAddDialog(true)}>
+          <Button size="sm" onClick={() => { setAddType(''); setShowAddDialog(true) }}>
             <Plus className="h-4 w-4" />
             إضافة دفعة
           </Button>
         )}
       </div>
 
-      {/* Summary bar */}
-      {payments.length > 0 && totalAmount > 0 && (
+      {/* Summary */}
+      {payments.length > 0 && (
         <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-gray-500">التحصيل الكلي</span>
-            <span className="font-bold text-gray-800">
-              {formatCurrency(totalPaid)} / {formatCurrency(totalAmount)}
-            </span>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <SummaryFigure label="قيمة المشروع" value={formatCurrency(baseValue)} tone="text-gray-900" />
+            <SummaryFigure label="إجمالي المدفوع" value={formatCurrency(totalPaid)} tone="text-emerald-600" />
+            <SummaryFigure label="المتبقي" value={formatCurrency(remaining)} tone={remaining > 0 ? 'text-amber-600' : 'text-emerald-600'} highlight />
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${collectionPct === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`}
-              style={{ width: `${collectionPct}%` }}
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-1.5">{collectionPct}% مُحصَّل</p>
+          {totalAmount > 0 && (
+            <>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                <div className={`h-full rounded-full transition-all duration-500 ${collectionPct === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${collectionPct}%` }} />
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">{collectionPct}% مُحصَّل من إجمالي الدفعات</p>
+            </>
+          )}
         </div>
       )}
 
       {payments.length === 0 ? (
-        <EmptyState
-          message="لا توجد دفعات مضافة"
-          description="أضف جدول الدفعات للمشروع"
-          icon={<CreditCard className="h-8 w-8 text-gray-400" />}
-        />
+        <EmptyState message="لا توجد دفعات مضافة" description="أضف جدول الدفعات للمشروع" icon={<CreditCard className="h-8 w-8 text-gray-400" />} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {payments.map((payment) => {
+          {payments.map((payment, idx) => {
             const overdue = isOverdue(payment.due_date, payment.status)
             const displayStatus = overdue && payment.status === 'pending' ? 'overdue' : payment.status
             const paidPct = payment.amount > 0 ? Math.min(100, Math.round((payment.paid_amount / payment.amount) * 100)) : 0
-            // Editing allowed at any stage (even paid) — every change is audited
             const canEdit = canManage && payment.status !== 'cancelled'
             const canDelete = canManage && payment.status !== 'cancelled'
+            const attachCount = attachmentsFor(payment.id).length + (payment.receipt_url ? 1 : 0)
 
             return (
-              <div
-                key={payment.id}
-                className={`rounded-2xl border shadow-sm overflow-hidden ${
-                  overdue
-                    ? 'border-red-200 bg-red-50/20'
-                    : payment.status === 'paid'
-                    ? 'border-green-200 bg-green-50/10'
-                    : payment.status === 'cancelled'
-                    ? 'border-gray-200 bg-gray-50/50 opacity-60'
-                    : 'border-gray-100 bg-white'
-                }`}
-              >
-                {/* Card header */}
+              <div key={payment.id} className={`rounded-2xl border shadow-sm overflow-hidden ${
+                overdue ? 'border-red-200 bg-red-50/20'
+                : payment.status === 'paid' ? 'border-green-200 bg-green-50/10'
+                : payment.status === 'cancelled' ? 'border-gray-200 bg-gray-50/50 opacity-60'
+                : 'border-gray-100 bg-white'}`}>
                 <div className="px-5 pt-5 pb-4">
                   <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                        {PAYMENT_TYPE_LABELS[payment.type]}
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 mt-0.5 leading-tight">
-                        {formatCurrency(payment.amount)}
-                      </p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-100 px-1.5 text-[11px] font-bold text-gray-500">
+                          {idx + 1}
+                        </span>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+                          {paymentLabel(payment)}
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 mt-1 leading-tight">{formatCurrency(payment.amount)}</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <PaymentStatusBadge status={displayStatus} />
                       {canEdit && (
-                        <button
-                          onClick={() => setEditPaymentId(payment.id)}
-                          className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                          title="تعديل"
-                        >
+                        <button onClick={() => setEditPaymentId(payment.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="تعديل">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
                       )}
                       {canDelete && (
-                        <button
-                          onClick={() => handleDeletePayment(payment)}
-                          disabled={isPending}
-                          className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                          title="حذف"
-                        >
+                        <button onClick={() => handleDeletePayment(payment)} disabled={isPending} className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50" title="حذف">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -249,14 +279,9 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
                         <span className="font-semibold text-brand-600">{paidPct}%</span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className="h-full rounded-full bg-brand-500 transition-all duration-500"
-                          style={{ width: `${paidPct}%` }}
-                        />
+                        <div className="h-full rounded-full bg-brand-500 transition-all duration-500" style={{ width: `${paidPct}%` }} />
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        متبقي: {formatCurrency(payment.amount - payment.paid_amount)}
-                      </p>
+                      <p className="text-xs text-gray-400 mt-1">متبقي: {formatCurrency(payment.amount - payment.paid_amount)}</p>
                     </div>
                   )}
 
@@ -267,34 +292,23 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
                     </div>
                   )}
 
-                  {payment.notes && (
-                    <p className="text-xs text-gray-500 italic mb-2">{payment.notes}</p>
-                  )}
+                  {payment.notes && <p className="text-xs text-gray-500 italic mb-2">{payment.notes}</p>}
                 </div>
 
                 {/* Footer */}
                 <div className="border-t border-gray-100 px-5 py-3 flex items-center justify-between gap-2">
-                  {payment.receipt_url ? (
-                    <a
-                      href={payment.receipt_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 hover:underline font-medium"
-                    >
-                      <Receipt className="h-3.5 w-3.5" />
-                      عرض الإيصال
-                    </a>
-                  ) : (
-                    <span />
-                  )}
+                  <button
+                    onClick={() => setAttachmentsPaymentId(payment.id)}
+                    className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 hover:underline font-medium"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" />
+                    المرفقات
+                    {attachCount > 0 && (
+                      <span className="rounded-full bg-brand-100 px-1.5 text-[10px] font-bold text-brand-700">{attachCount}</span>
+                    )}
+                  </button>
                   {canManage && payment.status !== 'paid' && payment.status !== 'cancelled' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setRecordPaymentId(payment.id)}
-                    >
-                      تسجيل دفعة
-                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setRecordPaymentId(payment.id)}>تسجيل دفعة</Button>
                   )}
                 </div>
               </div>
@@ -313,21 +327,27 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
           <form id="add-payment-form" onSubmit={handleAddPayment} className="space-y-4">
             <div className="space-y-1.5">
               <Label>نوع الدفعة</Label>
-              <Select name="type" required placeholder="اختر النوع">
+              <Select name="type" required placeholder="اختر النوع" value={addType} onChange={(e) => setAddType(e.target.value)}>
                 {PAYMENT_TYPES.map((type) => {
                   const isBlocked = type !== 'custom' && usedTypes.has(type)
                   const isPaid = paidTypes.has(type)
+                  const label = type === 'custom' ? 'أخرى' : PAYMENT_TYPE_LABELS[type]
                   return (
                     <option key={type} value={type} disabled={isBlocked}>
-                      {PAYMENT_TYPE_LABELS[type]}{isPaid ? ' — مؤكدة الدفع' : isBlocked ? ' — موجودة مسبقاً' : ''}
+                      {label}{isPaid ? ' — مؤكدة الدفع' : isBlocked ? ' — موجودة مسبقاً' : ''}
                     </option>
                   )
                 })}
               </Select>
-              {usedTypes.size > 0 && (
-                <p className="text-xs text-amber-600">أنواع الدفعات الموجودة لا يمكن تكرارها</p>
-              )}
             </div>
+
+            {addType === 'custom' && (
+              <div className="space-y-1.5">
+                <Label>اسم الدفعة</Label>
+                <Input name="name" required placeholder="مثال: دفعة ضمان، دفعة إضافية..." />
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>المبلغ (ريال)</Label>
@@ -357,7 +377,7 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
       {/* ── Edit payment dialog ── */}
       <Dialog open={!!editPaymentId} onClose={() => setEditPaymentId(null)}>
         <DialogHeader>
-          <DialogTitle>تعديل الدفعة — {editingPayment && PAYMENT_TYPE_LABELS[editingPayment.type]}</DialogTitle>
+          <DialogTitle>تعديل الدفعة — {editingPayment && paymentLabel(editingPayment)}</DialogTitle>
           <DialogClose onClose={() => setEditPaymentId(null)} />
         </DialogHeader>
         <DialogContent>
@@ -366,39 +386,20 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
               <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600">
                 المبلغ الحالي: <strong className="text-gray-900">{formatCurrency(editingPayment.amount)}</strong>
                 {editingPayment.paid_amount > 0 && (
-                  <span className="ms-2 text-xs text-amber-600">
-                    (محصّل: {formatCurrency(editingPayment.paid_amount)})
-                  </span>
+                  <span className="ms-2 text-xs text-amber-600">(محصّل: {formatCurrency(editingPayment.paid_amount)})</span>
                 )}
               </div>
               <div className="space-y-1.5">
                 <Label>المبلغ الجديد (ريال)</Label>
-                <Input
-                  name="amount"
-                  type="number"
-                  min={editingPayment.paid_amount || 0.01}
-                  step="0.01"
-                  required
-                  defaultValue={editingPayment.amount}
-                  placeholder="0.00"
-                />
+                <Input name="amount" type="number" min="0.01" step="0.01" required defaultValue={editingPayment.amount} placeholder="0.00" />
               </div>
               <div className="space-y-1.5">
                 <Label>تاريخ الاستحقاق</Label>
-                <Input
-                  name="due_date"
-                  type="date"
-                  dir="ltr"
-                  defaultValue={editingPayment.due_date ?? ''}
-                />
+                <Input name="due_date" type="date" dir="ltr" defaultValue={editingPayment.due_date ?? ''} />
               </div>
               <div className="space-y-1.5">
                 <Label>ملاحظات</Label>
-                <Input
-                  name="notes"
-                  defaultValue={editingPayment.notes ?? ''}
-                  placeholder="اختياري"
-                />
+                <Input name="notes" defaultValue={editingPayment.notes ?? ''} placeholder="اختياري" />
               </div>
             </form>
           )}
@@ -415,7 +416,7 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
       {/* ── Record payment dialog ── */}
       <Dialog open={!!recordPaymentId} onClose={handleRecordClose}>
         <DialogHeader>
-          <DialogTitle>تسجيل دفعة — {selectedPayment && PAYMENT_TYPE_LABELS[selectedPayment.type]}</DialogTitle>
+          <DialogTitle>تسجيل دفعة — {selectedPayment && paymentLabel(selectedPayment)}</DialogTitle>
           <DialogClose onClose={handleRecordClose} />
         </DialogHeader>
         <DialogContent>
@@ -426,61 +427,35 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
                 <p className="text-gray-600">المحصّل: <span className="font-bold text-gray-900">{formatCurrency(selectedPayment.paid_amount)}</span></p>
                 <p className="text-gray-600">المتبقي: <span className="font-bold text-red-600">{formatCurrency(selectedPayment.amount - selectedPayment.paid_amount)}</span></p>
               </div>
-
               <div className="space-y-1.5">
                 <Label>المبلغ المحصّل الآن (ريال)</Label>
-                <Input
-                  name="paid_amount"
-                  type="number"
-                  min="0.01"
-                  max={selectedPayment.amount - selectedPayment.paid_amount}
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                />
+                <Input name="paid_amount" type="number" min="0.01" max={selectedPayment.amount - selectedPayment.paid_amount} step="0.01" required placeholder="0.00" />
               </div>
-
               <div className="space-y-1.5">
                 <Label>إيصال الدفع (صورة أو PDF)</Label>
                 <input type="hidden" name="receipt_url" />
                 {receiptFile ? (
                   <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 p-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100">
-                      {receiptFile.type === 'application/pdf'
-                        ? <FileText className="h-5 w-5 text-brand-700" />
-                        : <ImageIcon className="h-5 w-5 text-brand-700" />
-                      }
+                      {receiptFile.type === 'application/pdf' ? <FileText className="h-5 w-5 text-brand-700" /> : <ImageIcon className="h-5 w-5 text-brand-700" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{receiptFile.name}</p>
                       <p className="text-xs text-gray-500">{(receiptFile.size / 1024).toFixed(0)} KB</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setReceiptFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
-                      className="rounded-lg p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
+                    <button type="button" onClick={() => { setReceiptFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }} className="rounded-lg p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-6 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors"
-                  >
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-6 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
                     <Upload className="h-6 w-6 text-gray-400" />
                     <p className="text-sm font-medium text-gray-600">اضغط لرفع الإيصال</p>
                     <p className="text-xs text-gray-400">JPG، PNG، PDF — حتى 10 ميجابايت</p>
                   </button>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="hidden"
-                  onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
-                />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+                <p className="text-xs text-gray-400">يمكنك إضافة مرفقات أخرى (فاتورة، ضمان...) من زر «المرفقات» بعد التسجيل.</p>
               </div>
             </form>
           )}
@@ -492,6 +467,88 @@ export function PaymentsTab({ payments, projectId, canManage }: PaymentsTabProps
           </Button>
         </DialogFooter>
       </Dialog>
+
+      {/* ── Attachments dialog ── */}
+      <Dialog open={!!attachmentsPaymentId} onClose={() => setAttachmentsPaymentId(null)}>
+        <DialogHeader>
+          <DialogTitle>مرفقات الدفعة — {attachmentsPayment && paymentLabel(attachmentsPayment)}</DialogTitle>
+          <DialogClose onClose={() => setAttachmentsPaymentId(null)} />
+        </DialogHeader>
+        <DialogContent>
+          {attachmentsPayment && (
+            <div className="space-y-3">
+              {/* Primary receipt (from record payment) */}
+              {attachmentsPayment.receipt_url && (
+                <AttachmentRow
+                  label="إيصال الدفع الأساسي"
+                  url={attachmentsPayment.receipt_url}
+                  canManage={canManage}
+                  onDelete={() => handleDeleteReceipt(attachmentsPayment.id)}
+                />
+              )}
+
+              {/* Extra attachments */}
+              {attachmentsFor(attachmentsPayment.id).map((doc) => (
+                <AttachmentRow
+                  key={doc.id}
+                  label={doc.description || 'مرفق'}
+                  url={doc.url}
+                  canManage={canManage}
+                  onDelete={() => handleDeleteAttachment(doc.id)}
+                />
+              ))}
+
+              {!attachmentsPayment.receipt_url && attachmentsFor(attachmentsPayment.id).length === 0 && (
+                <p className="text-center text-sm text-gray-400 py-4">لا توجد مرفقات لهذه الدفعة</p>
+              )}
+
+              {canManage && (
+                <>
+                  <button type="button" onClick={() => attachInputRef.current?.click()} disabled={uploadingAttachment}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-4 text-sm text-gray-500 hover:border-brand-300 hover:bg-brand-50/30 transition-colors disabled:opacity-60">
+                    {uploadingAttachment ? <Upload className="h-4 w-4 animate-pulse" /> : <Paperclip className="h-4 w-4" />}
+                    {uploadingAttachment ? 'جاري الرفع...' : 'إضافة مرفقات (إيصال، فاتورة، ضمان...)'}
+                  </button>
+                  <input ref={attachInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleAttachmentUpload} />
+                  <p className="text-xs text-gray-400 text-center">يمكنك رفع أكثر من ملف — بدون اسم إلزامي</p>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+        <DialogFooter>
+          <Button onClick={() => setAttachmentsPaymentId(null)}>تم</Button>
+        </DialogFooter>
+      </Dialog>
+    </div>
+  )
+}
+
+function SummaryFigure({ label, value, tone, highlight }: { label: string; value: string; tone: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-2.5 text-center ${highlight ? 'border-amber-100 bg-amber-50/50' : 'border-gray-100 bg-gray-50/50'}`}>
+      <p className="text-[11px] text-gray-400 mb-0.5">{label}</p>
+      <p className={`text-sm font-bold ${tone}`}>{value}</p>
+    </div>
+  )
+}
+
+function AttachmentRow({ label, url, canManage, onDelete }: { label: string; url: string; canManage: boolean; onDelete: () => void }) {
+  const isPdf = url.toLowerCase().includes('.pdf')
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 shrink-0">
+        {isPdf ? <FileText className="h-4 w-4 text-gray-500" /> : <ImageIcon className="h-4 w-4 text-gray-500" />}
+      </div>
+      <span className="flex-1 min-w-0 truncate text-sm text-gray-700">{label}</span>
+      <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 shrink-0">
+        <ExternalLink className="h-3.5 w-3.5" /> عرض
+      </a>
+      {canManage && (
+        <button onClick={onDelete} className="rounded-lg p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0" title="حذف">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   )
 }

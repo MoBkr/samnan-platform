@@ -41,15 +41,20 @@ export async function createPayment(formData: FormData) {
   const dueDate = formData.get('due_date') as string
   const percentage = formData.get('percentage') as string
   const notes = formData.get('notes') as string
+  const name = (formData.get('name') as string)?.trim()
 
   if (!projectId || !type || !amount) {
     return { error: 'يرجى ملء جميع الحقول المطلوبة' }
+  }
+  if (type === 'custom' && !name) {
+    return { error: 'يرجى كتابة اسم الدفعة' }
   }
 
   const service = createServiceClient()
   const { error } = (await service.from('payments').insert({
     project_id: projectId,
     type,
+    name: type === 'custom' ? name : null,
     amount: parseFloat(amount),
     due_date: dueDate || null,
     percentage: percentage ? parseFloat(percentage) : null,

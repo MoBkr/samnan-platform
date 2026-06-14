@@ -38,6 +38,7 @@ const makePayment = (overrides: Partial<Payment> = {}): Payment => ({
   id: 'p1',
   project_id: 'proj1',
   type: 'upfront',
+  name: null,
   percentage: null,
   amount: 10000,
   due_date: null,

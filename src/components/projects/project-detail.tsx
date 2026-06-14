@@ -488,7 +488,7 @@ export function ProjectDetail({
       {/* Tab content */}
       <div>
         {activeTab === 'payments' && (
-          <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} />
+          <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} projectTotal={project.total_amount} attachments={attachments} />
         )}
         {activeTab === 'installation' && (
           <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} />

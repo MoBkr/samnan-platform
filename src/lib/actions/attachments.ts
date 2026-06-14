@@ -63,6 +63,48 @@ export async function saveDocumentRecord(
   }
 }
 
+// Save a document linked to a specific payment (after client-side upload)
+export async function savePaymentAttachment(
+  projectId: string,
+  paymentId: string,
+  docType: string,
+  publicUrl: string,
+  description: string,
+): Promise<{ success: true } | { error: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'غير مصرح' }
+
+    const service = createServiceClient()
+    const { error } = (await service
+      .from('documents')
+      .insert({
+        project_id: projectId,
+        payment_id: paymentId,
+        type: docType,
+        url: publicUrl,
+        uploaded_by: user.id,
+        description,
+      } as never)) as unknown as { error: Error | null }
+
+    if (error) return { error: 'فشل حفظ المرفق' }
+
+    await service.from('activity_log').insert({
+      project_id: projectId,
+      user_id: user.id,
+      action: 'إضافة مرفق لدفعة',
+      details: { payment_id: paymentId, type: docType, description },
+    } as never)
+
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true }
+  } catch (e) {
+    console.error('[savePaymentAttachment]', e)
+    return { error: 'حدث خطأ غير متوقع' }
+  }
+}
+
 export async function uploadAttachment(formData: FormData) {
   try {
     const supabase = await createClient()
