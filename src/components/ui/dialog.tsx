@@ -33,7 +33,7 @@ function Dialog({ open, onClose, children, className }: DialogProps) {
       />
       <div
         className={cn(
-          'relative z-10 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl',
+          'relative z-10 my-4 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl',
           className
         )}
       >
@@ -72,7 +72,13 @@ function DialogContent({ className, ...props }: React.HTMLAttributes<HTMLDivElem
 
 function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('mt-6 flex justify-end gap-3', className)} {...props} />
+    <div
+      className={cn(
+        'sticky bottom-0 z-10 -mx-6 -mb-6 mt-6 flex justify-end gap-3 rounded-b-xl border-t border-gray-100 bg-white px-6 py-4',
+        className
+      )}
+      {...props}
+    />
   )
 }
 

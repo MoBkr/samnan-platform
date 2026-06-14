@@ -397,7 +397,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
       )}
 
       {/* ── Add payment dialog ── */}
-      <Dialog open={showAddDialog} onClose={closeAddDialog}>
+      <Dialog open={showAddDialog} onClose={closeAddDialog} className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>إضافة دفعة جديدة</DialogTitle>
           <DialogClose onClose={closeAddDialog} />
