@@ -12,7 +12,8 @@ export default async function ProjectsPage() {
   const [projects, profile] = await Promise.all([getProjects(), getCurrentProfile()])
   if (!profile) return null
 
-  const canCreate = ['coordinator', 'sales_engineer', 'admin'].includes(profile.role)
+  // Sales engineers are view-only; coordinators (operational managers) and admin create projects
+  const canCreate = ['coordinator', 'admin'].includes(profile.role)
 
   // Compute which projects belong to the current user
   const myProjectIds = new Set<string>()

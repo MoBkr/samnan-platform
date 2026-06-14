@@ -9,7 +9,8 @@ import type { Profile } from '@/types/database'
 export default async function NewProjectPage() {
   const profile = await getCurrentProfile()
 
-  if (!profile || (profile.role !== 'coordinator' && profile.role !== 'sales_engineer' && profile.role !== 'admin')) {
+  // Only coordinators (operational managers) and admin can create projects
+  if (!profile || (profile.role !== 'coordinator' && profile.role !== 'admin')) {
     redirect('/dashboard')
   }
 
