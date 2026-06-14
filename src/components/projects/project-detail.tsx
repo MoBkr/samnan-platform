@@ -512,6 +512,7 @@ export function ProjectDetail({
       <div>
         {activeTab === 'payments' && (
           <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} projectTotal={project.total_amount} attachments={attachments}
+            hasInstallation={project.has_installation}
             canConfirmSales={currentProfile.role === 'sales_engineer' && project.sales_engineer_id === currentProfile.id} />
         )}
         {activeTab === 'installation' && (

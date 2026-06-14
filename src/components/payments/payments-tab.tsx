@@ -31,9 +31,10 @@ interface PaymentsTabProps {
   projectTotal?: number | null
   attachments?: Document[]
   canConfirmSales?: boolean
+  hasInstallation?: boolean
 }
 
-export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [], canConfirmSales = false }: PaymentsTabProps) {
+export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [], canConfirmSales = false, hasInstallation = true }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addType, setAddType] = useState('')
   const [inv, setInv] = useState({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
@@ -402,7 +403,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
             <div className="space-y-1.5">
               <Label>نوع الدفعة</Label>
               <Select name="type" required placeholder="اختر النوع" value={addType} onChange={(e) => setAddType(e.target.value)}>
-                {PAYMENT_TYPES.map((type) => {
+                {PAYMENT_TYPES.filter((t) => hasInstallation || t !== 'installation').map((type) => {
                   const isBlocked = type !== 'custom' && usedTypes.has(type)
                   const isPaid = paidTypes.has(type)
                   const label = type === 'custom' ? 'أخرى' : PAYMENT_TYPE_LABELS[type]
