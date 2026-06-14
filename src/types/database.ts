@@ -41,6 +41,7 @@ export interface Payment {
   project_id: string
   type: PaymentType
   name: string | null
+  order_no: number | null
   percentage: number | null
   amount: number
   due_date: string | null

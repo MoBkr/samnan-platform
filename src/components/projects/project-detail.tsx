@@ -134,7 +134,10 @@ export function ProjectDetail({
   const activePayments = payments.filter(p => p.status !== 'cancelled')
   const totalPaid = activePayments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
   const totalDue = activePayments.reduce((sum, p) => sum + (p.amount ?? 0), 0)
-  const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0
+  // Collection is measured against the PROJECT VALUE
+  const projectValue = project.total_amount != null && project.total_amount > 0 ? project.total_amount : totalDue
+  const remainingValue = Math.max(0, projectValue - totalPaid)
+  const collectionPct = projectValue > 0 ? Math.round((totalPaid / projectValue) * 100) : 0
 
   const isFullyPaid = project.total_amount != null && project.total_amount > 0 && totalPaid >= project.total_amount
 
@@ -337,21 +340,26 @@ export function ProjectDetail({
               <p className={`text-lg font-bold mt-0.5 ${isFullyPaid ? 'text-emerald-700' : 'text-blue-700'}`}>{formatCurrency(totalPaid)}</p>
               <p className={`text-xs mt-0.5 ${isFullyPaid ? 'text-emerald-500' : 'text-blue-500'}`}>{collectionPct}%</p>
             </div>
+            <div className="rounded-xl bg-amber-50 px-4 py-3 text-center min-w-[100px]">
+              <p className="text-xs text-amber-600 font-medium">المتبقي</p>
+              <p className="text-lg font-bold text-amber-700 mt-0.5">{formatCurrency(remainingValue)}</p>
+              <p className="text-xs text-amber-500 mt-0.5">من قيمة المشروع</p>
+            </div>
             <div className="rounded-xl bg-gray-50 px-4 py-3 text-center min-w-[100px]">
               <p className="text-xs text-gray-500 font-medium">الإجمالي</p>
-              <p className="text-lg font-bold text-gray-700 mt-0.5">{project.total_amount ? formatCurrency(project.total_amount) : formatCurrency(totalDue)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">المتفق عليه</p>
+              <p className="text-lg font-bold text-gray-700 mt-0.5">{formatCurrency(projectValue)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">قيمة المشروع</p>
             </div>
           </div>
         </div>
 
         {/* Collection progress bar */}
-        {totalDue > 0 && (
+        {projectValue > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
               <span className="flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
-                نسبة التحصيل
+                نسبة التحصيل من قيمة المشروع
               </span>
               <span className="font-semibold text-gray-700">{collectionPct}%</span>
             </div>

@@ -242,7 +242,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-100 px-1.5 text-[11px] font-bold text-gray-500">
-                          {idx + 1}
+                          {payment.order_no ?? idx + 1}
                         </span>
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
                           {paymentLabel(payment)}
@@ -351,13 +351,18 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>المبلغ (ريال)</Label>
-                <Input name="amount" type="number" min="0" step="0.01" required placeholder="0.00" />
+                <Label>رقم الدفعة (الترتيب)</Label>
+                <Input name="order_no" type="number" min="1" step="1" defaultValue={payments.length + 1} placeholder="1" />
               </div>
               <div className="space-y-1.5">
                 <Label>النسبة (%)</Label>
                 <Input name="percentage" type="number" min="0" max="100" step="0.1" placeholder="اختياري" />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>المبلغ (ريال)</Label>
+              <Input name="amount" type="number" min="0" step="0.01" required placeholder="0.00" />
             </div>
             <div className="space-y-1.5">
               <Label>تاريخ الاستحقاق</Label>
@@ -390,9 +395,16 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <span className="ms-2 text-xs text-amber-600">(محصّل: {formatCurrency(editingPayment.paid_amount)})</span>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <Label>المبلغ الجديد (ريال)</Label>
-                <Input name="amount" type="number" min="0.01" step="0.01" required defaultValue={editingPayment.amount} placeholder="0.00" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>رقم الدفعة (الترتيب)</Label>
+                  <Input name="order_no" type="number" min="1" step="1"
+                    defaultValue={editingPayment.order_no ?? (payments.findIndex((p) => p.id === editingPayment.id) + 1)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>المبلغ الجديد (ريال)</Label>
+                  <Input name="amount" type="number" min="0.01" step="0.01" required defaultValue={editingPayment.amount} placeholder="0.00" />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>تاريخ الاستحقاق</Label>

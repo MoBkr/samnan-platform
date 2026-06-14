@@ -14,6 +14,7 @@ export async function getProjectPayments(projectId: string) {
     .from('payments')
     .select('*')
     .eq('project_id', projectId)
+    .order('order_no', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })) as QueryResultMany<Payment>
   return result.data ?? []
 }
@@ -42,6 +43,7 @@ export async function createPayment(formData: FormData) {
   const percentage = formData.get('percentage') as string
   const notes = formData.get('notes') as string
   const name = (formData.get('name') as string)?.trim()
+  const orderNoRaw = formData.get('order_no') as string
 
   if (!projectId || !type || !amount) {
     return { error: 'يرجى ملء جميع الحقول المطلوبة' }
@@ -55,6 +57,7 @@ export async function createPayment(formData: FormData) {
     project_id: projectId,
     type,
     name: type === 'custom' ? name : null,
+    order_no: orderNoRaw ? parseInt(orderNoRaw, 10) : null,
     amount: parseFloat(amount),
     due_date: dueDate || null,
     percentage: percentage ? parseFloat(percentage) : null,
@@ -176,6 +179,8 @@ export async function editPayment(formData: FormData) {
   const amount = parseFloat(formData.get('amount') as string)
   const dueDate = formData.get('due_date') as string
   const notes = formData.get('notes') as string
+  const orderNoRaw = formData.get('order_no') as string
+  const orderNo = orderNoRaw ? parseInt(orderNoRaw, 10) : null
 
   if (!paymentId || isNaN(amount) || amount <= 0) return { error: 'يرجى إدخال مبلغ صحيح' }
 
@@ -183,10 +188,10 @@ export async function editPayment(formData: FormData) {
 
   const { data: payment } = (await service
     .from('payments')
-    .select('status, paid_amount, amount, due_date, notes, paid_at, type')
+    .select('status, paid_amount, amount, due_date, notes, paid_at, type, order_no')
     .eq('id', paymentId)
     .single()) as unknown as {
-      data: { status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null; paid_at: string | null; type: string } | null
+      data: { status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null; paid_at: string | null; type: string; order_no: number | null } | null
     }
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
@@ -202,6 +207,7 @@ export async function editPayment(formData: FormData) {
       amount,
       due_date: dueDate || null,
       notes: notes || null,
+      order_no: orderNo,
       status: newStatus,
       paid_at: newPaidAt,
     } as never)
@@ -211,6 +217,9 @@ export async function editPayment(formData: FormData) {
 
   // ── Audit log: record old → new for each changed field ──
   const changes: Record<string, { from: string; to: string }> = {}
+  if ((payment.order_no ?? null) !== orderNo) {
+    changes['رقم الدفعة'] = { from: payment.order_no != null ? String(payment.order_no) : '—', to: orderNo != null ? String(orderNo) : '—' }
+  }
   if (payment.amount !== amount) {
     changes['المبلغ'] = { from: formatCurrency(payment.amount), to: formatCurrency(amount) }
   }
