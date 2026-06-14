@@ -408,8 +408,8 @@ export function ProjectDetail({
                 </Button>
               </>
             )}
-            {/* Delete — admin only, cancelled or on_hold */}
-            {currentProfile.role === 'admin' && (project.status === 'cancelled' || project.status === 'on_hold') && (
+            {/* Delete — admin or coordinator, cancelled or on_hold only */}
+            {canManage && (project.status === 'cancelled' || project.status === 'on_hold') && (
               <Button size="sm" variant="outline" onClick={() => handleAction('delete')}
                 className="gap-1.5 text-red-700 border-red-300 hover:bg-red-50 ms-auto">
                 <Trash2 className="h-4 w-4" />
