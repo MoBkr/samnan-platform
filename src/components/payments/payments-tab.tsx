@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink, Copy, Check } from 'lucide-react'
+import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink, Copy, Check, Send, CircleCheck, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { PaymentStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
-import { createPayment, recordPayment, deletePayment, editPayment } from '@/lib/actions/payments'
+import { createPayment, recordPayment, deletePayment, editPayment, setSalesConfirmation } from '@/lib/actions/payments'
 import { savePaymentAttachment, deleteAttachment, deletePaymentReceipt } from '@/lib/actions/attachments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
@@ -30,9 +30,10 @@ interface PaymentsTabProps {
   currentProfile?: Profile
   projectTotal?: number | null
   attachments?: Document[]
+  canConfirmSales?: boolean
 }
 
-export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [] }: PaymentsTabProps) {
+export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [], canConfirmSales = false }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addType, setAddType] = useState('')
   const [inv, setInv] = useState({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
@@ -86,6 +87,16 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
         if (result?.error) { toast.error(result.error); return }
         toast.success('تم إضافة الدفعة بنجاح')
         closeAddDialog()
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function handleSalesToggle(paymentId: string, field: 'sales_invoice_sent' | 'sales_payment_confirmed', value: boolean) {
+    startTransition(async () => {
+      try {
+        const res = await setSalesConfirmation(paymentId, projectId, field, value)
+        if (res?.error) toast.error(res.error)
+        else toast.success('تم تحديث التأكيد')
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -329,6 +340,29 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                         {copiedId === payment.id ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
                         {copiedId === payment.id ? 'تم' : 'نسخ'}
                       </button>
+                    </div>
+                  )}
+
+                  {/* Sales engineer double-check */}
+                  {(canConfirmSales || payment.sales_invoice_sent || payment.sales_payment_confirmed) && (
+                    <div className="mb-2 space-y-1.5 rounded-lg bg-emerald-50/40 border border-emerald-100 p-2.5">
+                      <p className="text-[11px] font-semibold text-emerald-700">تأكيد مهندس المبيعات</p>
+                      <SalesCheck
+                        icon={<Send className="h-3.5 w-3.5" />}
+                        label="تم إرسال الفاتورة للعميل"
+                        active={payment.sales_invoice_sent}
+                        canToggle={canConfirmSales}
+                        disabled={isPending}
+                        onToggle={() => handleSalesToggle(payment.id, 'sales_invoice_sent', !payment.sales_invoice_sent)}
+                      />
+                      <SalesCheck
+                        icon={<CircleCheck className="h-3.5 w-3.5" />}
+                        label="العميل دفع المبلغ"
+                        active={payment.sales_payment_confirmed}
+                        canToggle={canConfirmSales}
+                        disabled={isPending}
+                        onToggle={() => handleSalesToggle(payment.id, 'sales_payment_confirmed', !payment.sales_payment_confirmed)}
+                      />
                     </div>
                   )}
 
@@ -601,6 +635,40 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
         </DialogFooter>
       </Dialog>
     </div>
+  )
+}
+
+function SalesCheck({ icon, label, active, canToggle, disabled, onToggle }: {
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  canToggle: boolean
+  disabled: boolean
+  onToggle: () => void
+}) {
+  if (!canToggle) {
+    // Read-only view (coordinator/admin) — only show when confirmed
+    if (!active) return null
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-emerald-700">
+        <CircleCheck className="h-3.5 w-3.5 shrink-0" />
+        <span>{label} ✓</span>
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className={`flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-xs transition-colors disabled:opacity-50 ${active ? 'text-emerald-700' : 'text-gray-500 hover:bg-emerald-50'}`}
+    >
+      <span className={active ? 'text-emerald-600' : 'text-gray-300'}>
+        {active ? <CircleCheck className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+      </span>
+      <span className="text-gray-400">{icon}</span>
+      <span className={active ? 'font-medium' : ''}>{label}</span>
+    </button>
   )
 }
 

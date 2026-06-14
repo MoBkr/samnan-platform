@@ -254,6 +254,52 @@ export async function editPayment(formData: FormData) {
   return { success: true }
 }
 
+// Sales engineer double-check: confirm invoice sent / client paid.
+// Only the project's assigned sales engineer may toggle these.
+export async function setSalesConfirmation(
+  paymentId: string,
+  projectId: string,
+  field: 'sales_invoice_sent' | 'sales_payment_confirmed',
+  value: boolean
+) {
+  if (field !== 'sales_invoice_sent' && field !== 'sales_payment_confirmed') {
+    return { error: 'حقل غير صالح' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' }
+
+  const service = createServiceClient()
+
+  // Verify the user is the project's sales engineer
+  const { data: project } = (await service
+    .from('projects').select('sales_engineer_id').eq('id', projectId).single()) as unknown as {
+      data: { sales_engineer_id: string | null } | null
+    }
+  if (!project || project.sales_engineer_id !== user.id) {
+    return { error: 'هذا التأكيد متاح لمهندس المبيعات المسؤول فقط' }
+  }
+
+  const { error } = (await service
+    .from('payments')
+    .update({ [field]: value } as never)
+    .eq('id', paymentId)) as unknown as { error: Error | null }
+
+  if (error) return { error: 'فشل حفظ التأكيد' }
+
+  const label = field === 'sales_invoice_sent' ? 'إرسال الفاتورة للعميل' : 'استلام الدفع من العميل'
+  await service.from('activity_log').insert({
+    project_id: projectId,
+    user_id: user.id,
+    action: `مهندس المبيعات: ${value ? 'تأكيد' : 'إلغاء تأكيد'} ${label}`,
+    details: { payment_id: paymentId, field, value },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
 export async function cancelPayment(paymentId: string, projectId: string) {
   const service = createServiceClient()
   const supabase = await createClient()

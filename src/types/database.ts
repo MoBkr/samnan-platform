@@ -46,6 +46,8 @@ export interface Payment {
   invoice_date: string | null
   seller_name: string | null
   customer_account: string | null
+  sales_invoice_sent: boolean
+  sales_payment_confirmed: boolean
   percentage: number | null
   amount: number
   due_date: string | null

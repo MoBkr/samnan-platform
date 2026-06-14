@@ -44,6 +44,8 @@ const makePayment = (overrides: Partial<Payment> = {}): Payment => ({
   invoice_date: null,
   seller_name: null,
   customer_account: null,
+  sales_invoice_sent: false,
+  sales_payment_confirmed: false,
   percentage: null,
   amount: 10000,
   due_date: null,
