@@ -8,6 +8,8 @@ import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
 import { ProgressOverview } from '@/components/dashboard/progress-overview'
+import { ActionCenter, type ActionItem } from '@/components/dashboard/action-center'
+import { Hammer } from 'lucide-react'
 import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -29,7 +31,7 @@ interface AdminDashboardProps {
 type Scope = 'mine' | 'all'
 
 export function AdminDashboard({
-  profile, projects, myProjects, overduePayments, users, payments, materials, installationsLite,
+  profile, projects, myProjects, overduePayments, installations, users, payments, materials, installationsLite,
 }: AdminDashboardProps) {
   const hasMine = myProjects.length > 0
   const [scope, setScope] = useState<Scope>('all')
@@ -42,6 +44,17 @@ export function AdminDashboard({
   const completedProjects = scoped.filter((p) => p.status === 'completed')
   const scopedOverdue = overduePayments.filter((op) => ids.has(op.project.id))
   const overdueValue = scopedOverdue.reduce((s, p) => s + (p.amount - p.paid_amount), 0)
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const scopedInstalls = installations.filter((i) => ids.has(i.project_id))
+  const todayInstalls = scopedInstalls.filter((i) => i.scheduled_date === todayStr)
+  const awaitingConfirmation = scopedInstalls.filter((i) => !i.installation_team_confirmed && i.status !== 'completed')
+
+  const actionItems: ActionItem[] = [
+    { href: '/payments', icon: <AlertTriangle className="h-6 w-6" />, count: scopedOverdue.length, label: 'مدفوعات متأخرة', desc: 'تحتاج تحصيل من العملاء', tone: 'red' },
+    { href: '/installation', icon: <Hammer className="h-6 w-6" />, count: todayInstalls.length, label: 'تركيب اليوم', desc: 'مجدولة لليوم', tone: 'emerald' },
+    { href: '/installation', icon: <Hammer className="h-6 w-6" />, count: awaitingConfirmation.length, label: 'بانتظار التأكيد', desc: 'تركيبات تنتظر تأكيد الموعد', tone: 'amber' },
+  ]
 
   const VISIBLE_ROLES = ['coordinator', 'sales_engineer', 'installation', 'admin']
   const roleCount = users.reduce<Record<string, number>>((acc, u) => {
@@ -103,6 +116,9 @@ export function AdminDashboard({
           ))}
         </div>
       )}
+
+      {/* Action center */}
+      <ActionCenter items={actionItems} />
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">

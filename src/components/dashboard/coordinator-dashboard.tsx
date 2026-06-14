@@ -11,6 +11,7 @@ import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
 import { ProgressOverview } from '@/components/dashboard/progress-overview'
+import { ActionCenter, type ActionItem } from '@/components/dashboard/action-center'
 import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -60,6 +61,34 @@ export function CoordinatorDashboard({
 
   const activeProjects = projects.filter((p) => p.status === 'active')
   const completedCount = projects.filter((p) => p.status === 'completed').length
+  const awaitingConfirmation = scopedInstalls.filter((i) => !i.installation_team_confirmed && i.status !== 'completed')
+
+  const actionItems: ActionItem[] = [
+    {
+      href: '/payments',
+      icon: <AlertTriangle className="h-6 w-6" />,
+      count: scopedOverdue.length,
+      label: 'مدفوعات متأخرة',
+      desc: 'تحتاج تحصيل من العملاء',
+      tone: 'red',
+    },
+    {
+      href: '/installation',
+      icon: <Hammer className="h-6 w-6" />,
+      count: todayInstallations.length,
+      label: 'تركيب اليوم',
+      desc: 'مجدولة لليوم — تابع التنفيذ',
+      tone: 'emerald',
+    },
+    {
+      href: '/installation',
+      icon: <Hammer className="h-6 w-6" />,
+      count: awaitingConfirmation.length,
+      label: 'بانتظار التأكيد',
+      desc: 'تركيبات تنتظر تأكيد الموعد',
+      tone: 'amber',
+    },
+  ]
 
   return (
     <div className="space-y-5">
@@ -86,6 +115,9 @@ export function CoordinatorDashboard({
 
       {/* Scope toggle */}
       <ScopeToggle scope={scope} setScope={setScope} mineCount={myProjects.length} allCount={allProjects.length} />
+
+      {/* Action center — what needs doing now */}
+      <ActionCenter items={actionItems} />
 
       {/* KPI stats */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
