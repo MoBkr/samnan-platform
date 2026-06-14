@@ -48,6 +48,7 @@ export default async function DashboardPage() {
         payments={paymentsLite}
         materials={materialsLite}
         installationsLite={installationsLite}
+        users={users}
       />
     )
   }

@@ -13,7 +13,8 @@ import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
 import { ProgressOverview } from '@/components/dashboard/progress-overview'
 import { ActionCenter, type ActionItem } from '@/components/dashboard/action-center'
 import { ProjectTasks } from '@/components/dashboard/project-tasks'
-import { FileBarChart2, ClipboardList } from 'lucide-react'
+import { TeamOverview } from '@/components/dashboard/team-overview'
+import { FileBarChart2, ClipboardList, Users } from 'lucide-react'
 import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,7 @@ interface CoordinatorDashboardProps {
   payments: PaymentLite[]
   materials: MaterialLite[]
   installationsLite: InstallationLite[]
+  users: Profile[]
 }
 
 type Scope = 'mine' | 'all'
@@ -42,6 +44,7 @@ export function CoordinatorDashboard({
   payments,
   materials,
   installationsLite,
+  users,
 }: CoordinatorDashboardProps) {
   const [scope, setScope] = useState<Scope>('mine')
 
@@ -320,6 +323,16 @@ export function CoordinatorDashboard({
             <ViewAllFooter href="/projects" label={`عرض جميع المشاريع (${projects.length})`} />
           </>
         )}
+      </CollapsibleSection>
+
+      {/* Team & workload — always all team members (uses all projects for accurate load) */}
+      <CollapsibleSection
+        title="الفريق وتوزيع المشاريع"
+        icon={<Users className="h-5 w-5" />}
+        iconBg="bg-indigo-100 text-indigo-700"
+        count={users.filter((u) => u.role !== 'admin').length}
+      >
+        <TeamOverview users={users} projects={allProjects} />
       </CollapsibleSection>
     </div>
   )
