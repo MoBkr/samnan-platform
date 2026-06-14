@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  Plus, FolderOpen, Building2, Calendar, DollarSign, ChevronLeft,
+  Plus, FolderOpen, Building2, Calendar, DollarSign, ChevronLeft, ChevronRight,
   Search, MapPin, Users, ChevronDown, X, Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,8 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
   const [search, setSearch] = useState('')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedPeople, setSelectedPeople] = useState<string[]>([])
+  const [pageSize, setPageSize] = useState<number | 'all'>(12)
+  const [page, setPage] = useState(1)
 
   const myProjects = useMemo(() => projects.filter((p) => myProjectIds.has(p.id)), [projects, myProjectIds])
   const baseList = isAdmin ? projects : view === 'mine' ? myProjects : projects
@@ -83,6 +85,20 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
       return true
     })
   }, [baseList, statusFilter, selectedCities, selectedPeople, search])
+
+  // Pagination over the filtered results
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(displayed.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const paged = pageSize === 'all'
+    ? displayed
+    : displayed.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const rangeStart = displayed.length === 0 ? 0 : pageSize === 'all' ? 1 : (currentPage - 1) * pageSize + 1
+  const rangeEnd = pageSize === 'all' ? displayed.length : Math.min(currentPage * pageSize, displayed.length)
+
+  // Reset to first page whenever the result set or page size changes
+  useEffect(() => {
+    setPage(1)
+  }, [search, selectedCities, selectedPeople, statusFilter, view, pageSize])
 
   const myCount = myProjects.length
   const allCount = projects.length
@@ -215,11 +231,34 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
         ))}
       </div>
 
-      {/* Results count */}
-      {hasActiveFilters && displayed.length > 0 && (
-        <p className="text-sm text-gray-500">
-          <span className="font-bold text-gray-700">{displayed.length}</span> نتيجة
-        </p>
+      {/* Count + page size selector */}
+      {displayed.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-gray-500">
+            عرض <span className="font-bold text-gray-700">{rangeStart}–{rangeEnd}</span> من{' '}
+            <span className="font-bold text-gray-700">{displayed.length}</span>
+            {hasActiveFilters ? ' نتيجة' : ' مشروع'}
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">عدد العرض:</span>
+            <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1">
+              {([12, 30, 'all'] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size)}
+                  className={cn(
+                    'rounded-lg px-3 py-1 text-xs font-medium transition-all',
+                    pageSize === size
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  {size === 'all' ? 'الكل' : size}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cards grid */}
@@ -259,17 +298,81 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
           />
         )
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {displayed.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              isMine={myProjectIds.has(project.id)}
-              showMineTag={!isAdmin && view === 'all'}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {paged.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                isMine={myProjectIds.has(project.id)}
+                showMineTag={!isAdmin && view === 'all'}
+              />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+          )}
+        </>
       )}
+    </div>
+  )
+}
+
+/* ── Pagination control ── */
+function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
+  // Build a compact page list with ellipsis: 1 … 4 5 [6] 7 8 … 20
+  const pages: (number | 'gap')[] = []
+  const push = (n: number) => pages.push(n)
+  const window = 1
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - window && i <= page + window)) {
+      push(i)
+    } else if (pages[pages.length - 1] !== 'gap') {
+      pages.push('gap')
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 pt-2">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="flex h-9 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 hover:border-gray-300 hover:text-gray-900 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+      >
+        <ChevronRight className="h-4 w-4" />
+        السابق
+      </button>
+
+      <div className="flex items-center gap-1">
+        {pages.map((p, i) =>
+          p === 'gap' ? (
+            <span key={`gap-${i}`} className="px-1.5 text-gray-400">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onChange(p)}
+              className={cn(
+                'h-9 min-w-9 rounded-lg px-2.5 text-sm font-medium transition-all',
+                p === page
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
+              )}
+            >
+              {p}
+            </button>
+          )
+        )}
+      </div>
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="flex h-9 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-600 hover:border-gray-300 hover:text-gray-900 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+      >
+        التالي
+        <ChevronLeft className="h-4 w-4" />
+      </button>
     </div>
   )
 }
