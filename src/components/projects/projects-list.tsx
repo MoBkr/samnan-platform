@@ -42,7 +42,7 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
   const [search, setSearch] = useState('')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedPeople, setSelectedPeople] = useState<string[]>([])
-  const [visibleCount, setVisibleCount] = useState(12)
+  const [limit, setLimit] = useState<12 | 30 | 'all'>(12)
 
   const myProjects = useMemo(() => projects.filter((p) => myProjectIds.has(p.id)), [projects, myProjectIds])
   const baseList = isAdmin ? projects : view === 'mine' ? myProjects : projects
@@ -85,17 +85,8 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
     })
   }, [baseList, statusFilter, selectedCities, selectedPeople, search])
 
-  // Incremental reveal ("load more" — starts at 12, +12 each click)
-  const INITIAL_COUNT = 12
-  const STEP = 12
-  const paged = displayed.slice(0, visibleCount)
-  const remaining = displayed.length - paged.length
-  const nextChunk = Math.min(STEP, remaining)
-
-  // Reset back to the initial count whenever the result set changes
-  useEffect(() => {
-    setVisibleCount(INITIAL_COUNT)
-  }, [search, selectedCities, selectedPeople, statusFilter, view])
+  // User-controlled number of projects shown
+  const paged = limit === 'all' ? displayed : displayed.slice(0, limit)
 
   const myCount = myProjects.length
   const allCount = projects.length
@@ -228,13 +219,34 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
         ))}
       </div>
 
-      {/* Count */}
+      {/* Count + how-many-to-show selector */}
       {displayed.length > 0 && (
-        <p className="text-sm text-gray-500">
-          عرض <span className="font-bold text-gray-700">{paged.length}</span> من{' '}
-          <span className="font-bold text-gray-700">{displayed.length}</span>
-          {hasActiveFilters ? ' نتيجة' : ' مشروع'}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-gray-500">
+            عرض <span className="font-bold text-gray-700">{paged.length}</span> من{' '}
+            <span className="font-bold text-gray-700">{displayed.length}</span>
+            {hasActiveFilters ? ' نتيجة' : ' مشروع'}
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">عرض كم مشروع؟</span>
+            <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1">
+              {([12, 30, 'all'] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setLimit(size)}
+                  className={cn(
+                    'rounded-lg px-3 py-1 text-xs font-medium transition-all',
+                    limit === size
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  {size === 'all' ? 'الكل' : size}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cards grid */}
@@ -274,34 +286,16 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
           />
         )
       ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {paged.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                isMine={myProjectIds.has(project.id)}
-                showMineTag={!isAdmin && view === 'all'}
-              />
-            ))}
-          </div>
-
-          {remaining > 0 && (
-            <div className="flex flex-col items-center gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setVisibleCount((c) => c + STEP)}
-                className="gap-2 rounded-xl px-6"
-              >
-                <ChevronDown className="h-4 w-4" />
-                عرض {nextChunk} أخرى
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500">
-                  متبقي {remaining}
-                </span>
-              </Button>
-            </div>
-          )}
-        </>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {paged.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              isMine={myProjectIds.has(project.id)}
+              showMineTag={!isAdmin && view === 'all'}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
