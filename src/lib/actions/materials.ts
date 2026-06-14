@@ -42,6 +42,13 @@ export async function updateMaterialsItems(projectId: string, items: MaterialIte
     if (error) return { error: 'فشل إنشاء سجل المواد' }
   }
 
+  await service.from('activity_log').insert({
+    project_id: projectId,
+    user_id: user.id,
+    action: 'تحديث قائمة المواد',
+    details: { count: items.length },
+  } as never)
+
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }

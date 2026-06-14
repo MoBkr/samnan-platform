@@ -372,16 +372,15 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
               </select>
             </div>
 
-            {selectedType === 'other' && (
-              <div className="space-y-1.5">
-                <Label>اسم المستند</Label>
-                <Input
-                  placeholder="مثال: رخصة بناء، تقرير فني..."
-                  value={otherLabel}
-                  onChange={(e) => setOtherLabel(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <Label>عنوان المستند (اختياري)</Label>
+              <Input
+                placeholder="مثال: إيصال الحوالة، العقد الموقّع، رخصة بناء..."
+                value={otherLabel}
+                onChange={(e) => setOtherLabel(e.target.value)}
+              />
+              <p className="text-xs text-gray-400">لو تركته فارغاً سيُستخدم اسم الملف</p>
+            </div>
 
             <div className="space-y-1.5">
               <Label>الملفات</Label>

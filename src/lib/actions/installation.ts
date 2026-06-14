@@ -74,6 +74,13 @@ export async function markClientNotified(installationId: string, projectId: stri
 
   if (error) return { error: 'فشل تحديث حالة الإبلاغ' }
 
+  await service.from('activity_log').insert({
+    project_id: projectId,
+    user_id: user.id,
+    action: 'تسجيل إبلاغ العميل بموعد التركيب',
+    details: { installation_id: installationId },
+  } as never)
+
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')
   return { success: true }
