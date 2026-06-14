@@ -1,5 +1,6 @@
-import { Wallet, Package, Hammer, Gauge } from 'lucide-react'
+import { Wallet, Layers, TrendingUp, ArrowDownCircle, Clock } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import type { Project } from '@/types/database'
 
 export interface PaymentLite { project_id: string; amount: number; paid_amount: number; status: string }
@@ -11,106 +12,145 @@ interface ProgressOverviewProps {
   payments: PaymentLite[]
   materials: MaterialLite[]
   installations: InstallationLite[]
+  overdueAmount?: number
 }
 
-export function ProgressOverview({ projects, payments, materials, installations }: ProgressOverviewProps) {
+export function ProgressOverview({ projects, payments, materials, installations, overdueAmount = 0 }: ProgressOverviewProps) {
   const ids = new Set(projects.map((p) => p.id))
-  const total = projects.length
 
-  // Collection (money %)
-  const scopedPayments = payments.filter((p) => ids.has(p.project_id))
-  const collected = scopedPayments.reduce((s, p) => s + (p.paid_amount ?? 0), 0)
-  const totalValue = projects.reduce((s, p) => s + (p.total_amount ?? 0), 0)
-  const collectionPct = totalValue > 0 ? Math.round((collected / totalValue) * 100) : 0
+  // ── Financial ──
+  const scopedPayments = payments.filter((p) => ids.has(p.project_id) && p.status !== 'cancelled')
+  const billed = scopedPayments.reduce((s, p) => s + (p.amount ?? 0), 0)        // الإجمالي المطلوب
+  const collected = scopedPayments.reduce((s, p) => s + (p.paid_amount ?? 0), 0) // المحصّل
+  const remaining = Math.max(0, billed - collected)                              // المتبقّي للتحصيل
+  const totalValue = projects.reduce((s, p) => s + (p.total_amount ?? 0), 0)     // قيمة المشاريع
+  const collectionPct = billed > 0 ? Math.round((collected / billed) * 100) : 0
 
-  // Materials delivered (project milestone %)
-  const deliveredProjects = new Set(
-    materials.filter((m) => ids.has(m.project_id) && m.status === 'delivered').map((m) => m.project_id)
-  )
-  const materialsPct = total > 0 ? Math.round((deliveredProjects.size / total) * 100) : 0
+  // ── Lifecycle pipeline (exclude cancelled) ──
+  const installByProject = new Map<string, string[]>()
+  installations.forEach((i) => {
+    if (!ids.has(i.project_id)) return
+    const arr = installByProject.get(i.project_id) ?? []
+    arr.push(i.status)
+    installByProject.set(i.project_id, arr)
+  })
+  const materialDelivered = new Set(materials.filter((m) => ids.has(m.project_id) && (m.status === 'delivered' || m.status === 'ready')).map((m) => m.project_id))
+  const paidByProject = new Set(payments.filter((p) => ids.has(p.project_id) && (p.paid_amount ?? 0) > 0).map((p) => p.project_id))
 
-  // Installations completed (project milestone %)
-  const completedInstallProjects = new Set(
-    installations.filter((i) => ids.has(i.project_id) && i.status === 'completed').map((i) => i.project_id)
-  )
-  const installPct = total > 0 ? Math.round((completedInstallProjects.size / total) * 100) : 0
+  const stages = { contract: 0, payments: 0, materials: 0, install: 0, done: 0 }
+  const livingProjects = projects.filter((p) => p.status !== 'cancelled')
+  for (const p of livingProjects) {
+    const insts = installByProject.get(p.id) ?? []
+    if (p.status === 'completed' || insts.includes('completed')) stages.done++
+    else if (insts.length > 0) stages.install++
+    else if (materialDelivered.has(p.id)) stages.materials++
+    else if (paidByProject.has(p.id)) stages.payments++
+    else stages.contract++
+  }
+  const pipelineTotal = livingProjects.length
+
+  const PIPE: { key: keyof typeof stages; label: string; bar: string; dot: string }[] = [
+    { key: 'contract', label: 'تعاقد', bar: 'bg-slate-400', dot: 'bg-slate-400' },
+    { key: 'payments', label: 'دفعات', bar: 'bg-blue-500', dot: 'bg-blue-500' },
+    { key: 'materials', label: 'مواد', bar: 'bg-amber-500', dot: 'bg-amber-500' },
+    { key: 'install', label: 'تركيب', bar: 'bg-purple-500', dot: 'bg-purple-500' },
+    { key: 'done', label: 'مكتمل', bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
+  ]
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-      <div className="mb-5 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
-          <Gauge className="h-4 w-4 text-indigo-700" />
+    <div className="grid gap-4 lg:grid-cols-2">
+      {/* ── Financial summary ── */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+            <Wallet className="h-4 w-4 text-emerald-700" />
+          </div>
+          <h3 className="font-bold text-gray-900">الملخص المالي</h3>
         </div>
-        <h3 className="font-bold text-gray-900">نسب الإنجاز</h3>
+
+        {/* Collection bar */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-sm text-gray-500">نسبة التحصيل</span>
+            <span className="text-sm font-bold text-emerald-600">{collectionPct}%</span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${collectionPct}%` }} />
+          </div>
+          <p className="mt-1.5 text-xs text-gray-400">
+            {formatCurrency(collected)} محصّل من {formatCurrency(billed)} مطلوب
+          </p>
+        </div>
+
+        {/* Figures grid */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <FigureBox icon={<Layers className="h-3.5 w-3.5" />} label="قيمة المشاريع" value={formatCurrency(totalValue)} tone="text-gray-900" />
+          <FigureBox icon={<TrendingUp className="h-3.5 w-3.5" />} label="إجمالي المطلوب" value={formatCurrency(billed)} tone="text-gray-900" />
+          <FigureBox icon={<ArrowDownCircle className="h-3.5 w-3.5" />} label="المحصّل" value={formatCurrency(collected)} tone="text-emerald-600" />
+          <FigureBox icon={<Clock className="h-3.5 w-3.5" />} label="المتبقّي للتحصيل" value={formatCurrency(remaining)} tone="text-amber-600" />
+        </div>
+
+        {overdueAmount > 0 && (
+          <div className="mt-2.5 flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5">
+            <span className="text-xs font-medium text-red-700">منها متأخر التحصيل</span>
+            <span className="text-sm font-bold text-red-600">{formatCurrency(overdueAmount)}</span>
+          </div>
+        )}
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-3">
-        <ProgressRing
-          icon={<Wallet className="h-4 w-4" />}
-          label="التحصيل المالي"
-          pct={collectionPct}
-          color="text-emerald-600"
-          ring="stroke-emerald-500"
-          caption={`${formatCurrency(collected)} / ${formatCurrency(totalValue)}`}
-        />
-        <ProgressRing
-          icon={<Package className="h-4 w-4" />}
-          label="المواد المسلّمة"
-          pct={materialsPct}
-          color="text-amber-600"
-          ring="stroke-amber-500"
-          caption={`${deliveredProjects.size} من ${total} مشروع`}
-        />
-        <ProgressRing
-          icon={<Hammer className="h-4 w-4" />}
-          label="التركيبات المكتملة"
-          pct={installPct}
-          color="text-purple-600"
-          ring="stroke-purple-500"
-          caption={`${completedInstallProjects.size} من ${total} مشروع`}
-        />
+      {/* ── Lifecycle pipeline ── */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100">
+            <Layers className="h-4 w-4 text-indigo-700" />
+          </div>
+          <h3 className="font-bold text-gray-900">مراحل المشاريع</h3>
+          <span className="ms-auto text-xs text-gray-400">{pipelineTotal} مشروع</span>
+        </div>
+
+        {pipelineTotal === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">لا توجد مشاريع نشطة لعرض مراحلها</p>
+        ) : (
+          <>
+            {/* Stacked bar */}
+            <div className="mb-4 flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
+              {PIPE.map(({ key, bar }) => {
+                const v = stages[key]
+                if (v === 0) return null
+                return <div key={key} className={cn('h-full', bar)} style={{ width: `${(v / pipelineTotal) * 100}%` }} title={`${v}`} />
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="space-y-2.5">
+              {PIPE.map(({ key, label, dot }) => {
+                const v = stages[key]
+                const pct = pipelineTotal > 0 ? Math.round((v / pipelineTotal) * 100) : 0
+                return (
+                  <div key={key} className="flex items-center gap-2.5">
+                    <span className={cn('h-2.5 w-2.5 rounded-full shrink-0', dot)} />
+                    <span className="text-sm text-gray-700 flex-1">{label}</span>
+                    <span className="text-sm font-bold text-gray-900">{v}</span>
+                    <span className="text-xs text-gray-400 w-9 text-end">{pct}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-function ProgressRing({ icon, label, pct, color, ring, caption }: {
-  icon: React.ReactNode
-  label: string
-  pct: number
-  color: string
-  ring: string
-  caption: string
-}) {
-  const radius = 30
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (Math.min(100, Math.max(0, pct)) / 100) * circumference
-
+function FigureBox({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: string }) {
   return (
-    <div className="flex flex-col items-center text-center">
-      <div className="relative h-20 w-20">
-        <svg className="h-20 w-20 -rotate-90" viewBox="0 0 72 72">
-          <circle cx="36" cy="36" r={radius} className="stroke-gray-100" strokeWidth="7" fill="none" />
-          <circle
-            cx="36" cy="36" r={radius}
-            className={ring}
-            strokeWidth="7"
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-lg font-bold ${color}`}>{pct}%</span>
-        </div>
+    <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3">
+      <div className="flex items-center gap-1.5 text-gray-400 mb-1">
+        {icon}
+        <span className="text-xs">{label}</span>
       </div>
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className={color}>{icon}</span>
-        <span className="text-sm font-semibold text-gray-800">{label}</span>
-      </div>
-      <p className="mt-0.5 text-xs text-gray-400">{caption}</p>
+      <p className={cn('text-sm font-bold', tone)}>{value}</p>
     </div>
   )
 }

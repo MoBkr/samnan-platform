@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Sparkles } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type Tone = 'red' | 'amber' | 'emerald' | 'blue'
@@ -43,19 +43,7 @@ const TONES: Record<Tone, { card: string; chip: string; count: string; arrow: st
 export function ActionCenter({ items }: { items: ActionItem[] }) {
   const active = items.filter((i) => i.count > 0)
 
-  if (active.length === 0) {
-    return (
-      <div className="flex items-center gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-l from-emerald-50 to-white p-5">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 shrink-0">
-          <Sparkles className="h-6 w-6 text-emerald-600" />
-        </div>
-        <div>
-          <p className="font-bold text-gray-900">كل شيء تحت السيطرة 👌</p>
-          <p className="text-sm text-gray-500 mt-0.5">لا توجد مهام عاجلة تحتاج إجراءً الآن.</p>
-        </div>
-      </div>
-    )
-  }
+  if (active.length === 0) return null
 
   return (
     <section>

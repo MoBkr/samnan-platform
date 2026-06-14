@@ -133,8 +133,8 @@ export function AdminDashboard({
           value={users.length} label="المستخدمون" />
       </div>
 
-      {/* Progress ratios */}
-      <ProgressOverview projects={scoped} payments={payments} materials={materials} installations={installationsLite} />
+      {/* Insights */}
+      <ProgressOverview projects={scoped} payments={payments} materials={materials} installations={installationsLite} overdueAmount={overdueValue} />
 
       {/* Overdue payments — scoped */}
       <CollapsibleSection

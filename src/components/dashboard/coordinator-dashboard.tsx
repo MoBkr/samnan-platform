@@ -153,8 +153,14 @@ export function CoordinatorDashboard({
         />
       </div>
 
-      {/* Progress ratios */}
-      <ProgressOverview projects={projects} payments={payments} materials={materials} installations={installationsLite} />
+      {/* Insights */}
+      <ProgressOverview
+        projects={projects}
+        payments={payments}
+        materials={materials}
+        installations={installationsLite}
+        overdueAmount={scopedOverdue.reduce((s, p) => s + (p.amount - p.paid_amount), 0)}
+      />
 
       {/* Today's installations — time-sensitive */}
       {todayInstallations.length > 0 && (
