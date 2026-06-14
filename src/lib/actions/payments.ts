@@ -44,6 +44,10 @@ export async function createPayment(formData: FormData) {
   const notes = formData.get('notes') as string
   const name = (formData.get('name') as string)?.trim()
   const orderNoRaw = formData.get('order_no') as string
+  const invoiceNumber = (formData.get('invoice_number') as string)?.trim()
+  const invoiceDate = (formData.get('invoice_date') as string)?.trim()
+  const sellerName = (formData.get('seller_name') as string)?.trim()
+  const customerAccount = (formData.get('customer_account') as string)?.trim()
 
   if (!projectId || !type || !amount) {
     return { error: 'يرجى ملء جميع الحقول المطلوبة' }
@@ -53,18 +57,24 @@ export async function createPayment(formData: FormData) {
   }
 
   const service = createServiceClient()
-  const { error } = (await service.from('payments').insert({
+  const { data, error } = (await service.from('payments').insert({
     project_id: projectId,
     type,
     name: type === 'custom' ? name : null,
     order_no: orderNoRaw ? parseInt(orderNoRaw, 10) : null,
+    invoice_number: invoiceNumber || null,
+    invoice_date: invoiceDate || null,
+    seller_name: sellerName || null,
+    customer_account: customerAccount || null,
     amount: parseFloat(amount),
     due_date: dueDate || null,
     percentage: percentage ? parseFloat(percentage) : null,
     notes: notes || null,
     status: 'pending',
     paid_amount: 0,
-  } as never)) as unknown as { error: Error | null }
+  } as never)
+    .select('id')
+    .single()) as unknown as { data: { id: string } | null; error: Error | null }
 
   if (error) return { error: 'فشل إنشاء الدفعة' }
 
@@ -76,7 +86,7 @@ export async function createPayment(formData: FormData) {
   } as never)
 
   revalidatePath(`/projects/${projectId}`)
-  return { success: true }
+  return { success: true, paymentId: data?.id }
 }
 
 export async function recordPayment(formData: FormData) {

@@ -42,6 +42,10 @@ export interface Payment {
   type: PaymentType
   name: string | null
   order_no: number | null
+  invoice_number: string | null
+  invoice_date: string | null
+  seller_name: string | null
+  customer_account: string | null
   percentage: number | null
   amount: number
   due_date: string | null
