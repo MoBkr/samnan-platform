@@ -12,6 +12,8 @@ import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-c
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
 import { ProgressOverview } from '@/components/dashboard/progress-overview'
 import { ActionCenter, type ActionItem } from '@/components/dashboard/action-center'
+import { ProjectTasks } from '@/components/dashboard/project-tasks'
+import { FileBarChart2, ClipboardList } from 'lucide-react'
 import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -113,6 +115,22 @@ export function CoordinatorDashboard({
         </div>
       </div>
 
+      {/* Reports & printing quick access */}
+      <Link href="/reports">
+        <div className="flex items-center justify-between rounded-2xl bg-teal-600 px-6 py-4 shadow-sm hover:bg-teal-700 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+              <FileBarChart2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">التقارير والطباعة</p>
+              <p className="text-xs text-teal-200">تصدير وطباعة تقارير المشاريع والمدفوعات</p>
+            </div>
+          </div>
+          <ArrowLeft className="h-5 w-5 text-teal-200" />
+        </div>
+      </Link>
+
       {/* Scope toggle */}
       <ScopeToggle scope={scope} setScope={setScope} mineCount={myProjects.length} allCount={allProjects.length} />
 
@@ -161,6 +179,24 @@ export function CoordinatorDashboard({
         installations={installationsLite}
         overdueAmount={scopedOverdue.reduce((s, p) => s + (p.amount - p.paid_amount), 0)}
       />
+
+      {/* Per-project stage + next action */}
+      <CollapsibleSection
+        title="حالة ومهام المشاريع"
+        icon={<ClipboardList className="h-5 w-5" />}
+        iconBg="bg-brand-100 text-brand-700"
+        count={activeProjects.length}
+        defaultOpen
+      >
+        <ProjectTasks
+          projects={activeProjects}
+          payments={payments}
+          materials={materials}
+          installations={installations.map((i) => ({ project_id: i.project_id, status: i.status, installation_team_confirmed: i.installation_team_confirmed }))}
+          overdueProjectIds={new Set(scopedOverdue.map((op) => op.project.id))}
+        />
+        {activeProjects.length > 8 && <ViewAllFooter href="/projects" label="عرض كل المشاريع" />}
+      </CollapsibleSection>
 
       {/* Today's installations — time-sensitive */}
       {todayInstallations.length > 0 && (

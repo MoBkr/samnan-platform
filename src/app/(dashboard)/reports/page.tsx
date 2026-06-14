@@ -16,7 +16,7 @@ export default async function ReportsPage() {
     .eq('id', user.id)
     .single()) as QueryResult<Profile>
 
-  if (!profile || profile.role !== 'admin') redirect('/dashboard')
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'coordinator')) redirect('/dashboard')
 
   const [projects, payments, team, activity] = await Promise.all([
     getProjectsReport(),

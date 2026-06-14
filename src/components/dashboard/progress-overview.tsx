@@ -26,6 +26,10 @@ export function ProgressOverview({ projects, payments, materials, installations,
   const totalValue = projects.reduce((s, p) => s + (p.total_amount ?? 0), 0)     // قيمة المشاريع
   const collectionPct = billed > 0 ? Math.round((collected / billed) * 100) : 0
 
+  const paidCount = scopedPayments.filter((p) => p.status === 'paid').length
+  const partialCount = scopedPayments.filter((p) => p.status === 'partial').length
+  const pendingCount = scopedPayments.filter((p) => p.status === 'pending' || p.status === 'overdue').length
+
   // ── Lifecycle pipeline (exclude cancelled) ──
   const installByProject = new Map<string, string[]>()
   installations.forEach((i) => {
@@ -89,6 +93,21 @@ export function ProgressOverview({ projects, payments, materials, installations,
           <FigureBox icon={<ArrowDownCircle className="h-3.5 w-3.5" />} label="المحصّل" value={formatCurrency(collected)} tone="text-emerald-600" />
           <FigureBox icon={<Clock className="h-3.5 w-3.5" />} label="المتبقّي للتحصيل" value={formatCurrency(remaining)} tone="text-amber-600" />
         </div>
+
+        {/* Payment status quick summary */}
+        {(paidCount + partialCount + pendingCount) > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {paidCount} مدفوعة
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {partialCount} جزئية
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-gray-400" /> {pendingCount} معلّقة
+            </span>
+          </div>
+        )}
 
         {overdueAmount > 0 && (
           <div className="mt-2.5 flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5">
