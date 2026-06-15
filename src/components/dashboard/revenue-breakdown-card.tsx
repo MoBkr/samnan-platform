@@ -19,18 +19,25 @@ interface RevenueBreakdownCardProps {
   iconBg?: string
 }
 
-export function RevenueBreakdownCard({ projects, label = 'إجمالي القيمة', iconBg = 'bg-emerald-100 text-emerald-700' }: RevenueBreakdownCardProps) {
+// Statuses that count toward the live headline value (cancelled & completed excluded)
+const LIVE_STATUSES: ProjectStatus[] = ['active', 'on_hold']
+
+export function RevenueBreakdownCard({ projects, label = 'إجمالي القيمة القائمة', iconBg = 'bg-emerald-100 text-emerald-700' }: RevenueBreakdownCardProps) {
   const [open, setOpen] = useState(false)
 
-  const total = projects.reduce((s, p) => s + (p.total_amount ?? 0), 0)
+  // Headline = active + on_hold only (cancelled projects don't inflate the total)
+  const total = projects
+    .filter((p) => LIVE_STATUSES.includes(p.status))
+    .reduce((s, p) => s + (p.total_amount ?? 0), 0)
 
-  const statuses: ProjectStatus[] = ['active', 'completed', 'on_hold', 'cancelled']
+  const statuses: ProjectStatus[] = ['active', 'on_hold', 'completed', 'cancelled']
   const breakdown = statuses.map((status) => {
     const group = projects.filter((p) => p.status === status)
     return {
       status,
       count: group.length,
       value: group.reduce((s, p) => s + (p.total_amount ?? 0), 0),
+      live: LIVE_STATUSES.includes(status),
     }
   }).filter((b) => b.count > 0)
 
@@ -57,19 +64,20 @@ export function RevenueBreakdownCard({ projects, label = 'إجمالي القي�
           {breakdown.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-2">لا توجد مشاريع</p>
           ) : (
-            breakdown.map(({ status, count, value }) => (
-              <div key={status} className="flex items-center justify-between">
+            breakdown.map(({ status, count, value, live }) => (
+              <div key={status} className={`flex items-center justify-between ${live ? '' : 'opacity-50'}`}>
                 <div className="flex items-center gap-2.5">
                   <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${STATUS_COLORS[status]}`} />
                   <span className="text-sm text-gray-700">{STATUS_LABELS[status]}</span>
                   <span className="text-xs text-gray-400">({count})</span>
+                  {!live && <span className="text-[10px] text-gray-400">غير محتسبة</span>}
                 </div>
-                <span className="text-sm font-semibold text-gray-800">{formatCurrency(value)}</span>
+                <span className={`text-sm font-semibold text-gray-800 ${live ? '' : 'line-through'}`}>{formatCurrency(value)}</span>
               </div>
             ))
           )}
           <div className="border-t border-gray-200 pt-2.5 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">الإجمالي</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">الإجمالي القائم (نشط + معلق)</span>
             <span className="text-sm font-bold text-gray-900">{formatCurrency(total)}</span>
           </div>
         </div>
