@@ -29,6 +29,13 @@
    ```
    Without this, the new التركيب tab (Site Inspection / MIR / IRS / Commissioning / Snag List) and the expected-duration field will fail to save.
 
+0b. **Supabase — Client share token (REQUIRED for client tracking page):** Run in SQL Editor. Adds the public token used by the read-only client tracking page `/track/[token]`:
+   ```sql
+   ALTER TABLE public.projects
+     ADD COLUMN IF NOT EXISTS public_token text UNIQUE;
+   ```
+   Without this, the "مشاركة مع العميل" button will fail to generate a link.
+
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
    -- Add installation_id to projects (if not already done)

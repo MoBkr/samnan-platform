@@ -6,6 +6,7 @@ import Link from 'next/link'
 import {
   ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
   CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2, MapPin, Hammer,
+  Share2, Copy, Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import { MaterialsTab } from '@/components/projects/materials-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
 import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
+import { getOrCreateShareToken } from '@/lib/actions/share'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material } from '@/types/database'
@@ -158,8 +160,38 @@ export function ProjectDetail({
   const [teamCoordinatorId, setTeamCoordinatorId] = useState(project.coordinator_id ?? '')
   const [teamSalesId, setTeamSalesId] = useState(project.sales_engineer_id ?? '')
   const [teamInstallationId, setTeamInstallationId] = useState(project.installation_id ?? '')
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [shareLoading, setShareLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+
+  const canShare = currentProfile.role === 'coordinator' || currentProfile.role === 'admin' || currentProfile.role === 'sales_engineer'
+
+  function openShare() {
+    setShareOpen(true)
+    setCopied(false)
+    if (shareUrl) return
+    setShareLoading(true)
+    startTransition(async () => {
+      try {
+        const result = await getOrCreateShareToken(project.id)
+        if ('error' in result) { toast.error(result.error); setShareOpen(false) }
+        else setShareUrl(`${window.location.origin}/track/${result.token}`)
+      } catch { toast.error('حدث خطأ غير متوقع'); setShareOpen(false) }
+      finally { setShareLoading(false) }
+    })
+  }
+
+  function copyShare() {
+    if (!shareUrl) return
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true)
+      toast.success('تم نسخ الرابط')
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => toast.error('تعذّر النسخ'))
+  }
 
   const activePayments = payments.filter(p => p.status !== 'cancelled')
   const totalPaid = activePayments.reduce((sum, p) => sum + (p.paid_amount ?? 0), 0)
@@ -475,9 +507,19 @@ export function ProjectDetail({
           </div>
         )}
 
+        {/* Share with client (coordinator / sales / admin) */}
+        {canShare && (
+          <div className={`mt-5 flex flex-wrap gap-2 ${canManage ? '' : 'border-t border-gray-100 pt-5'}`}>
+            <Button size="sm" variant="outline" onClick={openShare} className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50">
+              <Share2 className="h-4 w-4" />
+              مشاركة مع العميل
+            </Button>
+          </div>
+        )}
+
         {/* Action buttons */}
         {canManage && (
-          <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
             {canManage && !isFinished && (
               <Button size="sm" variant="outline" onClick={() => handleAction('editInfo')} className="gap-1.5">
                 <Edit2 className="h-4 w-4" />
@@ -915,6 +957,49 @@ export function ProjectDetail({
             <Trash2 className="h-4 w-4" />
             حذف نهائياً
           </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* ── Share with client dialog ── */}
+      <Dialog open={shareOpen} onClose={() => setShareOpen(false)}>
+        <DialogHeader>
+          <DialogTitle>مشاركة المشروع مع العميل</DialogTitle>
+          <DialogClose onClose={() => setShareOpen(false)} />
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              أرسل هذا الرابط للعميل ليتابع مراحل مشروعه. الصفحة <strong>للعرض فقط</strong> — لا يستطيع تعديل أو الوصول لأي بيانات داخلية.
+            </p>
+            {shareLoading ? (
+              <div className="flex items-center justify-center py-6 text-sm text-gray-400">
+                <Share2 className="h-4 w-4 animate-pulse me-2" /> جاري تجهيز الرابط…
+              </div>
+            ) : shareUrl ? (
+              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
+                <input
+                  readOnly
+                  value={shareUrl}
+                  dir="ltr"
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="flex-1 bg-transparent px-2 text-sm text-gray-700 outline-none truncate"
+                />
+                <Button size="sm" onClick={copyShare} className="shrink-0">
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? 'تم النسخ' : 'نسخ'}
+                </Button>
+              </div>
+            ) : null}
+            {shareUrl && (
+              <a href={shareUrl} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700">
+                <Share2 className="h-3.5 w-3.5" /> معاينة الصفحة كما يراها العميل
+              </a>
+            )}
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShareOpen(false)}>إغلاق</Button>
         </DialogFooter>
       </Dialog>
     </div>

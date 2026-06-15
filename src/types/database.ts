@@ -31,6 +31,7 @@ export interface Project {
   cr_url: string | null
   vat_url: string | null
   national_address_url: string | null
+  public_token: string | null
   status: ProjectStatus
   total_amount: number | null
   start_date: string | null
