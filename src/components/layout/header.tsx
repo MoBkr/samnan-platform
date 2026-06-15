@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, Bell, LogOut, ChevronDown, Home } from 'lucide-react'
+import { Menu, LogOut, ChevronDown, Home } from 'lucide-react'
 import { ROLE_LABELS } from '@/lib/constants'
 import { signOut } from '@/lib/actions/auth'
+import { NotificationBell } from '@/components/layout/notification-bell'
 import type { Profile } from '@/types/database'
 
 interface HeaderProps {
@@ -96,9 +97,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
       {/* Left side — bell + user */}
       <div className="flex items-center gap-3">
         {/* Notification bell */}
-        <button className="relative rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-          <Bell className="h-5 w-5" />
-        </button>
+        {profile && <NotificationBell />}
 
         {profile && <div className="h-7 w-px bg-gray-200" />}
 

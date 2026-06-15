@@ -6,9 +6,19 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { Installation, InstallationStatus, InstallationStages, InstallAttachment } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import { INSTALL_STAGES } from '@/lib/constants'
+import { notify } from '@/lib/actions/notifications'
 
 function stageLabel(stageKey: string) {
   return INSTALL_STAGES.find((s) => s.key === stageKey)?.label ?? stageKey
+}
+
+// Fetch the project's installation manager + name (for notifications)
+async function projectManager(service: ReturnType<typeof createServiceClient>, projectId: string) {
+  const r = (await service
+    .from('projects').select('installation_id, project_name').eq('id', projectId).single()) as unknown as {
+      data: { installation_id: string | null; project_name: string } | null
+    }
+  return r.data
 }
 
 // Installation stage data is editable by the installation manager (primary)
@@ -86,6 +96,13 @@ export async function scheduleInstallation(formData: FormData) {
     action: 'جدولة التركيب',
     details: { scheduled_date: scheduledDate, expected_duration: expectedDuration },
   } as never)
+
+  const mgr = await projectManager(service, projectId)
+  await notify(mgr?.installation_id, {
+    title: 'تم جدولة تركيب جديد',
+    body: `مشروع «${mgr?.project_name ?? ''}» — تاريخ البدء ${scheduledDate}`,
+    link: `/projects/${projectId}`, type: 'installation', projectId,
+  }, user.id)
 
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')

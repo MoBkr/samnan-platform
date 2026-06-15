@@ -62,6 +62,24 @@
    ```
    The app uses the service client for these tables (RLS on, no policies).
 
+0d. **Supabase — In-app notifications (REQUIRED for the notification bell):** Run in SQL Editor:
+   ```sql
+   create table if not exists public.app_notifications (
+     id uuid primary key default gen_random_uuid(),
+     recipient_id uuid references public.profiles(id) not null,
+     title text not null,
+     body text,
+     link text,
+     type text default 'info',
+     project_id uuid references public.projects(id),
+     is_read boolean default false,
+     created_at timestamptz default now()
+   );
+   create index if not exists app_notifications_recipient_idx on public.app_notifications (recipient_id, is_read);
+   alter table public.app_notifications enable row level security;
+   ```
+   In-app only (per client decision). Service client for reads/writes.
+
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
    -- Add installation_id to projects (if not already done)

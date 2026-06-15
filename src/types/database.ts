@@ -120,6 +120,19 @@ export interface InstallStageData {
 
 export type InstallationStages = Record<string, InstallStageData>
 
+// ── In-app notifications ──
+export interface AppNotification {
+  id: string
+  recipient_id: string
+  title: string
+  body: string | null
+  link: string | null
+  type: string
+  project_id: string | null
+  is_read: boolean
+  created_at: string
+}
+
 // ── Technicians (shared company pool) ──
 export interface Technician {
   id: string

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatDateShort } from '@/lib/utils'
+import { notify } from '@/lib/actions/notifications'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import type { Technician, TechnicianAssignment, TechnicianWithStatus } from '@/types/database'
 
@@ -138,6 +139,15 @@ export async function assignTechnician(data: {
     action: `تعيين فني: ${techResult.data?.name ?? ''} (${formatDateShort(startDate)} — ${formatDateShort(endDate)})`,
     details: { technician_id: technicianId, start_date: startDate, end_date: endDate },
   } as never)
+
+  // Notify the project's installation manager
+  const projResult = (await service
+    .from('projects').select('installation_id, project_name').eq('id', projectId).single()) as QueryResult<{ installation_id: string | null; project_name: string }>
+  await notify(projResult.data?.installation_id, {
+    title: 'تم تعيين فني للمشروع',
+    body: `${techResult.data?.name ?? 'فني'} — مشروع «${projResult.data?.project_name ?? ''}» (${formatDateShort(startDate)} — ${formatDateShort(endDate)})`,
+    link: `/projects/${projectId}`, type: 'technician', projectId,
+  }, auth.user.id)
 
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/technicians')

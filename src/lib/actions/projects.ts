@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatCurrency } from '@/lib/utils'
+import { notify } from '@/lib/actions/notifications'
 import type { Project, ProjectStatus } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
@@ -154,6 +155,11 @@ export async function updateProjectTeam(
   if (!user) return { error: 'غير مصرح' }
 
   const service = createServiceClient()
+  // Previous installation manager — to detect a new assignment
+  const prevResult = (await service
+    .from('projects').select('installation_id, project_name').eq('id', projectId).single()) as QueryResult<{ installation_id: string | null; project_name: string }>
+  const prevInstallationId = prevResult.data?.installation_id ?? null
+
   const { error } = (await service
     .from('projects')
     .update({
@@ -170,6 +176,15 @@ export async function updateProjectTeam(
     sales_engineer_id: salesEngineerId,
     installation_id: installationId,
   })
+
+  // Notify a newly-assigned installation manager
+  if (installationId && installationId !== prevInstallationId) {
+    await notify(installationId, {
+      title: 'تم تعيينك على مشروع',
+      body: `أصبحت مدير التركيب لمشروع «${prevResult.data?.project_name ?? ''}»`,
+      link: `/projects/${projectId}`, type: 'project', projectId,
+    }, user.id)
+  }
 
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/projects')

@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { notify } from '@/lib/actions/notifications'
 import type { Material, MaterialItem } from '@/types/database'
+import type { QueryResult } from '@/lib/supabase/typed'
 
 export async function getProjectMaterials(projectId: string): Promise<Material | null> {
   const supabase = await createClient()
@@ -90,6 +92,17 @@ export async function updateMaterialsStatus(
     action: `تحديث حالة المواد — ${status}`,
     details: { status },
   } as never)
+
+  // Materials ready → notify installation manager (IRS items now appear)
+  if (status === 'ready') {
+    const projResult = (await service
+      .from('projects').select('installation_id, project_name').eq('id', projectId).single()) as QueryResult<{ installation_id: string | null; project_name: string }>
+    await notify(projResult.data?.installation_id, {
+      title: 'المواد أصبحت جاهزة',
+      body: `مشروع «${projResult.data?.project_name ?? ''}» — يمكنك بدء معاينة التركيب (IRS)`,
+      link: `/projects/${projectId}`, type: 'materials', projectId,
+    }, user.id)
+  }
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
