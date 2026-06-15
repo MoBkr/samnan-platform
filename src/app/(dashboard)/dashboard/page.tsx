@@ -3,6 +3,7 @@ import { getCurrentProfile } from '@/lib/actions/auth'
 import { getProjects } from '@/lib/actions/projects'
 import { getAllOverduePayments } from '@/lib/actions/payments'
 import { getAllInstallations } from '@/lib/actions/installation'
+import { getPurchaseRequests } from '@/lib/actions/purchase-requests'
 import { CoordinatorDashboard } from '@/components/dashboard/coordinator-dashboard'
 import { AdminDashboard } from '@/components/dashboard/admin-dashboard'
 import { SalesEngineerDashboard } from '@/components/dashboard/sales-engineer-dashboard'
@@ -39,11 +40,10 @@ export default async function DashboardPage() {
   // Purchase requests (BR) quick counts — coordinator/admin only
   let brActive = 0, brOverdue = 0
   if (profile.role === 'coordinator' || profile.role === 'admin') {
-    const brRes = (await supabase.from('purchase_requests').select('stage, due_date')) as QueryResultMany<{ stage: string; due_date: string | null }>
+    const brRows = await getPurchaseRequests()
     const todaySA = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date())
-    const rows = brRes.data ?? []
-    brActive = rows.filter((b) => b.stage !== 'completed').length
-    brOverdue = rows.filter((b) => b.stage !== 'completed' && b.due_date && b.due_date < todaySA).length
+    brActive = brRows.filter((b) => b.stage !== 'completed').length
+    brOverdue = brRows.filter((b) => b.stage !== 'completed' && b.due_date && b.due_date < todaySA).length
   }
 
   if (profile.role === 'coordinator') {

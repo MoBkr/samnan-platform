@@ -150,7 +150,8 @@ export interface Notification {
   created_at: string
 }
 
-export interface BrAttachment { url: string; name: string }
+export interface BrAttachment { url: string; name: string; stage?: BrStage }
+export interface BrMaterial { name: string; quantity?: number; unit?: string; notes?: string }
 
 export interface PurchaseRequest {
   id: string
@@ -168,6 +169,8 @@ export interface PurchaseRequest {
   started_at: string | null
   notes: string | null
   attachments: BrAttachment[]
+  materials: BrMaterial[]
+  stage_history: Record<string, string>
   created_by: string | null
   created_at: string
   updated_at: string
