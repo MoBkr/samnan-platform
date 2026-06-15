@@ -14,6 +14,7 @@ import {
   FileBarChart2,
   ShoppingCart,
   ScrollText,
+  HardHat,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/actions/auth'
@@ -50,6 +51,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'التركيبات',
     href: '/installation',
     icon: <Hammer className="h-5 w-5" />,
+    roles: ['installation', 'coordinator', 'admin'],
+  },
+  {
+    label: 'الفنيون',
+    href: '/technicians',
+    icon: <HardHat className="h-5 w-5" />,
     roles: ['installation', 'coordinator', 'admin'],
   },
   {

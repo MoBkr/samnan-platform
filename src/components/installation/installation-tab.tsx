@@ -20,7 +20,8 @@ import {
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatDateShort } from '@/lib/utils'
 import { INSTALL_STAGES, type InstallStageConfig, type InstallSlot } from '@/lib/constants'
-import type { Installation, Profile, InstallAttachment, Material } from '@/types/database'
+import { ProjectTechnicians } from '@/components/installation/project-technicians'
+import type { Installation, Profile, InstallAttachment, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
 
 interface InstallationTabProps {
   installations: Installation[]
@@ -28,9 +29,11 @@ interface InstallationTabProps {
   canManage: boolean
   currentProfile: Profile
   material: Material | null
+  technicians: TechnicianWithStatus[]
+  technicianAssignments: (TechnicianAssignment & { technician?: Technician })[]
 }
 
-export function InstallationTab({ installations, projectId, canManage, currentProfile, material }: InstallationTabProps) {
+export function InstallationTab({ installations, projectId, canManage, currentProfile, material, technicians, technicianAssignments }: InstallationTabProps) {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -107,6 +110,14 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
           </Button>
         )}
       </div>
+
+      {/* Project technicians (shared pool — assign with booking) */}
+      <ProjectTechnicians
+        projectId={projectId}
+        technicians={technicians}
+        assignments={technicianAssignments}
+        canEdit={canEdit}
+      />
 
       {/* Installations list */}
       {installations.length === 0 ? (

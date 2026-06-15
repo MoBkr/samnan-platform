@@ -36,6 +36,32 @@
    ```
    Without this, the "مشاركة مع العميل" button will fail to generate a link.
 
+0c. **Supabase — Technicians pool (REQUIRED for technician management):** Run in SQL Editor. Shared company-wide technician records + date-range project assignments (bookings/history):
+   ```sql
+   create table if not exists public.technicians (
+     id uuid primary key default gen_random_uuid(),
+     name text not null,
+     employee_no text,
+     phone text,
+     is_active boolean default true,
+     created_at timestamptz default now()
+   );
+   create table if not exists public.technician_assignments (
+     id uuid primary key default gen_random_uuid(),
+     technician_id uuid references public.technicians(id) not null,
+     project_id uuid references public.projects(id) not null,
+     start_date date not null,
+     end_date date not null,
+     status text not null default 'active' check (status in ('active','done','removed')),
+     created_by uuid references public.profiles(id),
+     created_at timestamptz default now(),
+     ended_at timestamptz
+   );
+   alter table public.technicians enable row level security;
+   alter table public.technician_assignments enable row level security;
+   ```
+   The app uses the service client for these tables (RLS on, no policies).
+
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
    -- Add installation_id to projects (if not already done)

@@ -120,6 +120,37 @@ export interface InstallStageData {
 
 export type InstallationStages = Record<string, InstallStageData>
 
+// ── Technicians (shared company pool) ──
+export interface Technician {
+  id: string
+  name: string
+  employee_no: string | null
+  phone: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export type TechnicianAssignmentStatus = 'active' | 'done' | 'removed'
+
+export interface TechnicianAssignment {
+  id: string
+  technician_id: string
+  project_id: string
+  start_date: string
+  end_date: string
+  status: TechnicianAssignmentStatus
+  created_by: string | null
+  created_at: string
+  ended_at: string | null
+  technician?: Technician
+  project?: Pick<Project, 'id' | 'project_name' | 'client_name'>
+}
+
+// A technician plus their current active assignment (for availability views)
+export interface TechnicianWithStatus extends Technician {
+  current: (TechnicianAssignment & { project?: Pick<Project, 'id' | 'project_name' | 'client_name'> }) | null
+}
+
 export interface Installation {
   id: string
   project_id: string
