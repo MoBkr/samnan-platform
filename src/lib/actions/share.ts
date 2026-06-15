@@ -28,8 +28,14 @@ export async function getOrCreateShareToken(projectId: string) {
   if (!token) {
     token = randomUUID()
     const { error } = (await service
-      .from('projects').update({ public_token: token } as never).eq('id', projectId)) as unknown as { error: Error | null }
-    if (error) return { error: 'فشل إنشاء الرابط' }
+      .from('projects').update({ public_token: token } as never).eq('id', projectId)) as unknown as { error: { message?: string } | null }
+    if (error) {
+      console.error('[getOrCreateShareToken] update failed:', error)
+      const detail = error.message?.includes('public_token')
+        ? 'عمود public_token غير موجود — يرجى تشغيل الـSQL (بند 0b) في Supabase'
+        : (error.message ?? 'خطأ غير معروف')
+      return { error: `فشل إنشاء الرابط: ${detail}` }
+    }
   }
   return { token }
 }
