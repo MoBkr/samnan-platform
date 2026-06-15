@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   FolderKanban, AlertTriangle, Hammer,
-  Plus, CheckCircle2, ArrowLeft, Wallet,
+  Plus, CheckCircle2, ArrowLeft, Wallet, ChevronLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
@@ -435,8 +435,12 @@ interface StatsCardProps {
 
 function StatsCard({ href, icon, iconBg, value, label, sub, urgent }: StatsCardProps) {
   return (
-    <Link href={href}>
-      <div className={`rounded-2xl border bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${urgent ? 'border-red-200' : 'border-gray-100'}`}>
+    <Link href={href} className="group block cursor-pointer">
+      <div className={`relative rounded-2xl border bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-brand-300 ${urgent ? 'border-red-200' : 'border-gray-100'}`}>
+        {/* clickable hint */}
+        <span className="absolute top-3 left-3 flex items-center gap-0.5 text-[10px] font-medium text-gray-300 transition-colors group-hover:text-brand-600">
+          عرض <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+        </span>
         <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}>
           {icon}
         </div>

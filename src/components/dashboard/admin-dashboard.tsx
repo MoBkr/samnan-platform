@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { FolderKanban, AlertTriangle, Users, ArrowLeft, FileBarChart2, Wallet, CheckCircle2 } from 'lucide-react'
+import { FolderKanban, AlertTriangle, Users, ArrowLeft, FileBarChart2, Wallet, CheckCircle2, ChevronLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
@@ -259,8 +259,11 @@ interface KpiCardProps {
 
 function KpiCard({ href, icon, bg, value, label, sub, urgent }: KpiCardProps) {
   return (
-    <Link href={href}>
-      <div className={`rounded-2xl border bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${urgent ? 'border-red-200' : 'border-gray-100'}`}>
+    <Link href={href} className="group block cursor-pointer">
+      <div className={`relative rounded-2xl border bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-brand-300 ${urgent ? 'border-red-200' : 'border-gray-100'}`}>
+        <span className="absolute top-3 left-3 flex items-center gap-0.5 text-[10px] font-medium text-gray-300 transition-colors group-hover:text-brand-600">
+          عرض <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+        </span>
         <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${bg}`}>{icon}</div>
         <p className="text-3xl font-bold text-gray-900">{value}</p>
         <p className="text-sm text-gray-500 mt-0.5">{label}</p>
