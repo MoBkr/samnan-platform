@@ -113,6 +113,12 @@ export async function createUser(formData: FormData) {
       .upsert({ id: data.user.id, full_name: fullName, role, is_active: true } as never) as unknown as Promise<{ error: Error | null }>)
   }
 
+  {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: `إنشاء مستخدم: ${fullName}`, details: { role } } as never)
+  }
+
   revalidatePath('/users')
   return { success: true }
 }
@@ -134,11 +140,14 @@ export async function approveUser(userId: string) {
 
   if (error) return { error: 'فشل تفعيل الحساب' }
 
+  await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: 'تفعيل حساب مستخدم', details: { target: userId } } as never)
   revalidatePath('/users')
   return { success: true }
 }
 
 export async function updateUserRole(userId: string, role: UserRole) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const service = createServiceClient()
 
   const { error } = (await service
@@ -148,6 +157,7 @@ export async function updateUserRole(userId: string, role: UserRole) {
 
   if (error) return { error: 'فشل تحديث الدور' }
 
+  if (user) await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: 'تغيير دور مستخدم', details: { target: userId, role } } as never)
   revalidatePath('/users')
   return { success: true }
 }
@@ -215,6 +225,7 @@ export async function adminResetUserPassword(targetUserId: string, newPassword: 
 
   if (error) return { error: 'فشل إعادة تعيين كلمة المرور. حاول مرة أخرى' }
 
+  await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: 'إعادة تعيين كلمة مرور مستخدم', details: { target: targetUserId } } as never)
   return { success: true }
 }
 
@@ -251,6 +262,7 @@ export async function deleteUser(targetUserId: string) {
   const { error: authError } = await service.auth.admin.deleteUser(targetUserId)
   if (authError) return { error: 'فشل حذف حساب تسجيل الدخول. حاول مرة أخرى' }
 
+  await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: 'حذف مستخدم', details: { target: targetUserId } } as never)
   revalidatePath('/users')
   return { success: true }
 }

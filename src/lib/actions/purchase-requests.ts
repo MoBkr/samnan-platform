@@ -43,6 +43,7 @@ interface BrInput {
   stage?: BrStage
   notes?: string | null
   materials?: BrMaterial[]
+  attachments?: BrAttachment[]
 }
 
 export async function createPurchaseRequest(data: BrInput) {
@@ -66,13 +67,17 @@ export async function createPurchaseRequest(data: BrInput) {
     due_date: data.due_date || null,
     started_at: data.started_at || null,
     notes: data.notes || null,
-    attachments: [],
+    attachments: data.attachments ?? [],
     materials: data.materials ?? [],
     stage_history: { [stage]: new Date().toISOString() },
     created_by: auth.user.id,
   } as never)) as unknown as { error: Error | null }
 
   if (error) return { error: 'فشل إنشاء الطلب' }
+  await service.from('activity_log').insert({
+    project_id: null, user_id: auth.user.id,
+    action: `إنشاء طلب شراء: ${data.project_name.trim()}`, details: { project_name: data.project_name.trim() },
+  } as never)
   revalidatePath('/purchase-requests')
   return { success: true }
 }
@@ -91,6 +96,10 @@ export async function updatePurchaseRequest(id: string, fields: Partial<BrInput>
   const { error } = (await service
     .from('purchase_requests').update(patch as never).eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل تحديث الطلب' }
+  await service.from('activity_log').insert({
+    project_id: null, user_id: auth.user.id,
+    action: 'تعديل بيانات طلب شراء', details: { br_id: id },
+  } as never)
   revalidatePath('/purchase-requests')
   return { success: true }
 }
@@ -134,6 +143,9 @@ export async function deletePurchaseRequest(id: string) {
   const service = createServiceClient()
   const { error } = (await service.from('purchase_requests').delete().eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حذف الطلب' }
+  await service.from('activity_log').insert({
+    project_id: null, user_id: auth.user.id, action: 'حذف طلب شراء', details: { br_id: id },
+  } as never)
   revalidatePath('/purchase-requests')
   return { success: true }
 }

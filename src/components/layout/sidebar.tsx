@@ -13,6 +13,7 @@ import {
   Wallet,
   FileBarChart2,
   ShoppingCart,
+  ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/actions/auth'
@@ -61,6 +62,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'التقارير',
     href: '/reports',
     icon: <FileBarChart2 className="h-5 w-5" />,
+    roles: ['coordinator', 'admin'],
+  },
+  {
+    label: 'سجل التدقيق',
+    href: '/audit-log',
+    icon: <ScrollText className="h-5 w-5" />,
     roles: ['coordinator', 'admin'],
   },
 ]

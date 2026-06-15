@@ -35,11 +35,11 @@ type BrForm = {
   br_number: string; release_number: string; project_name: string; supplier_name: string
   engineer_id: string; location: string; due_date: string; started_at: string
   priority: 'important' | 'medium'; status: 'not_started' | 'started'; progress: string; notes: string
-  materials: BrMaterial[]
+  materials: BrMaterial[]; materialsDoc: { url: string; name: string } | null
 }
 const EMPTY: BrForm = {
   br_number: '', release_number: '', project_name: '', supplier_name: '', engineer_id: '', location: '',
-  due_date: '', started_at: '', priority: 'medium', status: 'not_started', progress: '0', notes: '', materials: [],
+  due_date: '', started_at: '', priority: 'medium', status: 'not_started', progress: '0', notes: '', materials: [], materialsDoc: null,
 }
 
 export function PurchaseBoard({ requests, users, projectNames }: Props) {
@@ -62,7 +62,7 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
       br_number: r.br_number ?? '', release_number: r.release_number ?? '', project_name: r.project_name ?? '',
       supplier_name: r.supplier_name ?? '', engineer_id: r.engineer_id ?? '', location: r.location ?? '',
       due_date: r.due_date ?? '', started_at: r.started_at ?? '', priority: r.priority, status: r.status,
-      progress: String(r.progress ?? 0), notes: r.notes ?? '', materials: r.materials ?? [],
+      progress: String(r.progress ?? 0), notes: r.notes ?? '', materials: r.materials ?? [], materialsDoc: null,
     })
     setFormOpen(true)
   }
@@ -77,9 +77,13 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
       status: form.status, progress: parseInt(form.progress || '0', 10) || 0, notes: form.notes,
       materials: form.materials.filter((m) => m.name.trim()),
     }
+    const createPayload = {
+      ...payload,
+      attachments: form.materialsDoc ? [{ ...form.materialsDoc, stage: 'create' as BrStage }] : [],
+    }
     startTransition(async () => {
       try {
-        const res = editingId ? await updatePurchaseRequest(editingId, payload) : await createPurchaseRequest(payload)
+        const res = editingId ? await updatePurchaseRequest(editingId, payload) : await createPurchaseRequest(createPayload)
         if (res?.error) { toast.error(res.error); return }
         toast.success(editingId ? 'تم تحديث الطلب' : 'تم إنشاء الطلب')
         setFormOpen(false)
@@ -258,8 +262,14 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
               <Field label="تاريخ الاستحقاق (الوصول المتوقع)"><Input type="date" dir="ltr" value={form.due_date} onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} /></Field>
             </div>
 
-            {/* Materials editor */}
-            <MaterialsEditor materials={form.materials} onChange={(m) => setForm((f) => ({ ...f, materials: m }))} />
+            {/* Materials editor (manual table OR attach a file) */}
+            <MaterialsEditor
+              materials={form.materials}
+              onChange={(m) => setForm((f) => ({ ...f, materials: m }))}
+              allowDoc={!editingId}
+              materialsDoc={form.materialsDoc}
+              onDoc={(d) => setForm((f) => ({ ...f, materialsDoc: d }))}
+            />
 
             <Field label="ملاحظات"><Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="اختياري" /></Field>
           </form>
@@ -337,6 +347,14 @@ function Stepper({ r, isPending, onAdvance }: {
                 {when && <span className="text-[11px] text-gray-400">{formatDateShort(when)}</span>}
               </div>
 
+              {/* Logistics: surface expected delivery date */}
+              {stage === 'logistics' && (done || isCurrent) && (
+                <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-100 px-2.5 py-1 text-xs text-purple-700">
+                  <Calendar className="h-3.5 w-3.5" />
+                  موعد التسليم المتوقع: {r.due_date ? formatDateShort(r.due_date) : 'غير محدد'}
+                </div>
+              )}
+
               {/* attachments for done/current stages */}
               {(done || isCurrent) && (
                 <div className="mt-2 space-y-1.5">
@@ -375,17 +393,51 @@ function Stepper({ r, isPending, onAdvance }: {
   )
 }
 
-/* ── Materials editor (in form) ── */
-function MaterialsEditor({ materials, onChange }: { materials: BrMaterial[]; onChange: (m: BrMaterial[]) => void }) {
+/* ── Materials editor (manual table OR attach a file) ── */
+function MaterialsEditor({ materials, onChange, allowDoc, materialsDoc, onDoc }: {
+  materials: BrMaterial[]; onChange: (m: BrMaterial[]) => void
+  allowDoc?: boolean; materialsDoc?: { url: string; name: string } | null; onDoc?: (d: { url: string; name: string } | null) => void
+}) {
   const [row, setRow] = useState<BrMaterial>({ name: '', quantity: undefined, unit: '', notes: '' })
+  const [docUploading, setDocUploading] = useState(false)
+  const docRef = useRef<HTMLInputElement>(null)
   function add() {
     if (!row.name.trim()) { toast.error('اكتب اسم الصنف'); return }
     onChange([...materials, { ...row, name: row.name.trim() }])
     setRow({ name: '', quantity: undefined, unit: '', notes: '' })
   }
+  async function onDocFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f || !onDoc) return
+    setDocUploading(true)
+    const up = await uploadFileDirect(f, 'purchase')
+    setDocUploading(false)
+    if ('error' in up) { toast.error(up.error); return }
+    onDoc({ url: up.url, name: f.name }); toast.success('تم إرفاق قائمة المواد')
+  }
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 space-y-2.5">
       <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500"><Package className="h-3.5 w-3.5" /> المواد المطلوب شراؤها</p>
+
+      {/* Option: attach as a file (PDF/image) */}
+      {allowDoc && (
+        <div className="rounded-lg border border-dashed border-gray-200 bg-white p-2.5">
+          {materialsDoc ? (
+            <div className="flex items-center gap-2 text-xs">
+              <Paperclip className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+              <span className="flex-1 truncate text-gray-700">{materialsDoc.name}</span>
+              <button type="button" onClick={() => onDoc?.(null)} className="text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => docRef.current?.click()} disabled={docUploading}
+              className="flex w-full items-center justify-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50">
+              <Upload className="h-3.5 w-3.5" /> {docUploading ? 'جاري الرفع...' : 'إرفاق قائمة المواد كملف (PDF / صورة) بدل الكتابة'}
+            </button>
+          )}
+          <input ref={docRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={onDocFile} />
+        </div>
+      )}
+      {allowDoc && <p className="text-center text-[11px] text-gray-400">— أو أدخلها يدوياً —</p>}
       {materials.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-gray-100 bg-white">
           <table className="w-full text-sm">
