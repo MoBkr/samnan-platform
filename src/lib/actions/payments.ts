@@ -5,8 +5,18 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatCurrency } from '@/lib/utils'
 import { PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import { notify } from '@/lib/actions/notifications'
 import type { Payment, PaymentType } from '@/types/database'
-import type { QueryResultMany } from '@/lib/supabase/typed'
+import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+
+// Project team + name, for routing notifications
+async function projectTeam(service: ReturnType<typeof createServiceClient>, projectId: string) {
+  const r = (await service
+    .from('projects').select('coordinator_id, sales_engineer_id, installation_id, project_name').eq('id', projectId).single()) as QueryResult<{
+      coordinator_id: string | null; sales_engineer_id: string | null; installation_id: string | null; project_name: string
+    }>
+  return r.data
+}
 
 export async function getProjectPayments(projectId: string) {
   const supabase = await createClient()
@@ -140,6 +150,14 @@ export async function recordPayment(formData: FormData) {
     action: newStatus === 'paid' ? 'تم سداد الدفعة بالكامل' : 'تم سداد جزء من الدفعة',
     details: { payment_id: paymentId, paid_amount: paidAmount, new_status: newStatus },
   } as never)
+
+  // Notify the project's coordinator + sales engineer
+  const team = await projectTeam(service, projectId)
+  await notify([team?.coordinator_id, team?.sales_engineer_id], {
+    title: newStatus === 'paid' ? 'تم سداد دفعة بالكامل' : 'تم سداد جزء من دفعة',
+    body: `مشروع «${team?.project_name ?? ''}» — مبلغ ${formatCurrency(paidAmount)}`,
+    link: `/projects/${projectId}`, type: 'payment', projectId,
+  }, user.id)
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
@@ -295,6 +313,16 @@ export async function setSalesConfirmation(
     action: `مهندس المبيعات: ${value ? 'تأكيد' : 'إلغاء تأكيد'} ${label}`,
     details: { payment_id: paymentId, field, value },
   } as never)
+
+  // Notify the coordinator of the sales engineer's confirmation
+  if (value) {
+    const team = await projectTeam(service, projectId)
+    await notify(team?.coordinator_id, {
+      title: 'تأكيد من مهندس المبيعات',
+      body: `${label} — مشروع «${team?.project_name ?? ''}»`,
+      link: `/projects/${projectId}`, type: 'payment', projectId,
+    }, user.id)
+  }
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
