@@ -71,12 +71,42 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'activity', label: 'سجل النشاط' },
 ]
 
-function getLifecycleStage(
+type StageKey = 'contract' | 'payments' | 'materials_req' | 'materials_delivered' | 'install_scheduled' | 'install_done' | 'completed'
+
+const STAGE_LABEL: Record<StageKey, string> = {
+  contract: 'تم التعاقد',
+  payments: 'الدفعة الأولى محصّلة',
+  materials_req: 'المواد مطلوبة',
+  materials_delivered: 'المواد موردة',
+  install_scheduled: 'التركيب مجدول',
+  install_done: 'التركيب منجز',
+  completed: 'مكتمل',
+}
+
+const STEPS_FULL: { key: StageKey; label: string }[] = [
+  { key: 'contract', label: 'التعاقد' },
+  { key: 'payments', label: 'الدفعات' },
+  { key: 'materials_req', label: 'طلب المواد' },
+  { key: 'materials_delivered', label: 'توريد المواد' },
+  { key: 'install_scheduled', label: 'التركيب مجدول' },
+  { key: 'install_done', label: 'التركيب منجز' },
+  { key: 'completed', label: 'الإغلاق' },
+]
+
+const STEPS_NO_INSTALL: { key: StageKey; label: string }[] = [
+  { key: 'contract', label: 'التعاقد' },
+  { key: 'payments', label: 'الدفعات' },
+  { key: 'materials_req', label: 'طلب المواد' },
+  { key: 'materials_delivered', label: 'توريد المواد' },
+  { key: 'completed', label: 'الإغلاق' },
+]
+
+function getStageKey(
   payments: Payment[],
   installations: Installation[],
   material: Material | null,
   attachments: Document[]
-): { stage: number; label: string } {
+): StageKey {
   const hasUpfrontPaid = payments.some(p => p.type === 'upfront' && p.status === 'paid')
   const hasInstallationPaid = payments.some(p => p.type === 'installation' && p.status === 'paid')
   const hasFinalPaid = payments.some(p => p.type === 'final' && p.status === 'paid')
@@ -87,16 +117,14 @@ function getLifecycleStage(
     || (material?.items && material.items.length > 0)
   const hasDeliveryNote = attachments.some(a => a.type === 'delivery_note')
 
-  if (installDone && (hasFinalPaid || hasInstallationPaid)) return { stage: 7, label: 'مكتمل' }
-  if (installDone) return { stage: 6, label: 'التركيب منجز' }
-  if (hasScheduledInstall) return { stage: 5, label: 'التركيب مجدول' }
-  if (hasDeliveryNote) return { stage: 4, label: 'المواد موردة' }
-  if (hasMaterialsRequest) return { stage: 3, label: 'المواد مطلوبة' }
-  if (hasUpfrontPaid || hasFinalPaid) return { stage: 2, label: 'الدفعة الأولى محصّلة' }
-  return { stage: 1, label: 'تم التعاقد' }
+  if (installDone && (hasFinalPaid || hasInstallationPaid)) return 'completed'
+  if (installDone) return 'install_done'
+  if (hasScheduledInstall) return 'install_scheduled'
+  if (hasDeliveryNote) return 'materials_delivered'
+  if (hasMaterialsRequest) return 'materials_req'
+  if (hasUpfrontPaid || hasFinalPaid) return 'payments'
+  return 'contract'
 }
-
-const LIFECYCLE_STEPS = ['التعاقد', 'الدفعات', 'طلب المواد', 'توريد المواد', 'التركيب مجدول', 'التركيب منجز', 'الإغلاق']
 
 export function ProjectDetail({
   project,
@@ -143,7 +171,17 @@ export function ProjectDetail({
 
   const isFullyPaid = project.total_amount != null && project.total_amount > 0 && totalPaid >= project.total_amount
 
-  const { stage, label: stageLabel } = getLifecycleStage(payments, installations, material, attachments)
+  const stageKey = getStageKey(payments, installations, material, attachments)
+  const stageLabel = STAGE_LABEL[stageKey]
+  const lifecycleSteps = project.has_installation ? STEPS_FULL : STEPS_NO_INSTALL
+  let currentStageIdx = lifecycleSteps.findIndex(s => s.key === stageKey)
+  if (currentStageIdx === -1) {
+    // installation key on a no-install project → treat as 'توريد المواد'
+    currentStageIdx = stageKey === 'completed'
+      ? lifecycleSteps.length - 1
+      : lifecycleSteps.findIndex(s => s.key === 'materials_delivered')
+  }
+  const stage = currentStageIdx + 1
 
   // The coordinator is the operational manager: ANY coordinator (and admin)
   // can view and manage every project, not just the one they're assigned to.
@@ -452,12 +490,12 @@ export function ProjectDetail({
           </span>
         </div>
         <div className="flex items-center gap-0 overflow-x-auto pb-1">
-          {LIFECYCLE_STEPS.map((step, idx) => {
+          {lifecycleSteps.map((step, idx) => {
             const stepNum = idx + 1
             const isDone = stepNum < stage
             const isCurrent = stepNum === stage
             return (
-              <div key={step} className="flex items-center shrink-0">
+              <div key={step.key} className="flex items-center shrink-0">
                 <div className="flex flex-col items-center gap-1.5">
                   <div className={cn(
                     'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors',
@@ -471,10 +509,10 @@ export function ProjectDetail({
                     'text-[10px] font-medium whitespace-nowrap',
                     isDone ? 'text-emerald-600' : isCurrent ? 'text-brand-600' : 'text-gray-400'
                   )}>
-                    {step}
+                    {step.label}
                   </span>
                 </div>
-                {idx < LIFECYCLE_STEPS.length - 1 && (
+                {idx < lifecycleSteps.length - 1 && (
                   <div className={cn('h-0.5 w-8 mx-1 mb-4', stepNum < stage ? 'bg-emerald-400' : 'bg-gray-200')} />
                 )}
               </div>
