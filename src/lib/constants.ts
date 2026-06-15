@@ -1,4 +1,21 @@
-import type { UserRole, ProjectStatus, PaymentType, PaymentStatus, InstallationStatus } from '@/types/database'
+import type { UserRole, ProjectStatus, PaymentType, PaymentStatus, InstallationStatus, BrStage, BrPriority } from '@/types/database'
+
+export const BR_STAGES: BrStage[] = ['create', 'manager_approval', 'inventory', 'release', 'finance', 'logistics', 'completed']
+
+export const BR_STAGE_LABELS: Record<BrStage, string> = {
+  create: 'إنشاء الطلب',
+  manager_approval: 'موافقة المدير',
+  inventory: 'إدارة المخزون',
+  release: 'Release / تعميد',
+  finance: 'المالية',
+  logistics: 'Logistic',
+  completed: 'تم الاستلام',
+}
+
+export const BR_PRIORITY_LABELS: Record<BrPriority, string> = {
+  important: 'مهم',
+  medium: 'متوسط',
+}
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   coordinator: 'الكوردنيتر',

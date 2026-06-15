@@ -14,7 +14,7 @@ import { ProgressOverview } from '@/components/dashboard/progress-overview'
 import { ActionCenter, type ActionItem } from '@/components/dashboard/action-center'
 import { ProjectTasks } from '@/components/dashboard/project-tasks'
 import { TeamOverview } from '@/components/dashboard/team-overview'
-import { FileBarChart2, ClipboardList, Users } from 'lucide-react'
+import { FileBarChart2, ClipboardList, Users, ShoppingCart } from 'lucide-react'
 import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -31,6 +31,8 @@ interface CoordinatorDashboardProps {
   materials: MaterialLite[]
   installationsLite: InstallationLite[]
   users: Profile[]
+  brActive: number
+  brOverdue: number
 }
 
 type Scope = 'mine' | 'all'
@@ -45,6 +47,8 @@ export function CoordinatorDashboard({
   materials,
   installationsLite,
   users,
+  brActive,
+  brOverdue,
 }: CoordinatorDashboardProps) {
   const [scope, setScope] = useState<Scope>('mine')
 
@@ -142,7 +146,7 @@ export function CoordinatorDashboard({
       <ActionCenter items={actionItems} />
 
       {/* KPI stats */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <StatsCard
           href="/projects"
           icon={<FolderKanban className="h-6 w-6" />}
@@ -150,6 +154,15 @@ export function CoordinatorDashboard({
           value={activeProjects.length}
           label={isMine ? 'مشاريعي النشطة' : 'المشاريع النشطة'}
           sub={`${completedCount} مكتمل`}
+        />
+        <StatsCard
+          href="/purchase-requests"
+          icon={<ShoppingCart className="h-6 w-6" />}
+          iconBg="bg-teal-100 text-teal-700"
+          value={brActive}
+          label="طلبات المشتريات (BR)"
+          sub={brOverdue > 0 ? `${brOverdue} متأخر` : 'قيد المتابعة'}
+          urgent={brOverdue > 0}
         />
         <StatsCard
           href="/payments"

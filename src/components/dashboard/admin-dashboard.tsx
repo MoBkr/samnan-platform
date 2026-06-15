@@ -9,7 +9,7 @@ import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-c
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
 import { ProgressOverview } from '@/components/dashboard/progress-overview'
 import { ActionCenter, type ActionItem } from '@/components/dashboard/action-center'
-import { Hammer } from 'lucide-react'
+import { Hammer, ShoppingCart } from 'lucide-react'
 import type { PaymentLite, MaterialLite, InstallationLite } from '@/components/dashboard/progress-overview'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -26,12 +26,14 @@ interface AdminDashboardProps {
   payments: PaymentLite[]
   materials: MaterialLite[]
   installationsLite: InstallationLite[]
+  brActive: number
+  brOverdue: number
 }
 
 type Scope = 'mine' | 'all'
 
 export function AdminDashboard({
-  profile, projects, myProjects, overduePayments, installations, users, payments, materials, installationsLite,
+  profile, projects, myProjects, overduePayments, installations, users, payments, materials, installationsLite, brActive, brOverdue,
 }: AdminDashboardProps) {
   const hasMine = myProjects.length > 0
   const [scope, setScope] = useState<Scope>('all')
@@ -121,9 +123,11 @@ export function AdminDashboard({
       <ActionCenter items={actionItems} />
 
       {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <KpiCard href="/projects" icon={<FolderKanban className="h-6 w-6" />} bg="bg-blue-50 text-blue-700"
           value={activeProjects.length} label="مشاريع نشطة" sub={`${completedProjects.length} مكتمل`} />
+        <KpiCard href="/purchase-requests" icon={<ShoppingCart className="h-6 w-6" />} bg="bg-teal-50 text-teal-700"
+          value={brActive} label="طلبات المشتريات" sub={brOverdue > 0 ? `${brOverdue} متأخر` : undefined} urgent={brOverdue > 0} />
         <RevenueBreakdownCard projects={scoped} label="إجمالي القيمة" />
         <KpiCard href="/payments" icon={<AlertTriangle className="h-6 w-6" />} bg="bg-red-50 text-red-700"
           value={scopedOverdue.length} label="مدفوعات متأخرة"

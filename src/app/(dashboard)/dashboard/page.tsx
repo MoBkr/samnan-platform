@@ -36,6 +36,16 @@ export default async function DashboardPage() {
   const materialsLite = materialsResult.data ?? []
   const installationsLite: InstallationLite[] = installations.map((i) => ({ project_id: i.project_id, status: i.status }))
 
+  // Purchase requests (BR) quick counts — coordinator/admin only
+  let brActive = 0, brOverdue = 0
+  if (profile.role === 'coordinator' || profile.role === 'admin') {
+    const brRes = (await supabase.from('purchase_requests').select('stage, due_date')) as QueryResultMany<{ stage: string; due_date: string | null }>
+    const todaySA = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date())
+    const rows = brRes.data ?? []
+    brActive = rows.filter((b) => b.stage !== 'completed').length
+    brOverdue = rows.filter((b) => b.stage !== 'completed' && b.due_date && b.due_date < todaySA).length
+  }
+
   if (profile.role === 'coordinator') {
     const myProjects = projects.filter((p) => p.coordinator_id === profile.id)
     return (
@@ -49,6 +59,8 @@ export default async function DashboardPage() {
         materials={materialsLite}
         installationsLite={installationsLite}
         users={users}
+        brActive={brActive}
+        brOverdue={brOverdue}
       />
     )
   }
@@ -66,6 +78,8 @@ export default async function DashboardPage() {
         payments={paymentsLite}
         materials={materialsLite}
         installationsLite={installationsLite}
+        brActive={brActive}
+        brOverdue={brOverdue}
       />
     )
   }

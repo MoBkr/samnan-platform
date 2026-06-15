@@ -12,6 +12,7 @@ import {
   X,
   Wallet,
   FileBarChart2,
+  ShoppingCart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/actions/auth'
@@ -49,6 +50,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/installation',
     icon: <Hammer className="h-5 w-5" />,
     roles: ['installation', 'coordinator', 'admin'],
+  },
+  {
+    label: 'طلبات المشتريات',
+    href: '/purchase-requests',
+    icon: <ShoppingCart className="h-5 w-5" />,
+    roles: ['coordinator', 'admin'],
   },
   {
     label: 'التقارير',

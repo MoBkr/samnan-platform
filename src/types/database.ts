@@ -6,6 +6,8 @@ export type MaterialStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | '
 export type SupplyOrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'failed' | 'rescheduled'
 export type InstallationStatus = 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'delayed' | 'rescheduled'
 export type DocumentType = 'contract' | 'invoice' | 'receipt' | 'delivery_note' | 'completion_photo' | 'other' | 'materials_request'
+export type BrStage = 'create' | 'manager_approval' | 'inventory' | 'release' | 'finance' | 'logistics' | 'completed'
+export type BrPriority = 'important' | 'medium'
 
 export interface Profile {
   id: string
@@ -148,6 +150,30 @@ export interface Notification {
   created_at: string
 }
 
+export interface BrAttachment { url: string; name: string }
+
+export interface PurchaseRequest {
+  id: string
+  br_number: string | null
+  release_number: string | null
+  project_name: string | null
+  supplier_name: string | null
+  engineer_id: string | null
+  location: string | null
+  stage: BrStage
+  status: 'not_started' | 'started'
+  progress: number
+  priority: BrPriority
+  due_date: string | null
+  started_at: string | null
+  notes: string | null
+  attachments: BrAttachment[]
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  engineer?: Profile
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -222,6 +248,14 @@ export type Database = {
         Row: Notification
         Insert: Omit<Notification, 'id' | 'created_at'> & { id?: string; created_at?: string }
         Update: Partial<Omit<Notification, 'id'>>
+        Relationships: []
+      }
+      purchase_requests: {
+        Row: Omit<PurchaseRequest, 'engineer'>
+        Insert: Omit<PurchaseRequest, 'id' | 'created_at' | 'updated_at' | 'engineer'> & {
+          id?: string; created_at?: string; updated_at?: string
+        }
+        Update: Partial<Omit<PurchaseRequest, 'id' | 'engineer'>>
         Relationships: []
       }
     }
