@@ -114,6 +114,7 @@ export interface InstallStageData {
   done?: boolean
   started?: boolean              // Site Inspection: team start confirmation
   files?: InstallAttachment[]
+  customSlots?: { key: string; label: string }[]  // IRS: manually-added inspection items not in the materials list
 }
 
 export type InstallationStages = Record<string, InstallStageData>

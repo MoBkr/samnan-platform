@@ -554,7 +554,7 @@ export function ProjectDetail({
             canConfirmSales={currentProfile.role === 'sales_engineer' && project.sales_engineer_id === currentProfile.id} />
         )}
         {activeTab === 'installation' && (
-          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} />
+          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} material={material} />
         )}
         {activeTab === 'materials' && (
           <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} />

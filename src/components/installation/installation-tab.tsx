@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Hammer, CheckCircle2, Clock, Calendar, AlertCircle, Timer,
-  Upload, FileText, X, Check, ChevronDown, Pencil, RotateCcw,
+  Upload, FileText, X, Check, ChevronDown, Pencil, RotateCcw, Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,26 +15,40 @@ import { EmptyState } from '@/components/shared/empty-state'
 import {
   scheduleInstallation, updateInstallationStatus, markClientNotified,
   setInstallExpectedDuration, addInstallStageFile, removeInstallStageFile, updateInstallStageFlags,
+  addInstallStageSlot, removeInstallStageSlot,
 } from '@/lib/actions/installation'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatDateShort } from '@/lib/utils'
-import { INSTALL_STAGES, type InstallStageConfig } from '@/lib/constants'
-import type { Installation, Profile, InstallAttachment } from '@/types/database'
+import { INSTALL_STAGES, type InstallStageConfig, type InstallSlot } from '@/lib/constants'
+import type { Installation, Profile, InstallAttachment, Material } from '@/types/database'
 
 interface InstallationTabProps {
   installations: Installation[]
   projectId: string
   canManage: boolean
   currentProfile: Profile
+  material: Material | null
 }
 
-export function InstallationTab({ installations, projectId, canManage, currentProfile }: InstallationTabProps) {
+export function InstallationTab({ installations, projectId, canManage, currentProfile, material }: InstallationTabProps) {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const canSchedule = canManage
   // Stage data: installation manager (primary) + coordinator/admin (follow-up) — shared.
   const canEdit = canManage || currentProfile.role === 'installation'
+
+  // IRS inspection items are derived from the project's materials, shown once
+  // the materials are confirmed ready/delivered.
+  const materialReady = material?.status === 'ready' || material?.status === 'delivered'
+  const materialSlots: InstallSlot[] = materialReady
+    ? (material?.items ?? [])
+        .filter((it) => it.name?.trim())
+        .map((it) => ({
+          key: `mat:${it.name.trim()}`,
+          label: it.quantity ? `${it.name.trim()} — ${it.quantity} ${it.unit ?? ''}`.trim() : it.name.trim(),
+        }))
+    : []
 
   function handleSchedule(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -112,6 +126,8 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
               startTransition={startTransition}
               onStatusUpdate={handleStatusUpdate}
               onNotifyClient={handleNotifyClient}
+              materialSlots={materialSlots}
+              materialReady={materialReady}
             />
           ))}
         </div>
@@ -156,6 +172,8 @@ function InstallationCard({
   startTransition,
   onStatusUpdate,
   onNotifyClient,
+  materialSlots,
+  materialReady,
 }: {
   installation: Installation
   projectId: string
@@ -164,6 +182,8 @@ function InstallationCard({
   startTransition: React.TransitionStartFunction
   onStatusUpdate: (id: string, status: Installation['status']) => void
   onNotifyClient: (id: string) => void
+  materialSlots: InstallSlot[]
+  materialReady: boolean
 }) {
   const isDelayed = installation.status === 'delayed' || installation.status === 'rescheduled'
   const isCompleted = installation.status === 'completed'
@@ -297,6 +317,8 @@ function InstallationCard({
             projectId={projectId}
             canEdit={canEdit}
             startTransition={startTransition}
+            materialSlots={materialSlots}
+            materialReady={materialReady}
           />
         ))}
       </div>
@@ -348,24 +370,56 @@ function InstallationCard({
 }
 
 function StageItem({
-  index, config, data, installationId, projectId, canEdit, startTransition,
+  index, config, data, installationId, projectId, canEdit, startTransition, materialSlots, materialReady,
 }: {
   index: number
   config: InstallStageConfig
-  data: { done?: boolean; started?: boolean; files?: InstallAttachment[] }
+  data: { done?: boolean; started?: boolean; files?: InstallAttachment[]; customSlots?: { key: string; label: string }[] }
   installationId: string
   projectId: string
   canEdit: boolean
   startTransition: React.TransitionStartFunction
+  materialSlots: InstallSlot[]
+  materialReady: boolean
 }) {
   const files = data.files ?? []
   const [open, setOpen] = useState(false)
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
+  const [addingSlot, setAddingSlot] = useState(false)
+  const [newSlotLabel, setNewSlotLabel] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingSlot = useRef<string | undefined>(undefined)
 
   const isDone = !!data.done
   const hasFiles = files.length > 0
+
+  // IRS (dynamic) slots = materials (when ready) + manually-added items.
+  const customSlots = data.customSlots ?? []
+  const dynamicSlots: InstallSlot[] = config.dynamic ? [...materialSlots, ...customSlots] : []
+  // Files whose slot no longer matches any current slot — keep them visible, never lose data.
+  const knownSlotKeys = new Set([...(config.slots ?? []), ...dynamicSlots].map((s) => s.key))
+  const orphanFiles = config.dynamic ? files.filter((f) => f.slot && !knownSlotKeys.has(f.slot)) : []
+
+  function addSlot() {
+    if (!newSlotLabel.trim()) return
+    startTransition(async () => {
+      try {
+        const result = await addInstallStageSlot(installationId, projectId, config.key, newSlotLabel.trim())
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تمت إضافة البند'); setNewSlotLabel(''); setAddingSlot(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function removeSlot(slotKey: string) {
+    startTransition(async () => {
+      try {
+        const result = await removeInstallStageSlot(installationId, projectId, config.key, slotKey)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم حذف البند')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
 
   function pickFile(slot?: string) {
     pendingSlot.current = slot
@@ -461,8 +515,95 @@ function StageItem({
             </div>
           )}
 
-          {/* Slotted stages (MIR / IRS) */}
-          {config.slots ? (
+          {/* Dynamic IRS — slots from project materials + manual additions */}
+          {config.dynamic ? (
+            <div className="space-y-2">
+              {!materialReady && dynamicSlots.length === 0 && (
+                <div className="flex items-center gap-2 rounded-lg border border-dashed border-amber-200 bg-amber-50/50 px-3 py-2.5 text-xs text-amber-700">
+                  <Package className="h-4 w-4 shrink-0" />
+                  بنود المعاينة هتظهر تلقائياً من المواد لما تبقى «جاهزة». ويمكنك إضافة بنود يدوياً الآن.
+                </div>
+              )}
+
+              {dynamicSlots.map((slot) => {
+                const slotFiles = files.filter((f) => f.slot === slot.key)
+                const isCustom = slot.key.startsWith('custom:')
+                return (
+                  <div key={slot.key} className="rounded-lg border border-gray-100 bg-white px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
+                        {!isCustom && <Package className="h-3 w-3 text-amber-500" />}
+                        {slot.label}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {canEdit && (
+                          <button
+                            onClick={() => pickFile(slot.key)}
+                            disabled={uploadingSlot !== null}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                          >
+                            {uploadingSlot === slot.key ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                            رفع
+                          </button>
+                        )}
+                        {canEdit && isCustom && (
+                          <button onClick={() => removeSlot(slot.key)} className="text-gray-300 hover:text-red-500 transition-colors">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {slotFiles.length > 0 && (
+                      <div className="mt-1.5 space-y-1">
+                        {slotFiles.map((f) => (
+                          <FileChip key={f.url} file={f} canEdit={canEdit} onRemove={() => removeFile(f.url)} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Orphaned files (slot removed / material renamed) — keep visible */}
+              {orphanFiles.length > 0 && (
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                  <span className="text-xs font-medium text-gray-500">بنود أخرى / محذوفة</span>
+                  <div className="mt-1.5 space-y-1">
+                    {orphanFiles.map((f) => (
+                      <FileChip key={f.url} file={f} canEdit={canEdit} onRemove={() => removeFile(f.url)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add manual inspection item */}
+              {canEdit && (
+                addingSlot ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newSlotLabel}
+                      onChange={(e) => setNewSlotLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSlot() } }}
+                      placeholder="اسم بند المعاينة (مثل Pressure Test)"
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                    <Button size="sm" onClick={addSlot}><Check className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAddingSlot(false); setNewSlotLabel('') }}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAddingSlot(true)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> إضافة بند معاينة
+                  </button>
+                )
+              )}
+            </div>
+          ) : config.slots ? (
             <div className="space-y-2">
               {config.slots.map((slot) => {
                 const slotFiles = files.filter((f) => f.slot === slot.key)

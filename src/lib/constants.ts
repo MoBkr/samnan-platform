@@ -29,6 +29,7 @@ export interface InstallStageConfig {
   optional?: boolean        // not required to finish (Snag List)
   slots?: InstallSlot[]     // sub-sections, each with its own file(s)
   singleFile?: boolean      // expects one comprehensive file
+  dynamic?: boolean         // IRS: slots derived from the project's materials + manual additions
 }
 
 export const INSTALL_STAGES: InstallStageConfig[] = [
@@ -55,16 +56,8 @@ export const INSTALL_STAGES: InstallStageConfig[] = [
     key: 'irs',
     label: 'معاينة التركيب',
     en: 'IRS — Inspection Requests',
-    desc: 'كل بند ملف منفصل. بعض البنود قد لا تنطبق على كل مشروع.',
-    slots: [
-      { key: 'tank', label: 'Tank — الخزان' },
-      { key: 'pipe', label: 'Pipe — المواسير' },
-      { key: 'pressure_test', label: 'Pressure Test — اختبار الضغط' },
-      { key: 'conduit', label: 'Conduit — المجاري' },
-      { key: 'control_panel', label: 'Control Panel — لوحة التحكم' },
-      { key: 'connection_generator', label: 'Connection Generator — توصيل المولد' },
-      { key: 'cable_pulling', label: 'Cable Pulling — سحب الكابلات' },
-    ],
+    desc: 'البنود تظهر تلقائياً من مواد المشروع عند جاهزيتها — كل صنف بند معاينة منفصل بملفه. يمكن إضافة بنود إضافية يدوياً (مثل Pressure Test).',
+    dynamic: true,
   },
   {
     key: 'commissioning',

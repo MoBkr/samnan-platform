@@ -144,6 +144,49 @@ export async function removeInstallStageFile(
   return { success: true }
 }
 
+export async function addInstallStageSlot(
+  installationId: string, projectId: string, stageKey: string, label: string
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  if (!label.trim()) return { error: 'يرجى إدخال اسم البند' }
+  const service = createServiceClient()
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  const key = `custom:${Date.now().toString(36)}`
+  stage.customSlots = [...(stage.customSlots ?? []), { key, label: label.trim() }]
+  stages[stageKey] = stage
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل إضافة البند' }
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: 'إضافة بند معاينة (IRS)', details: { installation_id: installationId, label: label.trim() },
+  } as never)
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+export async function removeInstallStageSlot(
+  installationId: string, projectId: string, stageKey: string, slotKey: string
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const service = createServiceClient()
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  stage.customSlots = (stage.customSlots ?? []).filter((s) => s.key !== slotKey)
+  stage.files = (stage.files ?? []).filter((f) => f.slot !== slotKey)  // drop files under removed slot
+  stages[stageKey] = stage
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حذف البند' }
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
 export async function updateInstallStageFlags(
   installationId: string, projectId: string, stageKey: string, flags: { done?: boolean; started?: boolean }
 ) {
