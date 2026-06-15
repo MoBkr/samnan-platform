@@ -34,9 +34,9 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const canSchedule = canManage
-  // Stage data: installation manager (primary) + coordinator/admin (follow-up) — shared.
+  // Installation manager (primary) + coordinator/admin (follow-up) — shared.
   const canEdit = canManage || currentProfile.role === 'installation'
+  const canSchedule = canEdit
 
   // IRS inspection items are derived from the project's materials, shown once
   // the materials are confirmed ready/delivered.

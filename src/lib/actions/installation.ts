@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import type { Installation, InstallationStatus, InstallationStages, InstallAttachment } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+import { INSTALL_STAGES } from '@/lib/constants'
+
+function stageLabel(stageKey: string) {
+  return INSTALL_STAGES.find((s) => s.key === stageKey)?.label ?? stageKey
+}
 
 // Installation stage data is editable by the installation manager (primary)
 // and the coordinator/admin (follow-up) — shared permission.
@@ -119,7 +124,8 @@ export async function addInstallStageFile(
   if (error) return { error: 'فشل حفظ المرفق' }
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
-    action: 'إرفاق ملف لمرحلة تركيب', details: { installation_id: installationId, stage: stageKey, slot: file.slot ?? null },
+    action: `إرفاق ملف في مرحلة التركيب — ${stageLabel(stageKey)}: ${file.name}`,
+    details: { installation_id: installationId, stage: stageKey, slot: file.slot ?? null, file: file.name },
   } as never)
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')
@@ -198,10 +204,10 @@ export async function updateInstallStageFlags(
   const { error } = (await service
     .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل تحديث المرحلة' }
-  const label = flags.started !== undefined ? 'تأكيد بدء الفريق لمرحلة' : flags.done ? 'إتمام مرحلة تركيب' : 'إعادة فتح مرحلة تركيب'
+  const label = flags.started !== undefined ? 'تأكيد بدء الفريق' : flags.done ? 'إتمام مرحلة' : 'إعادة فتح مرحلة'
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
-    action: `${label}`, details: { installation_id: installationId, stage: stageKey, ...flags },
+    action: `${label} — ${stageLabel(stageKey)}`, details: { installation_id: installationId, stage: stageKey, ...flags },
   } as never)
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')

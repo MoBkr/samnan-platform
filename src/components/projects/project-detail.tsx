@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowRight, Building2, Calendar, DollarSign, FileText, TrendingUp,
-  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2, MapPin,
+  CheckCircle2, PauseCircle, XCircle, PlayCircle, AlertTriangle, Users, Briefcase, Edit2, Trash2, MapPin, Hammer,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -270,6 +270,56 @@ export function ProjectDetail({
         }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
+  }
+
+  // Installation team sees ONLY the installation part of the project —
+  // no payments, materials, attachments, financials or management actions.
+  if (currentProfile.role === 'installation') {
+    return (
+      <div className="space-y-4">
+        {/* Back */}
+        <div className="flex items-center gap-2">
+          <Link href="/installation">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-gray-500 hover:text-gray-900">
+              <ArrowRight className="h-4 w-4" />
+              التركيبات
+            </Button>
+          </Link>
+          <span className="text-gray-300">/</span>
+          <span className="text-sm text-gray-600 font-medium">{project.project_name}</span>
+        </div>
+
+        {/* Minimal project header */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+            <h1 className="text-xl font-bold text-gray-900">{project.project_name}</h1>
+            <ProjectStatusBadge status={project.status} />
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <Building2 className="h-4 w-4 text-gray-400" />
+              {project.client_name}
+            </span>
+            {project.location && (
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-gray-400" />
+                {project.location}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Installation only */}
+        {project.has_installation ? (
+          <InstallationTab installations={installations} projectId={project.id} canManage={false} currentProfile={currentProfile} material={material} />
+        ) : (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
+            <Hammer className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+            <p className="text-sm text-gray-500">هذا المشروع بدون تركيب — لا توجد مهام تركيب.</p>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
