@@ -256,6 +256,9 @@ export async function updateInstallationStatus(
   if (status === 'completed') {
     updateData.completed_at = new Date().toISOString()
     if (extras?.photos?.length) updateData.completion_photos = extras.photos
+  } else {
+    // Reverting away from completed → clear the completion timestamp
+    updateData.completed_at = null
   }
   if (status === 'delayed' && extras?.delayReason) {
     updateData.delay_reason = extras.delayReason

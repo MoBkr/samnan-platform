@@ -15,7 +15,7 @@ export function InstallationDashboard({ profile, installations }: InstallationDa
   const today = new Date().toISOString().split('T')[0]
   const todayInstallations = installations.filter((i) => i.scheduled_date === today)
   const upcoming = installations.filter((i) => i.scheduled_date && i.scheduled_date > today)
-  const pending = installations.filter((i) => !i.installation_team_confirmed)
+  const pending = installations.filter((i) => i.status === 'scheduled')
 
   return (
     <div className="space-y-6">
@@ -40,7 +40,7 @@ export function InstallationDashboard({ profile, installations }: InstallationDa
         {[
           { icon: <Hammer className="h-5 w-5" />, bg: 'bg-emerald-50 text-emerald-700', value: todayInstallations.length, label: 'تركيب اليوم' },
           { icon: <Calendar className="h-5 w-5" />, bg: 'bg-blue-50 text-blue-700', value: upcoming.length, label: 'قادم قريباً' },
-          { icon: <Clock className="h-5 w-5" />, bg: 'bg-amber-50 text-amber-700', value: pending.length, label: 'ينتظر التأكيد' },
+          { icon: <Clock className="h-5 w-5" />, bg: 'bg-amber-50 text-amber-700', value: pending.length, label: 'لم يبدأ بعد' },
           { icon: <CheckCircle2 className="h-5 w-5" />, bg: 'bg-gray-50 text-gray-600', value: installations.filter(i => i.status === 'completed').length, label: 'مكتمل' },
         ].map(({ icon, bg, value, label }) => (
           <div key={label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -80,7 +80,7 @@ export function InstallationDashboard({ profile, installations }: InstallationDa
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-gray-900">جدول التركيبات</h2>
             {pending.length > 0 && (
-              <Badge variant="warning" className="text-xs">{pending.length} ينتظر تأكيدك</Badge>
+              <Badge variant="warning" className="text-xs">{pending.length} لم يبدأ</Badge>
             )}
           </div>
         </div>

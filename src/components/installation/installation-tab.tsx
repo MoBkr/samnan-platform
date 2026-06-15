@@ -262,16 +262,8 @@ function InstallationCard({
         )}
       </div>
 
-      {/* Confirmation badges */}
+      {/* Client notification badge */}
       <div className="flex flex-wrap gap-2 px-5 pb-3">
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border ${
-          installation.installation_team_confirmed
-            ? 'bg-green-50 text-green-700 border-green-200'
-            : 'bg-gray-50 text-gray-500 border-gray-200'
-        }`}>
-          <CheckCircle2 className="h-3 w-3" />
-          {installation.installation_team_confirmed ? 'الفريق مؤكد' : 'في انتظار تأكيد الفريق'}
-        </span>
         {installation.client_notified ? (
           <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
             <CheckCircle2 className="h-3 w-3" />
@@ -333,35 +325,42 @@ function InstallationCard({
 
       {/* Overall status actions */}
       {canEdit && !isCompleted && !isDelayed && (
-        <div className="flex flex-wrap gap-2 border-t border-gray-50 px-5 py-3">
-          {installation.status === 'scheduled' && (
-            <Button size="sm" variant="outline" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'confirmed')}>
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              تأكيد الحضور
-            </Button>
-          )}
-          {(installation.status === 'confirmed' || installation.status === 'scheduled') && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-gray-50 px-5 py-3">
+          {(installation.status === 'scheduled' || installation.status === 'confirmed') && (
             <Button size="sm" variant="outline" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'in_progress')}>
               <Hammer className="h-3.5 w-3.5" />
               بدء التركيب
             </Button>
           )}
           {installation.status === 'in_progress' && (
-            <Button size="sm" variant="success" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'completed')}>
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              تأكيد الاكتمال
-            </Button>
+            <>
+              <Button size="sm" variant="success" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'completed')}>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                تأكيد الاكتمال
+              </Button>
+              <Button size="sm" variant="ghost" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'scheduled')} className="text-gray-500">
+                <RotateCcw className="h-3.5 w-3.5" />
+                رجوع للجدولة
+              </Button>
+            </>
           )}
         </div>
       )}
 
-      {/* Completed footer */}
+      {/* Completed footer — with reopen (undo accidental completion) */}
       {isCompleted && (
         <div className="flex items-center gap-2 border-t border-green-100 bg-green-50 px-5 py-3 text-sm text-green-700">
           <CheckCircle2 className="h-4 w-4" />
           <span className="font-medium">اكتمل التركيب بنجاح</span>
           {installation.completed_at && (
             <span className="text-green-500 text-xs">— {formatDateShort(installation.completed_at)}</span>
+          )}
+          {canEdit && (
+            <Button size="sm" variant="ghost" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'in_progress')}
+              className="ms-auto text-green-700 hover:bg-green-100">
+              <RotateCcw className="h-3.5 w-3.5" />
+              إعادة فتح
+            </Button>
           )}
         </div>
       )}
