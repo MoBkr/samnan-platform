@@ -102,16 +102,34 @@ export interface SupplyOrder {
   material?: Material
 }
 
+// A file attached to an installation stage. `slot` identifies the
+// sub-section (e.g. MIR: mechanical/electrical; IRS: tank/pipe/…).
+export interface InstallAttachment {
+  url: string
+  name: string
+  slot?: string
+}
+
+export interface InstallStageData {
+  done?: boolean
+  started?: boolean              // Site Inspection: team start confirmation
+  files?: InstallAttachment[]
+}
+
+export type InstallationStages = Record<string, InstallStageData>
+
 export interface Installation {
   id: string
   project_id: string
   scheduled_date: string | null
+  expected_duration: string | null   // expected installation time (entered by installation manager)
   installation_team_confirmed: boolean
   client_notified: boolean
   status: InstallationStatus
   completion_photos: string[]
   completed_at: string | null
   delay_reason: string | null
+  stages: InstallationStages
   created_at: string
   project?: Project
 }

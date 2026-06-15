@@ -21,6 +21,14 @@
 
 > *Clear each item after completing.*
 
+0. **Supabase — Installation stages columns (REQUIRED for new installation workflow):** Run in SQL Editor. Adds the staged-inspection data and expected-duration columns to `installations`:
+   ```sql
+   ALTER TABLE public.installations
+     ADD COLUMN IF NOT EXISTS stages jsonb DEFAULT '{}'::jsonb,
+     ADD COLUMN IF NOT EXISTS expected_duration text;
+   ```
+   Without this, the new التركيب tab (Site Inspection / MIR / IRS / Commissioning / Snag List) and the expected-duration field will fail to save.
+
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
    -- Add installation_id to projects (if not already done)

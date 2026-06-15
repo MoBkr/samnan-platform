@@ -3,8 +3,31 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import type { Installation, InstallationStatus } from '@/types/database'
-import type { QueryResultMany } from '@/lib/supabase/typed'
+import type { Installation, InstallationStatus, InstallationStages, InstallAttachment } from '@/types/database'
+import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+
+// Installation stage data is editable by the installation manager (primary)
+// and the coordinator/admin (follow-up) — shared permission.
+async function requireInstallEditor() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'غير مصرح' as const }
+  const profileResult = (await supabase
+    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
+  const role = profileResult.data?.role
+  if (role !== 'installation' && role !== 'coordinator' && role !== 'admin') {
+    return { error: 'متاح لمدير التركيبات والكوردنيتر فقط' as const }
+  }
+  return { user }
+}
+
+async function getStages(service: ReturnType<typeof createServiceClient>, installationId: string): Promise<InstallationStages> {
+  const cur = (await service
+    .from('installations').select('stages').eq('id', installationId).single()) as unknown as {
+      data: { stages: InstallationStages | null } | null
+    }
+  return cur.data?.stages ?? {}
+}
 
 export async function getProjectInstallations(projectId: string) {
   const supabase = await createClient()
@@ -33,6 +56,7 @@ export async function scheduleInstallation(formData: FormData) {
 
   const projectId = formData.get('project_id') as string
   const scheduledDate = formData.get('scheduled_date') as string
+  const expectedDuration = (formData.get('expected_duration') as string)?.trim() || null
 
   if (!scheduledDate) return { error: 'يرجى تحديد تاريخ التركيب' }
 
@@ -41,10 +65,12 @@ export async function scheduleInstallation(formData: FormData) {
   const { error } = (await service.from('installations').insert({
     project_id: projectId,
     scheduled_date: scheduledDate,
+    expected_duration: expectedDuration,
     status: 'scheduled',
     installation_team_confirmed: false,
     client_notified: false,
     completion_photos: [],
+    stages: {},
   } as never)) as unknown as { error: Error | null }
 
   if (error) return { error: 'فشل جدولة التركيب' }
@@ -53,9 +79,87 @@ export async function scheduleInstallation(formData: FormData) {
     project_id: projectId,
     user_id: user.id,
     action: 'جدولة التركيب',
-    details: { scheduled_date: scheduledDate },
+    details: { scheduled_date: scheduledDate, expected_duration: expectedDuration },
   } as never)
 
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+export async function setInstallExpectedDuration(installationId: string, projectId: string, duration: string) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('installations').update({ expected_duration: duration.trim() || null } as never)
+    .eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حفظ المدة المتوقعة' }
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: 'تحديد المدة المتوقعة للتركيب', details: { installation_id: installationId, expected_duration: duration },
+  } as never)
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+export async function addInstallStageFile(
+  installationId: string, projectId: string, stageKey: string, file: InstallAttachment
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const service = createServiceClient()
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  stage.files = [...(stage.files ?? []), file]
+  stages[stageKey] = stage
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حفظ المرفق' }
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: 'إرفاق ملف لمرحلة تركيب', details: { installation_id: installationId, stage: stageKey, slot: file.slot ?? null },
+  } as never)
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+export async function removeInstallStageFile(
+  installationId: string, projectId: string, stageKey: string, url: string
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const service = createServiceClient()
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  stage.files = (stage.files ?? []).filter((f) => f.url !== url)
+  stages[stageKey] = stage
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حذف المرفق' }
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+export async function updateInstallStageFlags(
+  installationId: string, projectId: string, stageKey: string, flags: { done?: boolean; started?: boolean }
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const service = createServiceClient()
+  const stages = await getStages(service, installationId)
+  stages[stageKey] = { ...(stages[stageKey] ?? {}), ...flags }
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل تحديث المرحلة' }
+  const label = flags.started !== undefined ? 'تأكيد بدء الفريق لمرحلة' : flags.done ? 'إتمام مرحلة تركيب' : 'إعادة فتح مرحلة تركيب'
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: `${label}`, details: { installation_id: installationId, stage: stageKey, ...flags },
+  } as never)
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')
   return { success: true }

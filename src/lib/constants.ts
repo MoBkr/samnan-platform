@@ -17,6 +17,72 @@ export const BR_PRIORITY_LABELS: Record<BrPriority, string> = {
   medium: 'متوسط',
 }
 
+// ── Installation inspection stages ──────────────────────────────────────
+// Fixed dropdown of stages shared by every project that has installation.
+export interface InstallSlot { key: string; label: string }
+export interface InstallStageConfig {
+  key: string
+  label: string        // Arabic
+  en: string           // English subtitle
+  desc: string
+  requiresStart?: boolean   // needs team start confirmation (Site Inspection)
+  optional?: boolean        // not required to finish (Snag List)
+  slots?: InstallSlot[]     // sub-sections, each with its own file(s)
+  singleFile?: boolean      // expects one comprehensive file
+}
+
+export const INSTALL_STAGES: InstallStageConfig[] = [
+  {
+    key: 'site_inspection',
+    label: 'فحص الموقع',
+    en: 'Site Inspection',
+    desc: 'عادةً قبل التوريد بأسبوع/أسبوعين للتأكد من جاهزية الموقع. تتطلب تأكيد بدء من الفريق.',
+    requiresStart: true,
+    singleFile: true,
+  },
+  {
+    key: 'mir',
+    label: 'معاينة المواد',
+    en: 'MIR — Material Inspection Request',
+    desc: 'تنقسم إلى ميكانيكا وكهرباء — ملف لكل قسم، أو ملف شامل واحد.',
+    slots: [
+      { key: 'mechanical', label: 'ميكانيكا (Mechanical)' },
+      { key: 'electrical', label: 'كهرباء (Electrical)' },
+      { key: 'general', label: 'ملف شامل' },
+    ],
+  },
+  {
+    key: 'irs',
+    label: 'معاينة التركيب',
+    en: 'IRS — Inspection Requests',
+    desc: 'كل بند ملف منفصل. بعض البنود قد لا تنطبق على كل مشروع.',
+    slots: [
+      { key: 'tank', label: 'Tank — الخزان' },
+      { key: 'pipe', label: 'Pipe — المواسير' },
+      { key: 'pressure_test', label: 'Pressure Test — اختبار الضغط' },
+      { key: 'conduit', label: 'Conduit — المجاري' },
+      { key: 'control_panel', label: 'Control Panel — لوحة التحكم' },
+      { key: 'connection_generator', label: 'Connection Generator — توصيل المولد' },
+      { key: 'cable_pulling', label: 'Cable Pulling — سحب الكابلات' },
+    ],
+  },
+  {
+    key: 'commissioning',
+    label: 'التشغيل والصيانة',
+    en: 'Commissioning',
+    desc: 'اختبارات تشغيل للنظام كامل — ملف واحد شامل.',
+    singleFile: true,
+  },
+  {
+    key: 'snag_list',
+    label: 'قائمة الملاحظات',
+    en: 'Snag List',
+    desc: 'ملاحظات الاستشاري أو العميل (إيجابية أو سلبية). مرفق واحد اختياري عند وجود ملاحظات.',
+    optional: true,
+    singleFile: true,
+  },
+]
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   coordinator: 'الكوردنيتر',
   sales_engineer: 'مهندس المبيعات',
