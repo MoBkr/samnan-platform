@@ -21,64 +21,7 @@
 
 > *Clear each item after completing.*
 
-0. **Supabase — Installation stages columns (REQUIRED for new installation workflow):** Run in SQL Editor. Adds the staged-inspection data and expected-duration columns to `installations`:
-   ```sql
-   ALTER TABLE public.installations
-     ADD COLUMN IF NOT EXISTS stages jsonb DEFAULT '{}'::jsonb,
-     ADD COLUMN IF NOT EXISTS expected_duration text;
-   ```
-   Without this, the new التركيب tab (Site Inspection / MIR / IRS / Commissioning / Snag List) and the expected-duration field will fail to save.
-
-0b. **Supabase — Client share token (REQUIRED for client tracking page):** Run in SQL Editor. Adds the public token used by the read-only client tracking page `/track/[token]`:
-   ```sql
-   ALTER TABLE public.projects
-     ADD COLUMN IF NOT EXISTS public_token text UNIQUE;
-   ```
-   Without this, the "مشاركة مع العميل" button will fail to generate a link.
-
-0c. **Supabase — Technicians pool (REQUIRED for technician management):** Run in SQL Editor. Shared company-wide technician records + date-range project assignments (bookings/history):
-   ```sql
-   create table if not exists public.technicians (
-     id uuid primary key default gen_random_uuid(),
-     name text not null,
-     employee_no text,
-     phone text,
-     is_active boolean default true,
-     created_at timestamptz default now()
-   );
-   create table if not exists public.technician_assignments (
-     id uuid primary key default gen_random_uuid(),
-     technician_id uuid references public.technicians(id) not null,
-     project_id uuid references public.projects(id) not null,
-     start_date date not null,
-     end_date date not null,
-     status text not null default 'active' check (status in ('active','done','removed')),
-     created_by uuid references public.profiles(id),
-     created_at timestamptz default now(),
-     ended_at timestamptz
-   );
-   alter table public.technicians enable row level security;
-   alter table public.technician_assignments enable row level security;
-   ```
-   The app uses the service client for these tables (RLS on, no policies).
-
-0d. **Supabase — In-app notifications (REQUIRED for the notification bell):** Run in SQL Editor:
-   ```sql
-   create table if not exists public.app_notifications (
-     id uuid primary key default gen_random_uuid(),
-     recipient_id uuid references public.profiles(id) not null,
-     title text not null,
-     body text,
-     link text,
-     type text default 'info',
-     project_id uuid references public.projects(id),
-     is_read boolean default false,
-     created_at timestamptz default now()
-   );
-   create index if not exists app_notifications_recipient_idx on public.app_notifications (recipient_id, is_read);
-   alter table public.app_notifications enable row level security;
-   ```
-   In-app only (per client decision). Service client for reads/writes.
+✅ **Session 2026-06-15 migrations (DONE — Mohamed confirmed):** installations `stages`+`expected_duration`, projects `public_token`, `technicians`+`technician_assignments` tables, `app_notifications` table. (SQL kept in git history / commit messages if ever needed to re-run.)
 
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
@@ -117,21 +60,22 @@
 
 ## 🗓️ TODAY'S SESSION
 
-**Date:** 2026-05-13
-**Status:** Full app built, all features complete, build passing ✓
+**Date:** 2026-06-15
+**Status:** Big feature day shipped — staged installation, technicians pool, client tracking page, in-app notifications. Build passing ✓, all deployed, migrations applied. Mohamed: "خلصنا تعديلات النهاردة، بكرة لمسات أخيرة."
 
 ---
 
 ## 📋 NEXT SESSION — Start Here
 
-1. **Verify SQL migration ran** (item 1 in HUMAN ACTIONS above)
-2. **Test the app end-to-end** — create a project, add payments, request materials, schedule supply, schedule installation, close project
-3. **If bugs are found**, fix them one by one
-4. **Optional next features:**
-   - Search/filter on projects list (by status, date range, team member)
-   - Notifications / email alerts
-   - Dashboard improvements (charts, revenue over time)
-   - Mobile PWA improvements
+**Theme: لمسات أخيرة (final touches / polish).** No big new modules planned — refine what shipped today.
+
+1. **End-to-end test the new flows** with multiple role accounts:
+   - Notifications: trigger a payment record / technician assignment as one user, confirm the bell shows it for the coordinator / installation manager.
+   - Installation stages + dynamic IRS from materials.
+   - Technician booking conflict + history.
+   - Client share link `/track/[token]`.
+2. **Polish pass** — spacing, wording, mobile, any rough edges the client points out.
+3. **Possible follow-ups (only if asked):** widen notifications to more events; BR-overdue alerts; "التوريد المستعجل من السوق" (deferred by client — future); email/WhatsApp notifications (client chose in-app only for now).
 
 ---
 
@@ -270,6 +214,15 @@ SUPABASE_SERVICE_ROLE_KEY=...
 ---
 
 ## 📅 HISTORY LOG
+
+### Session — 2026-06-15 (big feature day)
+- **Dashboard:** clickable affordance on stat/KPI cards ("عرض ‹" hint); «إجمالي القيمة» now excludes cancelled (active+on_hold only, breakdown shows others as "غير محتسبة").
+- **Installation rebuilt into staged inspection workflow:** 5 fixed stages (Site Inspection / MIR / IRS / Commissioning / Snag List) with per-stage/per-slot file uploads, `installations.stages` jsonb + `expected_duration`. Site Inspection has team-start confirmation. MIR slots (mechanical/electrical/general). **IRS is dynamic** — slots derived from project materials when ready + manual "add inspection item". Step-back/reopen on stages and overall status. Removed unused "في انتظار الفريق" team-confirmation. Scheduling stays coordinator-only; manager just follows.
+- **Installation role** sees only the installation part of a project (no payments/materials/financials).
+- **Technicians pool** (shared records, not logins — see [[project_technicians_model]]): `technicians` + `technician_assignments` tables. /technicians page (free/busy, add/edit/deactivate, history). Per-project assignment with date-range booking + conflict prevention. Managed by installation+coordinator+admin.
+- **Client tracking page** `/track/[token]` (read-only, no login) + "مشاركة مع العميل" button (coordinator/sales/admin). `projects.public_token`.
+- **In-app notifications** (`app_notifications` + header bell, polls 60s). Events: installation scheduled, technician assigned, assigned as project manager, materials ready (→ installation manager); payment recorded + sales confirmation (→ coordinator/sales). In-app only per client decision.
+- Updated interactive changes guide `/samnan-changes-guide.html` — reorganized into logical demo sequence, all new features added.
 
 ### Session 1 — 2026-05-13
 Built the entire app from scratch:
