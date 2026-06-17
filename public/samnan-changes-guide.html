@@ -31,11 +31,29 @@
   .cover .go{margin-top:8px;background:#fff;color:var(--brand);border:none;border-radius:14px;padding:15px 36px;font-family:inherit;font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.18)}
   .cover .go:hover{transform:translateY(-1px)}
   .cover .meta{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;margin-top:6px;color:#aebfe6;font-size:14px}
+  .ovw{background:#fff;border:1px solid var(--line);border-radius:24px;padding:40px;box-shadow:0 10px 30px rgba(20,40,90,.06)}
+  .ovw h2{font-size:28px;font-weight:800;text-align:center}
+  .ovw .lead{color:var(--muted);text-align:center;margin-top:8px;font-size:15.5px;line-height:1.8}
+  .ovw-list{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ovw-row{display:flex;align-items:center;gap:11px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:13px 15px;font-weight:700;font-size:15px}
+  .ovw-row .d{width:30px;height:30px;border-radius:9px;background:var(--brand50);color:var(--brand);display:grid;place-items:center;flex:none;font-size:15px}
   .section{min-height:52vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;
     background:#fff;border:1px solid var(--line);border-radius:24px;padding:60px 30px;box-shadow:0 10px 30px rgba(20,40,90,.06)}
   .section .ic{width:88px;height:88px;border-radius:24px;display:grid;place-items:center;font-size:42px}
   .section h2{font-size:30px;font-weight:800}
   .section .cnt{color:var(--muted);font-size:15px;font-weight:700}
+  .ba{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 10px 30px rgba(20,40,90,.06);overflow:hidden}
+  .ba-head{padding:22px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcfe,#fff)}
+  .ba-head .pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--brand);background:var(--brand50);border:1px solid #dbe5fa;padding:5px 13px;border-radius:999px}
+  .ba-head h3{font-size:24px;font-weight:800;margin-top:12px}
+  .ba-grid{display:grid;grid-template-columns:1fr 1fr}
+  .ba-col{padding:24px 28px}
+  .ba-col.before{background:#fef2f2;border-inline-end:1px solid var(--line)}
+  .ba-col.after{background:#ecfdf5}
+  .ba-col h4{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .ba-col.before h4{color:#dc2626}
+  .ba-col.after h4{color:#059669}
+  .ba-col p{font-size:15.5px;line-height:1.85;color:#334155}
   .feat{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 10px 30px rgba(20,40,90,.06);overflow:hidden}
   .feat-head{padding:24px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcfe,#fff)}
   .chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--brand);background:var(--brand50);border:1px solid #dbe5fa;padding:5px 13px;border-radius:999px}
@@ -51,7 +69,6 @@
   .btnrow{display:flex;gap:12px;align-items:flex-start;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px 14px}
   .btnrow .b{flex:none;background:var(--brand);color:#fff;font-size:13px;font-weight:700;border-radius:8px;padding:5px 13px;white-space:nowrap}
   .btnrow .m{font-size:14.5px;color:#475569}
-  .exec{display:flex;align-items:center;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;border-radius:12px;padding:13px 16px;font-size:14.5px;font-weight:700}
   .end{min-height:52vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:60px;box-shadow:0 10px 30px rgba(20,40,90,.06)}
   .end h2{font-size:30px;font-weight:800}
   .restart{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 28px;font-family:inherit;font-weight:700;cursor:pointer}
@@ -73,7 +90,7 @@
   .agitem{display:flex;gap:11px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;font-size:14.5px}
   .agitem:hover{background:#f1f5f9}
   .agitem .n{flex:none;width:25px;height:25px;border-radius:7px;background:var(--brand50);color:var(--brand);font-size:12px;font-weight:700;display:grid;place-items:center}
-  @media(max-width:640px){.cover h1{font-size:27px}.feat h3{font-size:20px}.feat-head,.feat-body{padding-inline:20px}.stage{padding:22px 14px 100px}.nav button{padding:11px 18px}}
+  @media(max-width:640px){.cover h1{font-size:27px}.feat h3{font-size:20px}.ovw-list{grid-template-columns:1fr}.ba-grid{grid-template-columns:1fr}.ba-col.before{border-inline-end:none;border-bottom:1px solid var(--line)}.feat-head,.feat-body,.ba-col{padding-inline:20px}.stage{padding:22px 14px 100px}.nav button{padding:11px 18px}}
 </style>
 </head>
 <body>
@@ -424,8 +441,20 @@ const F = [
    btns:[['مشاركة مع العميل','يولّد/يعرض رابط المتابعة'],['نسخ','ينسخ الرابط لإرساله للعميل']]},
 ];
 
+// نظرة عامة (كيف كانت / كيف صارت) — تظهر في أول العرض قبل التفاصيل
+var OVERVIEW = [
+  {t:'التركيب والمعاينات', before:'تأكيد التركيب كان بخطوة واحدة عامة، بدون توثيق للمراحل أو ملفات.', after:'٥ مراحل معاينة موثّقة (Site Inspection / MIR / IRS / Commissioning / Snag List) بملفات لكل مرحلة، وبنود IRS تتولّد تلقائياً من مواد المشروع.'},
+  {t:'الفنيون', before:'توزيع الفنيين يدوياً عبر الورق وواتساب، بدون معرفة المتاح من المشغول.', after:'قائمة فنيين مشتركة بحالة (متاح/محجوز)، حجز بفترة مع منع التعارض، وسجل تعيينات لكل فني.'},
+  {t:'متابعة العميل', before:'العميل كان يتّصل ليسأل عن وضع مشروعه.', after:'رابط متابعة يفتحه العميل بنفسه (للعرض فقط) ويشوف مراحل مشروعه ونسبة تحصيله.'},
+  {t:'الإشعارات', before:'كان لازم تفتح المنصة لتعرف أي جديد.', after:'جرس إشعارات داخل المنصة ينبّهك بكل جديد يخصّك (تعيين، دفعة، مرحلة...).'},
+  {t:'الدفعات والتحصيل', before:'متابعة يدوية وصعوبة في معرفة المتبقّي.', after:'ترقيم الدفعات، المتبقّي ونسبة التحصيل، بيانات الفاتورة + نسخ لـ SAP، وتأكيد مزدوج من المبيعات.'},
+  {t:'طلبات الشراء (BR)', before:'تُدار على إكسل وواتساب وأحياناً تُنسى.', after:'لوحة مراحل (Trello) تتبّع كل طلب من الإنشاء حتى الاستلام خطوة بخطوة.'},
+  {t:'الأمان والتتبّع', before:'لا يوجد سجل واضح لمن قام بأي إجراء.', after:'سجل تدقيق شامل بالتوقيت السعودي، وموافقة الإدارة على الحسابات الجديدة قبل دخولها.'}
+];
+
 var catOrder = Object.keys(CATS);
-var slides = [{type:'cover'}];
+var slides = [{type:'cover'}, {type:'ovw'}];
+OVERVIEW.forEach(function(o){ slides.push({type:'ba', o:o}); });
 catOrder.forEach(function(k){
   var items = F.filter(function(f){return f.cat===k;});
   if(!items.length) return;
@@ -438,18 +467,31 @@ var TOTAL = slides.filter(function(s){return s.type==='feat';}).length;
 var i = 0;
 var stage = document.getElementById('stage');
 
-function esc(x){return x;}
-
 function render(){
   var s = slides[i];
   var html = '';
   if(s.type==='cover'){
     html = '<div class="slide"><div class="cover">'
       + '<h1>دليل التعديلات والتحديثات</h1>'
-      + '<p>عرض تفاعلي لكل تطوير على المنصة — الهدف منه، سبب تنفيذه، خطوات استخدامه، ومعاني الأزرار. اضغط «التالي» للتنقل، ثم نفّذ كل تعديل على المنصة مباشرةً أمامهم.</p>'
+      + '<p>عرض تفاعلي لكل تطوير على المنصة — يبدأ بنظرة عامة «كيف كانت وكيف صارت»، ثم تفاصيل كل تعديل: الهدف، السبب، الخطوات، ومعاني الأزرار.</p>'
       + '<button class="go" id="goBtn">ابدأ العرض ‹</button>'
       + '<div class="meta"><span>📋 ' + TOTAL + ' تعديل</span><span>🗂️ ' + catOrder.length + ' أقسام</span><span>✅ منشور ومباشر</span></div>'
       + '</div></div>';
+  } else if(s.type==='ovw'){
+    var rows = '';
+    OVERVIEW.forEach(function(o){ rows += '<div class="ovw-row"><span class="d">●</span>' + o.t + '</div>'; });
+    html = '<div class="slide"><div class="ovw">'
+      + '<h2>نظرة عامة على التحديثات</h2>'
+      + '<p class="lead">أبرز ما تغيّر على المنصة — في الشرائح التالية نستعرض كل محور: كيف كان قبل، وكيف صار بعد التطوير.</p>'
+      + '<div class="ovw-list">' + rows + '</div></div></div>';
+  } else if(s.type==='ba'){
+    var o = s.o;
+    html = '<div class="slide"><div class="ba">'
+      + '<div class="ba-head"><span class="pill">نظرة عامة</span><h3>' + o.t + '</h3></div>'
+      + '<div class="ba-grid">'
+      +   '<div class="ba-col before"><h4>⛔ كيف كانت</h4><p>' + o.before + '</p></div>'
+      +   '<div class="ba-col after"><h4>✅ كيف صارت</h4><p>' + o.after + '</p></div>'
+      + '</div></div></div>';
   } else if(s.type==='section'){
     var c = CATS[s.cat];
     var cnt = F.filter(function(f){return f.cat===s.cat;}).length;
@@ -483,7 +525,6 @@ function render(){
       +   '<div class="blk"><h4>💡 لماذا عملناه</h4><p>' + f.why + '</p></div>'
       +   '<div class="blk"><h4>🧭 طريقة التنفيذ على المنصة</h4><ol class="steps">' + steps + '</ol></div>'
       +   btns
-      +   '<div class="exec">▶ بعد الشرح: نفّذ هذا التعديل على المنصة أمامهم الآن</div>'
       + '</div></div></div>';
   }
   stage.innerHTML = html;
@@ -494,6 +535,8 @@ function render(){
     var seen = 0;
     for(var j=0;j<=i;j++){ if(slides[j].type==='feat') seen++; }
     posText = 'تعديل ' + seen + ' / ' + TOTAL;
+  } else if(s.type==='ba' || s.type==='ovw'){
+    posText = 'نظرة عامة';
   }
   document.getElementById('counter').textContent = posText;
   document.getElementById('pos').textContent = (i+1) + ' / ' + slides.length;
