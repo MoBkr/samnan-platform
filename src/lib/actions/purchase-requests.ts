@@ -150,6 +150,38 @@ export async function deletePurchaseRequest(id: string) {
   return { success: true }
 }
 
+// Save extra BR attachments into the LINKED PROJECT's documents (Attachments tab).
+// Resolves the project by exact project_name match.
+export async function attachDocsToProjectByName(projectName: string, docs: { url: string; name: string }[]) {
+  const auth = await requireManager()
+  if ('error' in auth) return { error: auth.error }
+  if (!projectName?.trim() || !docs?.length) return { attached: 0, found: false }
+
+  const service = createServiceClient()
+  const proj = (await service
+    .from('projects').select('id, project_name').eq('project_name', projectName.trim())
+    .order('created_at', { ascending: false }).limit(1).single()) as QueryResult<{ id: string; project_name: string }>
+  if (!proj.data) return { attached: 0, found: false }
+
+  const rows = docs.map((d) => ({
+    project_id: proj.data!.id,
+    type: 'other',
+    url: d.url,
+    uploaded_by: auth.user.id,
+    description: d.name,
+  }))
+  const { error } = (await service.from('documents').insert(rows as never)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حفظ المرفقات في المشروع' }
+
+  await service.from('activity_log').insert({
+    project_id: proj.data.id, user_id: auth.user.id,
+    action: `إرفاق ${docs.length} مستند من طلب شراء`, details: { from: 'purchase_request', count: docs.length },
+  } as never)
+
+  revalidatePath(`/projects/${proj.data.id}`)
+  return { attached: docs.length, found: true }
+}
+
 export async function addBrAttachment(id: string, attachment: BrAttachment) {
   const auth = await requireManager()
   if ('error' in auth) return { error: auth.error }

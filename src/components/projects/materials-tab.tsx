@@ -115,10 +115,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   // Only non-cancelled materials payments block the "create payment" button
   const materialsPayment = payments.find((p) => p.type === 'materials' && p.status !== 'cancelled')
 
-  // Items editor state — draftItems is the single source of truth for display
+  // Items editor state — draftItems is the single source of truth for display.
+  // The whole table is editable inline: add / edit / delete, saved in one go.
   const [editingItems, setEditingItems] = useState(false)
   const [draftItems, setDraftItems] = useState<MaterialItem[]>(() => material?.items ?? [])
-  const [newItem, setNewItem] = useState<MaterialItem>({ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 })
 
   // Mark-ready dialog
   const [readyDialog, setReadyDialog] = useState(false)
@@ -136,26 +136,33 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const itemsTotal = draftItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price ?? 0)), 0)
 
   function handleSaveItems() {
+    // Keep only rows that have at least a name — forgiving of blank trailing rows.
+    const cleaned = draftItems
+      .map((it) => ({ ...it, name: it.name.trim(), unit: (it.unit ?? '').trim(), notes: (it.notes ?? '').trim() }))
+      .filter((it) => it.name.length > 0)
+    if (cleaned.length === 0) {
+      toast.error('أضف صنفًا واحدًا على الأقل (اسم الصنف مطلوب)')
+      return
+    }
     startTransition(async () => {
       try {
-        const result = await updateMaterialsItems(projectId, draftItems)
+        const result = await updateMaterialsItems(projectId, cleaned)
         if (result?.error) toast.error(result.error)
         else {
+          setDraftItems(cleaned)        // reflect cleaned list immediately
           toast.success('تم حفظ قائمة المواد')
           setEditingItems(false)
-          // draftItems keeps its value — shown immediately without waiting for server revalidation
         }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
 
   function handleAddItem() {
-    if (!newItem.name.trim() || !newItem.unit.trim() || newItem.quantity <= 0) {
-      toast.error('يرجى إدخال اسم الصنف والكمية والوحدة')
-      return
-    }
-    setDraftItems((prev) => [...prev, { ...newItem }])
-    setNewItem({ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 })
+    setDraftItems((prev) => [...prev, { name: '', quantity: 0, unit: '', notes: '', unit_price: 0 }])
+  }
+
+  function updateDraftItem(idx: number, patch: Partial<MaterialItem>) {
+    setDraftItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
   }
 
   function handleRemoveItem(idx: number) {
@@ -317,7 +324,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد يدوياً</p>
               {canManage && !editingItems && (
-                <button onClick={() => setEditingItems(true)}
+                <button onClick={() => { if (draftItems.length === 0) setDraftItems([{ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 }]); setEditingItems(true) }}
                   className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
                   <Plus className="h-3 w-3" />
                   {draftItems.length > 0 ? 'تعديل' : 'إضافة مواد'}
@@ -327,33 +334,48 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
             {editingItems ? (
               <div className="space-y-3 rounded-xl border border-brand-100 bg-white p-4">
-                {/* Draft items table */}
-                {draftItems.length > 0 && (
+                {/* Editable rows — add / edit / delete inline */}
+                {draftItems.length > 0 ? (
                   <div className="overflow-x-auto rounded-lg border border-gray-100">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
-                          <th className="px-3 py-2 text-start font-medium">الصنف</th>
-                          <th className="px-3 py-2 text-start font-medium">الكمية</th>
-                          <th className="px-3 py-2 text-start font-medium">الوحدة</th>
-                          <th className="px-3 py-2 text-start font-medium">ملاحظات</th>
-                          <th className="px-3 py-2 text-start font-medium">سعر الوحدة</th>
-                          <th className="px-3 py-2" />
+                          <th className="px-2 py-2 text-start font-medium">الصنف *</th>
+                          <th className="px-2 py-2 text-start font-medium">الكمية</th>
+                          <th className="px-2 py-2 text-start font-medium">الوحدة</th>
+                          <th className="px-2 py-2 text-start font-medium">ملاحظات</th>
+                          <th className="px-2 py-2 text-start font-medium">سعر الوحدة</th>
+                          <th className="px-2 py-2" />
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-50">
                         {draftItems.map((item, i) => (
                           <tr key={i}>
-                            <td className="px-3 py-2 font-medium text-gray-900">{item.name}</td>
-                            <td className="px-3 py-2 text-gray-700">{item.quantity}</td>
-                            <td className="px-3 py-2 text-gray-500">{item.unit}</td>
-                            <td className="px-3 py-2 text-gray-400 italic text-xs">{item.notes || '—'}</td>
-                            <td className="px-3 py-2 text-gray-600">
-                              {item.unit_price ? `${item.unit_price.toLocaleString('en')} ر.س` : '—'}
+                            <td className="px-2 py-1.5 min-w-[140px]">
+                              <Input className="h-9" placeholder="كابل نحاس..." value={item.name}
+                                onChange={(e) => updateDraftItem(i, { name: e.target.value })} />
                             </td>
-                            <td className="px-3 py-2">
-                              <button onClick={() => handleRemoveItem(i)} className="text-red-400 hover:text-red-600">
-                                <Trash2 className="h-3.5 w-3.5" />
+                            <td className="px-2 py-1.5 w-24">
+                              <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" dir="ltr"
+                                value={item.quantity || ''}
+                                onChange={(e) => updateDraftItem(i, { quantity: parseFloat(e.target.value) || 0 })} />
+                            </td>
+                            <td className="px-2 py-1.5 w-24">
+                              <Input className="h-9" placeholder="متر، قطعة" value={item.unit ?? ''}
+                                onChange={(e) => updateDraftItem(i, { unit: e.target.value })} />
+                            </td>
+                            <td className="px-2 py-1.5 min-w-[120px]">
+                              <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
+                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
+                            </td>
+                            <td className="px-2 py-1.5 w-28">
+                              <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" dir="ltr"
+                                value={item.unit_price || ''}
+                                onChange={(e) => updateDraftItem(i, { unit_price: parseFloat(e.target.value) || 0 })} />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <button onClick={() => handleRemoveItem(i)} className="text-red-400 hover:text-red-600" title="حذف الصنف">
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </td>
                           </tr>
@@ -361,38 +383,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                       </tbody>
                     </table>
                   </div>
+                ) : (
+                  <p className="text-xs text-gray-400 text-center py-3">اضغط «إضافة صنف» لبدء إدخال المواد</p>
                 )}
 
-                {/* New item row */}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                  <div className="col-span-2 sm:col-span-1 space-y-1">
-                    <Label className="text-xs">اسم الصنف *</Label>
-                    <Input placeholder="كابل نحاس..." value={newItem.name}
-                      onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">الكمية *</Label>
-                    <Input type="number" min="0" step="0.01" placeholder="100"
-                      value={newItem.quantity || ''}
-                      onChange={(e) => setNewItem((p) => ({ ...p, quantity: parseFloat(e.target.value) || 0 }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">الوحدة *</Label>
-                    <Input placeholder="متر، قطعة..." value={newItem.unit}
-                      onChange={(e) => setNewItem((p) => ({ ...p, unit: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">ملاحظات</Label>
-                    <Input placeholder="اختياري" value={newItem.notes ?? ''}
-                      onChange={(e) => setNewItem((p) => ({ ...p, notes: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">سعر الوحدة (ريال)</Label>
-                    <Input type="number" min="0" step="0.01" placeholder="0"
-                      value={newItem.unit_price || ''}
-                      onChange={(e) => setNewItem((p) => ({ ...p, unit_price: parseFloat(e.target.value) || 0 }))} />
-                  </div>
-                </div>
                 <Button type="button" size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5">
                   <Plus className="h-3.5 w-3.5" />
                   إضافة صنف
@@ -410,7 +404,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     <Save className="h-3.5 w-3.5" />
                     حفظ القائمة
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditingItems(false)}>إلغاء</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setDraftItems(material?.items ?? []); setEditingItems(false) }}>إلغاء</Button>
                 </div>
               </div>
             ) : (

@@ -279,7 +279,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-100 px-1.5 text-[11px] font-bold text-gray-500">
                           {payment.order_no ?? idx + 1}
                         </span>
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+                        <p className="text-base font-extrabold text-gray-900 truncate">
                           {paymentLabel(payment)}
                         </p>
                       </div>

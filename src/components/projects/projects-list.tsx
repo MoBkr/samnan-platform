@@ -42,7 +42,8 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
   const [search, setSearch] = useState('')
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [selectedPeople, setSelectedPeople] = useState<string[]>([])
-  const [limit, setLimit] = useState<12 | 30 | 'all'>(12)
+  // User-controlled count: a number shows that many; 'all' shows everything.
+  const [limit, setLimit] = useState<number | 'all'>(12)
 
   const myProjects = useMemo(() => projects.filter((p) => myProjectIds.has(p.id)), [projects, myProjectIds])
   const baseList = isAdmin ? projects : view === 'mine' ? myProjects : projects
@@ -76,7 +77,7 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
 
       if (q) {
         const haystack = [
-          p.project_name, p.client_name, p.location ?? '',
+          p.project_name, p.client_name, p.location ?? '', p.customer_account_no ?? '',
           ...projectTeam(p).map((m) => m.full_name),
         ].join(' ').toLowerCase()
         if (!haystack.includes(q)) return false
@@ -134,7 +135,7 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث باسم المشروع، العميل، المدينة، أو المهندس..."
+              placeholder="ابحث بالاسم، العميل، رقم حساب العميل، المدينة، أو المهندس..."
               className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50/50 ps-10 pe-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
             />
             {search && (
@@ -229,22 +230,28 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
           </p>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">عرض كم مشروع؟</span>
-            <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1">
-              {([12, 30, 'all'] as const).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setLimit(size)}
-                  className={cn(
-                    'rounded-lg px-3 py-1 text-xs font-medium transition-all',
-                    limit === size
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  )}
-                >
-                  {size === 'all' ? 'الكل' : size}
-                </button>
-              ))}
-            </div>
+            <input
+              type="number"
+              min={1}
+              value={limit === 'all' ? '' : limit}
+              placeholder="الكل"
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                setLimit(!e.target.value || isNaN(v) || v <= 0 ? 'all' : v)
+              }}
+              className="h-9 w-20 rounded-lg border border-gray-200 bg-white px-2 text-center text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15"
+              dir="ltr"
+              title="اكتب العدد الذي تريد عرضه، أو اتركه فارغاً لعرض الكل"
+            />
+            <button
+              onClick={() => setLimit('all')}
+              className={cn(
+                'rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
+                limit === 'all' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-800'
+              )}
+            >
+              الكل
+            </button>
           </div>
         </div>
       )}

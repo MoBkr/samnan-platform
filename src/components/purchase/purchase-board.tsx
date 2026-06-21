@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Trash2, Edit2, Calendar, AlertTriangle, Check, ChevronLeft,
-  MapPin, User, Truck, Hash, Flag, Package, Paperclip, Upload, ArrowLeft, X,
+  MapPin, User, Truck, Hash, Flag, Package, Paperclip, Upload, ArrowLeft, X, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFo
 import { uploadFileDirect } from '@/lib/upload-client'
 import {
   createPurchaseRequest, updatePurchaseRequest, movePurchaseRequest,
-  deletePurchaseRequest, addBrAttachment, removeBrAttachment,
+  deletePurchaseRequest, addBrAttachment, removeBrAttachment, attachDocsToProjectByName,
 } from '@/lib/actions/purchase-requests'
 import { BR_STAGES, BR_STAGE_LABELS, BR_PRIORITY_LABELS } from '@/lib/constants'
 import { formatDateShort } from '@/lib/utils'
@@ -36,10 +36,12 @@ type BrForm = {
   engineer_id: string; location: string; due_date: string; started_at: string
   priority: 'important' | 'medium'; status: 'not_started' | 'started'; progress: string; notes: string
   materials: BrMaterial[]; materialsDoc: { url: string; name: string } | null
+  extraDocs: { url: string; name: string }[]
 }
 const EMPTY: BrForm = {
   br_number: '', release_number: '', project_name: '', supplier_name: '', engineer_id: '', location: '',
   due_date: '', started_at: '', priority: 'medium', status: 'not_started', progress: '0', notes: '', materials: [], materialsDoc: null,
+  extraDocs: [],
 }
 
 export function PurchaseBoard({ requests, users, projectNames }: Props) {
@@ -49,10 +51,19 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
   const [form, setForm] = useState<BrForm>({ ...EMPTY })
   const [detailId, setDetailId] = useState<string | null>(null)
   const [filter, setFilter] = useState<BrStage | 'all'>('all')
+  const [search, setSearch] = useState('')
   const today = todaySA()
 
   const detail = requests.find((r) => r.id === detailId) || null
-  const shown = filter === 'all' ? requests : requests.filter((r) => r.stage === filter)
+  const q = search.trim().toLowerCase()
+  const shown = requests.filter((r) => {
+    if (filter !== 'all' && r.stage !== filter) return false
+    if (q) {
+      const hay = [r.br_number ?? '', r.release_number ?? '', r.project_name ?? '', r.supplier_name ?? ''].join(' ').toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    return true
+  })
   const overdueCount = requests.filter((r) => r.stage !== 'completed' && r.due_date && r.due_date < today).length
 
   function openNew() { setEditingId(null); setForm({ ...EMPTY }); setFormOpen(true) }
@@ -63,6 +74,7 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
       supplier_name: r.supplier_name ?? '', engineer_id: r.engineer_id ?? '', location: r.location ?? '',
       due_date: r.due_date ?? '', started_at: r.started_at ?? '', priority: r.priority, status: r.status,
       progress: String(r.progress ?? 0), notes: r.notes ?? '', materials: r.materials ?? [], materialsDoc: null,
+      extraDocs: [],
     })
     setFormOpen(true)
   }
@@ -81,10 +93,18 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
       ...payload,
       attachments: form.materialsDoc ? [{ ...form.materialsDoc, stage: 'create' as BrStage }] : [],
     }
+    const extraDocs = form.extraDocs
     startTransition(async () => {
       try {
         const res = editingId ? await updatePurchaseRequest(editingId, payload) : await createPurchaseRequest(createPayload)
         if (res?.error) { toast.error(res.error); return }
+        // Extra attachments → saved into the linked project's Attachments tab
+        if (extraDocs.length) {
+          const docRes = await attachDocsToProjectByName(form.project_name, extraDocs)
+          if ('error' in docRes) toast.error(docRes.error)
+          else if (docRes.found) toast.success(`تم حفظ ${docRes.attached} مرفق في مرفقات المشروع`)
+          else toast.warning('تم حفظ الطلب — لكن لم يتم العثور على مشروع مطابق لحفظ المرفقات فيه')
+        }
         toast.success(editingId ? 'تم تحديث الطلب' : 'تم إنشاء الطلب')
         setFormOpen(false)
       } catch { toast.error('حدث خطأ غير متوقع') }
@@ -131,6 +151,23 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
           )}
         </div>
         <Button size="sm" onClick={openNew}><Plus className="h-4 w-4" /> طلب شراء جديد</Button>
+      </div>
+
+      {/* Search by BR number / release (تعميد) number / project name */}
+      <div className="relative">
+        <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="ابحث برقم BR، رقم التعميد (Release)، اسم المشروع، أو المورّد..."
+          className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50/50 ps-10 pe-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="absolute top-1/2 -translate-y-1/2 end-3 text-gray-400 hover:text-gray-600">
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Stage filter */}
@@ -270,6 +307,9 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
               materialsDoc={form.materialsDoc}
               onDoc={(d) => setForm((f) => ({ ...f, materialsDoc: d }))}
             />
+
+            {/* Extra attachments → saved into the linked project's Attachments tab */}
+            <ProjectDocsUploader docs={form.extraDocs} onChange={(d) => setForm((f) => ({ ...f, extraDocs: d }))} />
 
             <Field label="ملاحظات"><Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="اختياري" /></Field>
           </form>
@@ -470,6 +510,54 @@ function MaterialsEditor({ materials, onChange, allowDoc, materialsDoc, onDoc }:
 /* ── Small bits ── */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>
+}
+
+function ProjectDocsUploader({ docs, onChange }: { docs: { url: string; name: string }[]; onChange: (d: { url: string; name: string }[]) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!files.length) return
+    setUploading(true)
+    const added: { url: string; name: string }[] = []
+    for (const file of files) {
+      const up = await uploadFileDirect(file, 'project-docs')
+      if ('error' in up) { toast.error(up.error); continue }
+      added.push({ url: up.url, name: file.name })
+    }
+    setUploading(false)
+    if (added.length) onChange([...docs, ...added])
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50/40 p-3">
+      <div className="flex items-center justify-between">
+        <Label className="flex items-center gap-1.5 text-xs"><Paperclip className="h-3.5 w-3.5" /> مرفقات إضافية (تُحفظ في مرفقات المشروع)</Label>
+        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 disabled:opacity-50">
+          {uploading ? <Upload className="h-3.5 w-3.5 animate-pulse" /> : <Upload className="h-3.5 w-3.5" />} رفع ملفات
+        </button>
+        <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={onFiles} />
+      </div>
+      {docs.length > 0 ? (
+        <div className="space-y-1">
+          {docs.map((d, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-white px-2.5 py-1.5">
+              <Paperclip className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+              <span className="flex-1 truncate text-xs text-gray-700">{d.name}</span>
+              <button type="button" onClick={() => onChange(docs.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-gray-400">اختياري — أي مستندات إضافية للمشروع المرتبط بالطلب.</p>
+      )}
+    </div>
+  )
 }
 
 function FilterChip({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
