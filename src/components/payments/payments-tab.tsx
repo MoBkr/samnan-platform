@@ -45,8 +45,10 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   const [isPending, startTransition] = useTransition()
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [addFiles, setAddFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachInputRef = useRef<HTMLInputElement>(null)
+  const addFilesInputRef = useRef<HTMLInputElement>(null)
 
   const selectedPayment = payments.find((p) => p.id === recordPaymentId)
   const editingPayment = payments.find((p) => p.id === editPaymentId)
@@ -64,6 +66,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   function openAddDialog() {
     setAddType('')
     setInv({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
+    setAddFiles([])
     setShowAddDialog(true)
   }
 
@@ -86,7 +89,21 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
       try {
         const result = await createPayment(formData)
         if (result?.error) { toast.error(result.error); return }
-        toast.success('تم إضافة الدفعة بنجاح')
+        // Upload any attachments staged during creation → link to the new payment
+        const newId = result?.paymentId
+        if (newId && addFiles.length > 0) {
+          let ok = 0
+          for (const file of addFiles) {
+            const up = await uploadFileDirect(file, 'receipts')
+            if ('error' in up) { toast.error(up.error); continue }
+            const res = await savePaymentAttachment(projectId, newId, 'receipt', up.url, file.name)
+            if (!('error' in res)) ok++
+          }
+          if (ok > 0) toast.success(`تم إضافة الدفعة و ${ok} مرفق`)
+          else toast.success('تم إضافة الدفعة بنجاح')
+        } else {
+          toast.success('تم إضافة الدفعة بنجاح')
+        }
         closeAddDialog()
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
@@ -467,6 +484,32 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <Input name="customer_account" dir="ltr" placeholder="—" value={inv.customer_account}
                     onChange={(e) => setInv((p) => ({ ...p, customer_account: e.target.value }))} />
                 </div>
+              </div>
+            </div>
+
+            {/* Attachments at creation (multiple) */}
+            <div className="space-y-1.5">
+              <Label>المرفقات (فاتورة، إيصال، ضمان… — أكثر من ملف)</Label>
+              <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 space-y-2">
+                {addFiles.length > 0 && (
+                  <div className="space-y-1.5">
+                    {addFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-white px-2.5 py-1.5">
+                        {f.type === 'application/pdf' ? <FileText className="h-4 w-4 text-gray-400 shrink-0" /> : <ImageIcon className="h-4 w-4 text-gray-400 shrink-0" />}
+                        <span className="flex-1 text-xs text-gray-700 truncate">{f.name}</span>
+                        <button type="button" onClick={() => setAddFiles((prev) => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => addFilesInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700">
+                  <Upload className="h-4 w-4" /> إضافة ملفات
+                </button>
+                <input ref={addFilesInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+                  onChange={(e) => { setAddFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]); e.target.value = '' }} />
               </div>
             </div>
 
