@@ -5,7 +5,7 @@
 
 ## v1 Requirements
 
-متطلبات milestone **v1.1 — ملخص المشروع ووضوح الفاتورة**. كل متطلب يُربط بـphase في الـroadmap.
+متطلبات milestone **v1.1 — تحسينات العرض والفلترة**. كل متطلب يُربط بـphase في الـroadmap.
 
 ### عرض الفاتورة (INV)
 
@@ -20,13 +20,19 @@
 - [ ] **SUMM-05**: الملخص يعرض الفريق والمرفقات (الكوردنيتر/المبيعات/مدير التركيب + عدد المستندات + آخر نشاط)
 - [ ] **SUMM-06**: الملخص قابل للطباعة (زر طباعة/PDF بتنسيق نظيف)
 
-### الفلترة (FILT)
+### الفلترة والعرض (FILT)
 
 - [ ] **FILT-01**: المستخدم يقدر يفلتر المشاريع برقم حساب العميل — عند إدخاله تظهر كل المشاريع التابعة لنفس العميل
+- [ ] **FILT-02**: المستخدم يكتب عدد المشاريع المعروضة بنفسه (بدل 12/30/الكل الثابتة) ويُطبَّق تلقائيًا
+
+### المواد (MAT)
+
+- [ ] **MAT-01**: المستخدم يقدر يعدّل جدول المواد اليدوي بالكامل (إضافة/حذف أصناف) ويُحفظ
+- [ ] **MAT-02**: بعد إدخال جدول المواد يدويًا والضغط «حفظ»، تظهر المواد فورًا (إصلاح bug: لا تظهر حاليًا)
 
 ## v2 Requirements
 
-تعديلات إضافية أشار لها العميل وستُحدَّد في milestones لاحقة (لم تُفصَّل بعد).
+تعديلات إضافية أشار لها العميل وستُحدَّد في milestones لاحقة.
 
 ### لاحقًا (LATER)
 
@@ -36,30 +42,31 @@
 
 | Feature | Reason |
 |---------|--------|
-| تغييرات قاعدة البيانات | تعديلات v1.1 عرض/UI فقط — البيانات المطلوبة موجودة بالفعل |
-| تصدير الملخص بصيغ متقدمة (Excel) | الطباعة/PDF كافية لهذا الـmilestone |
+| تغييرات قاعدة البيانات | تعديلات v1.1 عرض/UI/إصلاحات فقط — البيانات المطلوبة موجودة |
+| تصدير الملخص بصيغة Excel | الطباعة/PDF كافية لهذا الـmilestone |
 | ملخص للأدوار الأخرى (مبيعات/تركيب) | العميل حدّد الكوردنيتر والإدارة فقط |
 
 ## Traceability
 
-تُملأ أثناء إنشاء الـroadmap.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INV-01 | — | Pending |
-| SUMM-01 | — | Pending |
-| SUMM-02 | — | Pending |
-| SUMM-03 | — | Pending |
-| SUMM-04 | — | Pending |
-| SUMM-05 | — | Pending |
-| SUMM-06 | — | Pending |
-| FILT-01 | — | Pending |
+| SUMM-01 | Phase 1 | Pending |
+| SUMM-02 | Phase 1 | Pending |
+| SUMM-03 | Phase 1 | Pending |
+| SUMM-04 | Phase 1 | Pending |
+| SUMM-05 | Phase 1 | Pending |
+| SUMM-06 | Phase 1 | Pending |
+| FILT-01 | Phase 2 | Pending |
+| FILT-02 | Phase 2 | Pending |
+| INV-01  | Phase 3 | Pending |
+| MAT-01  | Phase 3 | Pending |
+| MAT-02  | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 8 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 8 ⚠️
+- v1 requirements: 11 total
+- Mapped to phases: 11
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-21*
-*Last updated: 2026-06-21 after initial definition*
+*Last updated: 2026-06-21 after adding materials + flexible project count*
