@@ -3,9 +3,9 @@
 import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { INSTALL_STAGES } from '@/lib/constants'
+import { INSTALL_STAGES, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
 import type { QueryResult } from '@/lib/supabase/typed'
-import type { Project, Payment, Installation, Material } from '@/types/database'
+import type { Project, Payment, Installation, Material, Document } from '@/types/database'
 
 // ── Generate / fetch the client share token (coordinator, sales, admin) ──
 export async function getOrCreateShareToken(projectId: string) {
@@ -53,6 +53,7 @@ export interface PublicProjectView {
   materials_status: string | null
   installation: { scheduled_date: string | null; status: string; stages: { label: string; done: boolean }[] } | null
   lifecycle: { label: string; state: 'done' | 'current' | 'todo' }[]
+  attachments: { name: string; url: string }[]
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -80,6 +81,16 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
   const instResult = (await service
     .from('installations').select('*').eq('project_id', project.id).order('created_at', { ascending: false }).limit(1)) as unknown as { data: Installation[] | null }
   const installation = instResult.data?.[0] ?? null
+
+  const docsResult = (await service
+    .from('documents').select('type, url, description, uploaded_at').eq('project_id', project.id).order('uploaded_at', { ascending: false })) as unknown as {
+      data: Pick<Document, 'type' | 'url' | 'description' | 'uploaded_at'>[] | null
+    }
+  const attachments = (docsResult.data ?? []).map((d) => ({
+    name: d.description || DOCUMENT_TYPE_LABELS[d.type] || 'مستند',
+    url: d.url,
+  }))
+  if (project.contract_url) attachments.unshift({ name: 'العقد', url: project.contract_url })
 
   // Collection
   const total = project.total_amount && project.total_amount > 0
@@ -137,5 +148,6 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
     materials_status: material?.status ?? null,
     installation: installationView,
     lifecycle: steps,
+    attachments,
   }
 }

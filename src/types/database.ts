@@ -68,10 +68,17 @@ export interface Payment {
 }
 
 export interface MaterialItem {
-  name: string
-  quantity: number
-  unit: string
+  // New procurement columns
+  sap_no?: string
+  description?: string
+  quantity?: number
+  sto_no?: string
+  status?: string                       // مكتمل / قيد المعالجة / بانتظار التوريد / تم التوريد ...
   notes?: string
+  attachments?: { url: string; name: string }[]
+  // Legacy fields (older records) — kept optional for backward compatibility
+  name?: string
+  unit?: string
   unit_price?: number
 }
 

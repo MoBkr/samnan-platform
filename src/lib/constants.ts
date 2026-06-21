@@ -6,7 +6,7 @@ export const BR_STAGE_LABELS: Record<BrStage, string> = {
   create: 'إنشاء الطلب',
   manager_approval: 'موافقة المدير',
   inventory: 'إدارة المخزون',
-  release: 'Release / تعميد',
+  release: 'تعميد',
   finance: 'المالية',
   logistics: 'Logistic',
   completed: 'تم الاستلام',
@@ -16,6 +16,15 @@ export const BR_PRIORITY_LABELS: Record<BrPriority, string> = {
   important: 'مهم',
   medium: 'متوسط',
 }
+
+// Product status options for the manual materials table
+export const MATERIAL_ITEM_STATUSES = [
+  'قيد المعالجة',
+  'مكتمل',
+  'بانتظار التوريد',
+  'تم التوريد',
+  'ملغي',
+] as const
 
 // ── Installation inspection stages ──────────────────────────────────────
 // Fixed dropdown of stages shared by every project that has installation.

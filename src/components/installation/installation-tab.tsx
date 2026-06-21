@@ -47,10 +47,11 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
   const materialReady = material?.status === 'ready' || material?.status === 'delivered'
   const materialSlots: InstallSlot[] = materialReady
     ? (material?.items ?? [])
-        .filter((it) => it.name?.trim())
-        .map((it) => ({
-          key: `mat:${it.name.trim()}`,
-          label: it.quantity ? `${it.name.trim()} — ${it.quantity} ${it.unit ?? ''}`.trim() : it.name.trim(),
+        .map((it) => ({ it, label: (it.description ?? it.name ?? '').trim() }))
+        .filter((x) => x.label)
+        .map(({ it, label }) => ({
+          key: `mat:${label}`,
+          label: it.quantity ? `${label} — ${it.quantity} ${it.unit ?? ''}`.trim() : label,
         }))
     : []
 

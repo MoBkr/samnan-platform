@@ -165,4 +165,22 @@
     padding: 0 !important;
     margin: 0 !important;
   }
+
+  /* Print only the materials list */
+  body.printing-materials * {
+    visibility: hidden !important;
+  }
+  body.printing-materials #materials-print,
+  body.printing-materials #materials-print * {
+    visibility: visible !important;
+  }
+  body.printing-materials #materials-print {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }

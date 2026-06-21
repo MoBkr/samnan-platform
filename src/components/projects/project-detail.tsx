@@ -22,7 +22,6 @@ import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
 import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
 import { getOrCreateShareToken } from '@/lib/actions/share'
-import { ProjectSummaryDialog } from '@/components/projects/project-summary-dialog'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
@@ -165,7 +164,6 @@ export function ProjectDetail({
   const [teamCoordinatorId, setTeamCoordinatorId] = useState(project.coordinator_id ?? '')
   const [teamSalesId, setTeamSalesId] = useState(project.sales_engineer_id ?? '')
   const [teamInstallationId, setTeamInstallationId] = useState(project.installation_id ?? '')
-  const [summaryOpen, setSummaryOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
@@ -526,11 +524,13 @@ export function ProjectDetail({
         {/* Action buttons */}
         {canManage && (
           <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
-            <Button size="sm" variant="outline" onClick={() => setSummaryOpen(true)}
-              className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50">
-              <ClipboardList className="h-4 w-4" />
-              ملخص المشروع
-            </Button>
+            <Link href={`/projects/${project.id}/summary`}>
+              <Button size="sm" variant="outline"
+                className="gap-1.5 text-brand-700 border-brand-200 hover:bg-brand-50">
+                <ClipboardList className="h-4 w-4" />
+                ملخص المشروع
+              </Button>
+            </Link>
             {canManage && !isFinished && (
               <Button size="sm" variant="outline" onClick={() => handleAction('editInfo')} className="gap-1.5">
                 <Edit2 className="h-4 w-4" />
@@ -970,19 +970,6 @@ export function ProjectDetail({
           </Button>
         </DialogFooter>
       </Dialog>
-
-      {/* ── Project summary dialog (printable) ── */}
-      <ProjectSummaryDialog
-        open={summaryOpen}
-        onClose={() => setSummaryOpen(false)}
-        project={project}
-        payments={payments}
-        material={material}
-        installations={installations}
-        attachments={attachments}
-        activityLog={activityLog}
-        technicianAssignments={technicianAssignments}
-      />
 
       {/* ── Share with client dialog ── */}
       <Dialog open={shareOpen} onClose={() => setShareOpen(false)}>

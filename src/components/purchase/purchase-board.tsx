@@ -160,7 +160,7 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="ابحث برقم BR، رقم التعميد (Release)، اسم المشروع، أو المورّد..."
+          placeholder="ابحث برقم BR، رقم التعميد، اسم المشروع، أو المورّد..."
           className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50/50 ps-10 pe-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
         />
         {search && (

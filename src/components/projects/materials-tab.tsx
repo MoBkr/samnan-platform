@@ -3,12 +3,13 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import {
-  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock,
+  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, ClipboardPaste, X, Printer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { MATERIAL_ITEM_STATUSES } from '@/lib/constants'
 import { saveDocumentRecord } from '@/lib/actions/attachments'
 import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/materials'
 import { createPayment } from '@/lib/actions/payments'
@@ -47,55 +48,60 @@ function DocRow({ doc }: { doc: Document }) {
   )
 }
 
+const STATUS_PILL: Record<string, string> = {
+  'مكتمل': 'bg-emerald-100 text-emerald-700',
+  'تم التوريد': 'bg-emerald-100 text-emerald-700',
+  'قيد المعالجة': 'bg-amber-100 text-amber-700',
+  'بانتظار التوريد': 'bg-blue-100 text-blue-700',
+  'ملغي': 'bg-gray-200 text-gray-500',
+}
+
 function ItemsTable({ items }: { items: MaterialItem[] }) {
   if (items.length === 0) return null
-  const hasPrice = items.some(i => i.unit_price && i.unit_price > 0)
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm whitespace-nowrap">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
-            <th className="px-4 py-2.5 text-start font-medium">#</th>
-            <th className="px-4 py-2.5 text-start font-medium">الصنف</th>
-            <th className="px-4 py-2.5 text-start font-medium">الكمية</th>
-            <th className="px-4 py-2.5 text-start font-medium">الوحدة</th>
-            <th className="px-4 py-2.5 text-start font-medium">ملاحظات</th>
-            {hasPrice && <th className="px-4 py-2.5 text-start font-medium">سعر الوحدة</th>}
-            {hasPrice && <th className="px-4 py-2.5 text-start font-medium">الإجمالي</th>}
+            <th className="px-3 py-2.5 text-start font-medium">#</th>
+            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">SAP No</th>
+            <th className="px-3 py-2.5 text-start font-medium">الوصف</th>
+            <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
+            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">STO No</th>
+            <th className="px-3 py-2.5 text-start font-medium">الحالة</th>
+            <th className="px-3 py-2.5 text-start font-medium">ملاحظات</th>
+            <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-50">
           {items.map((item, i) => (
             <tr key={i}>
-              <td className="px-4 py-2.5 text-gray-400">{i + 1}</td>
-              <td className="px-4 py-2.5 font-medium text-gray-900">{item.name}</td>
-              <td className="px-4 py-2.5 text-gray-700">{item.quantity}</td>
-              <td className="px-4 py-2.5 text-gray-500">{item.unit}</td>
-              <td className="px-4 py-2.5 text-gray-400 italic">{item.notes || '—'}</td>
-              {hasPrice && (
-                <td className="px-4 py-2.5 text-gray-700">
-                  {item.unit_price ? `${item.unit_price.toLocaleString('en')} ر.س` : '—'}
-                </td>
-              )}
-              {hasPrice && (
-                <td className="px-4 py-2.5 font-medium text-gray-900">
-                  {item.unit_price ? `${(item.quantity * item.unit_price).toLocaleString('en')} ر.س` : '—'}
-                </td>
-              )}
+              <td className="px-3 py-2.5 text-gray-400">{i + 1}</td>
+              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sap_no || '—'}</td>
+              <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-normal">{item.description || item.name || '—'}</td>
+              <td className="px-3 py-2.5 text-gray-700">{item.quantity ?? '—'}</td>
+              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
+              <td className="px-3 py-2.5">
+                {item.status
+                  ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[item.status] ?? 'bg-gray-100 text-gray-600'}`}>{item.status}</span>
+                  : <span className="text-gray-400">—</span>}
+              </td>
+              <td className="px-3 py-2.5 text-gray-400 italic whitespace-normal">{item.notes || '—'}</td>
+              <td className="px-3 py-2.5">
+                {item.attachments && item.attachments.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {item.attachments.map((a, j) => (
+                      <a key={j} href={a.url} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-brand-100 bg-brand-50 px-1.5 py-0.5 text-[11px] text-brand-700 hover:bg-brand-100">
+                        <FileText className="h-3 w-3" /> {j + 1}
+                      </a>
+                    ))}
+                  </div>
+                ) : <span className="text-gray-400">—</span>}
+              </td>
             </tr>
           ))}
         </tbody>
-        {hasPrice && (
-          <tfoot>
-            <tr className="border-t-2 border-gray-200 bg-gray-50">
-              <td colSpan={hasPrice ? 5 : 5} className="px-4 py-2.5 text-sm font-bold text-gray-700">الإجمالي</td>
-              <td className="px-4 py-2.5"></td>
-              <td className="px-4 py-2.5 font-bold text-brand-700">
-                {items.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0).toLocaleString('en')} ر.س
-              </td>
-            </tr>
-          </tfoot>
-        )}
       </table>
     </div>
   )
@@ -132,16 +138,29 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const [paymentDialog, setPaymentDialog] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState('')
 
-  // draftItems is always the display source — no flicker after save
-  const itemsTotal = draftItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price ?? 0)), 0)
+  // draftItems is always the display source — no flicker after save.
+  // (Legacy price total — only meaningful for old records that carried unit_price.)
+  const itemsTotal = draftItems.reduce((sum, item) => sum + ((item.quantity ?? 0) * (item.unit_price ?? 0)), 0)
+
+  const [rowUploading, setRowUploading] = useState<number | null>(null)
+
+  function rowEmpty(it: MaterialItem) {
+    return !(it.description?.trim() || it.name?.trim() || it.sap_no?.trim() || it.sto_no?.trim() || it.notes?.trim() || it.quantity)
+  }
 
   function handleSaveItems() {
-    // Keep only rows that have at least a name — forgiving of blank trailing rows.
+    // Drop fully-empty rows; keep anything with at least a description / SAP / qty.
     const cleaned = draftItems
-      .map((it) => ({ ...it, name: it.name.trim(), unit: (it.unit ?? '').trim(), notes: (it.notes ?? '').trim() }))
-      .filter((it) => it.name.length > 0)
+      .map((it) => ({
+        ...it,
+        sap_no: it.sap_no?.trim() || undefined,
+        description: (it.description ?? it.name ?? '').trim(),
+        sto_no: it.sto_no?.trim() || undefined,
+        notes: it.notes?.trim() || undefined,
+      }))
+      .filter((it) => !rowEmpty(it))
     if (cleaned.length === 0) {
-      toast.error('أضف صنفًا واحدًا على الأقل (اسم الصنف مطلوب)')
+      toast.error('أضف صنفًا واحدًا على الأقل')
       return
     }
     startTransition(async () => {
@@ -158,7 +177,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   }
 
   function handleAddItem() {
-    setDraftItems((prev) => [...prev, { name: '', quantity: 0, unit: '', notes: '', unit_price: 0 }])
+    setDraftItems((prev) => [...prev, { sap_no: '', description: '', quantity: undefined, sto_no: '', status: 'قيد المعالجة', notes: '', attachments: [] }])
   }
 
   function updateDraftItem(idx: number, patch: Partial<MaterialItem>) {
@@ -167,6 +186,69 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   function handleRemoveItem(idx: number) {
     setDraftItems((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function printMaterials() {
+    document.body.classList.add('printing-materials')
+    const cleanup = () => {
+      document.body.classList.remove('printing-materials')
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup)
+    window.print()
+  }
+
+  // Paste multiple rows from Excel: TSV (tab between columns, newline between rows).
+  // Column order: SAP No · الوصف · الكمية · STO No · الحالة · ملاحظات
+  function handlePasteRows(e: React.ClipboardEvent, startIdx: number) {
+    const text = e.clipboardData.getData('text/plain')
+    if (!text || !/[\t\n]/.test(text)) return  // single value → let default paste happen
+    e.preventDefault()
+    let rows = text.replace(/\r/g, '').split('\n').filter((r) => r.trim() !== '')
+    // Skip an Excel header row if present (works for Arabic or English headers).
+    const HEADER_HINT = /sap|sto|qty|quant|desc|status|note|الوصف|كمية|الحالة|ملاحظ|الكمية/i
+    if (rows.length > 1) {
+      const first = rows[0].toLowerCase()
+      const looksHeader = (first.includes('sap') || first.includes('sto') || HEADER_HINT.test(rows[0])) && !/\d{3,}/.test(rows[0])
+      if (looksHeader) rows = rows.slice(1)
+    }
+    const parsed: MaterialItem[] = rows.map((r) => {
+      const c = r.split('\t')
+      const qty = parseFloat((c[2] ?? '').replace(/[^\d.]/g, ''))
+      return {
+        sap_no: (c[0] ?? '').trim() || undefined,
+        description: (c[1] ?? '').trim(),
+        quantity: isNaN(qty) ? undefined : qty,
+        sto_no: (c[3] ?? '').trim() || undefined,
+        status: (c[4] ?? '').trim() || 'قيد المعالجة',
+        notes: (c[5] ?? '').trim() || undefined,
+        attachments: [],
+      }
+    })
+    setDraftItems((prev) => {
+      const next = [...prev]
+      // Replace the current (target) row with the first pasted row, then insert the rest after it.
+      next.splice(startIdx, 1, ...parsed)
+      return next
+    })
+    toast.success(`تم لصق ${parsed.length} صنف من Excel`)
+  }
+
+  async function handleRowAttach(idx: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!files.length) return
+    setRowUploading(idx)
+    const added: { url: string; name: string }[] = []
+    for (const file of files) {
+      const up = await uploadFileDirect(file, `materials/${projectId}`)
+      if ('error' in up) { toast.error(up.error); continue }
+      added.push({ url: up.url, name: file.name })
+    }
+    setRowUploading(null)
+    if (added.length) {
+      setDraftItems((prev) => prev.map((it, i) => i === idx ? { ...it, attachments: [...(it.attachments ?? []), ...added] } : it))
+    }
   }
 
   function handleRequestFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -323,55 +405,101 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد يدوياً</p>
-              {canManage && !editingItems && (
-                <button onClick={() => { if (draftItems.length === 0) setDraftItems([{ name: '', quantity: 0, unit: '', notes: '', unit_price: 0 }]); setEditingItems(true) }}
-                  className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-                  <Plus className="h-3 w-3" />
-                  {draftItems.length > 0 ? 'تعديل' : 'إضافة مواد'}
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {!editingItems && draftItems.length > 0 && (
+                  <button onClick={printMaterials}
+                    className="text-xs text-gray-500 hover:text-brand-700 font-medium flex items-center gap-1">
+                    <Printer className="h-3.5 w-3.5" />
+                    طباعة
+                  </button>
+                )}
+                {canManage && !editingItems && (
+                  <button onClick={() => { if (draftItems.length === 0) setDraftItems([{ sap_no: '', description: '', quantity: undefined, sto_no: '', status: 'قيد المعالجة', notes: '', attachments: [] }]); setEditingItems(true) }}
+                    className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+                    <Plus className="h-3 w-3" />
+                    {draftItems.length > 0 ? 'تعديل' : 'إضافة مواد'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {editingItems ? (
               <div className="space-y-3 rounded-xl border border-brand-100 bg-white p-4">
-                {/* Editable rows — add / edit / delete inline */}
+                {/* Excel paste hint (optional — manual entry still works) */}
+                <div className="flex items-start gap-2 rounded-lg bg-blue-50/60 border border-blue-100 px-3 py-2 text-[11px] text-blue-700">
+                  <ClipboardPaste className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>أدخل يدويًا، أو انسخ الصفوف من Excel والصقها في أي خانة — بالترتيب: <b>SAP No · الوصف · الكمية · STO No · الحالة · ملاحظات</b>. صف العناوين يُتجاهل تلقائيًا (عربي أو إنجليزي).</span>
+                </div>
+
                 {draftItems.length > 0 ? (
                   <div className="overflow-x-auto rounded-lg border border-gray-100">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
-                          <th className="px-2 py-2 text-start font-medium">الصنف *</th>
+                          <th className="px-2 py-2 text-start font-medium" dir="ltr">SAP No</th>
+                          <th className="px-2 py-2 text-start font-medium">الوصف *</th>
                           <th className="px-2 py-2 text-start font-medium">الكمية</th>
-                          <th className="px-2 py-2 text-start font-medium">الوحدة</th>
+                          <th className="px-2 py-2 text-start font-medium" dir="ltr">STO No</th>
+                          <th className="px-2 py-2 text-start font-medium">الحالة</th>
                           <th className="px-2 py-2 text-start font-medium">ملاحظات</th>
-                          <th className="px-2 py-2 text-start font-medium">سعر الوحدة</th>
+                          <th className="px-2 py-2 text-start font-medium">مرفقات</th>
                           <th className="px-2 py-2" />
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-50">
                         {draftItems.map((item, i) => (
                           <tr key={i}>
-                            <td className="px-2 py-1.5 min-w-[140px]">
-                              <Input className="h-9" placeholder="كابل نحاس..." value={item.name}
-                                onChange={(e) => updateDraftItem(i, { name: e.target.value })} />
+                            <td className="px-2 py-1.5 w-28">
+                              <Input className="h-9" dir="ltr" placeholder="SAP" value={item.sap_no ?? ''}
+                                onPaste={(e) => handlePasteRows(e, i)}
+                                onChange={(e) => updateDraftItem(i, { sap_no: e.target.value })} />
                             </td>
-                            <td className="px-2 py-1.5 w-24">
+                            <td className="px-2 py-1.5 min-w-[180px]">
+                              <Input className="h-9" placeholder="وصف الصنف" value={item.description ?? item.name ?? ''}
+                                onPaste={(e) => handlePasteRows(e, i)}
+                                onChange={(e) => updateDraftItem(i, { description: e.target.value })} />
+                            </td>
+                            <td className="px-2 py-1.5 w-20">
                               <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" dir="ltr"
-                                value={item.quantity || ''}
-                                onChange={(e) => updateDraftItem(i, { quantity: parseFloat(e.target.value) || 0 })} />
+                                value={item.quantity ?? ''}
+                                onChange={(e) => updateDraftItem(i, { quantity: e.target.value === '' ? undefined : parseFloat(e.target.value) })} />
                             </td>
-                            <td className="px-2 py-1.5 w-24">
-                              <Input className="h-9" placeholder="متر، قطعة" value={item.unit ?? ''}
-                                onChange={(e) => updateDraftItem(i, { unit: e.target.value })} />
+                            <td className="px-2 py-1.5 w-28">
+                              <Input className="h-9" dir="ltr" placeholder="STO" value={item.sto_no ?? ''}
+                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
                             </td>
-                            <td className="px-2 py-1.5 min-w-[120px]">
+                            <td className="px-2 py-1.5 w-36">
+                              <select
+                                value={item.status ?? 'قيد المعالجة'}
+                                onChange={(e) => updateDraftItem(i, { status: e.target.value })}
+                                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15"
+                              >
+                                {MATERIAL_ITEM_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                {item.status && !MATERIAL_ITEM_STATUSES.includes(item.status as typeof MATERIAL_ITEM_STATUSES[number]) && (
+                                  <option value={item.status}>{item.status}</option>
+                                )}
+                              </select>
+                            </td>
+                            <td className="px-2 py-1.5 min-w-[140px]">
                               <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
                                 onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
                             </td>
-                            <td className="px-2 py-1.5 w-28">
-                              <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" dir="ltr"
-                                value={item.unit_price || ''}
-                                onChange={(e) => updateDraftItem(i, { unit_price: parseFloat(e.target.value) || 0 })} />
+                            <td className="px-2 py-1.5 min-w-[120px]">
+                              <div className="flex flex-wrap items-center gap-1">
+                                {(item.attachments ?? []).map((a, j) => (
+                                  <span key={j} className="inline-flex items-center gap-0.5 rounded border border-brand-100 bg-brand-50 px-1.5 py-0.5 text-[11px] text-brand-700">
+                                    <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline">{j + 1}</a>
+                                    <button onClick={() => updateDraftItem(i, { attachments: (item.attachments ?? []).filter((_, k) => k !== j) })} className="text-brand-400 hover:text-red-500">
+                                      <X className="h-2.5 w-2.5" />
+                                    </button>
+                                  </span>
+                                ))}
+                                <label className="cursor-pointer inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] text-gray-500 hover:border-brand-300 hover:text-brand-600">
+                                  {rowUploading === i ? <Clock className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
+                                  <input type="file" multiple accept="image/*,application/pdf" className="hidden"
+                                    disabled={rowUploading !== null} onChange={(e) => handleRowAttach(i, e)} />
+                                </label>
+                              </div>
                             </td>
                             <td className="px-2 py-1.5">
                               <button onClick={() => handleRemoveItem(i)} className="text-red-400 hover:text-red-600" title="حذف الصنف">
@@ -384,20 +512,13 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     </table>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 text-center py-3">اضغط «إضافة صنف» لبدء إدخال المواد</p>
+                  <p className="text-xs text-gray-400 text-center py-3">اضغط «إضافة صنف» للإدخال اليدوي، أو الصق صفوف Excel</p>
                 )}
 
                 <Button type="button" size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5">
                   <Plus className="h-3.5 w-3.5" />
                   إضافة صنف
                 </Button>
-
-                {/* Items total preview */}
-                {draftItems.some(i => i.unit_price && i.unit_price > 0) && (
-                  <div className="rounded-xl bg-brand-50 border border-brand-100 p-3 text-sm text-brand-700">
-                    إجمالي المواد: <strong>{draftItems.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0).toLocaleString('en')} ر.س</strong>
-                  </div>
-                )}
 
                 <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
                   <Button size="sm" loading={isPending} onClick={handleSaveItems} className="gap-1.5">
@@ -408,7 +529,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 </div>
               </div>
             ) : (
-              <ItemsTable items={draftItems} />
+              <div id="materials-print">
+                <div className="hidden print:block mb-3 border-b border-gray-300 pb-2">
+                  <h2 className="text-lg font-bold">قائمة المواد</h2>
+                </div>
+                <ItemsTable items={draftItems} />
+              </div>
             )}
 
             {!editingItems && draftItems.length === 0 && (

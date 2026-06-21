@@ -1,6 +1,6 @@
 import { getPublicProject } from '@/lib/actions/share'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
-import { CheckCircle2, Circle, Clock, MapPin, Building2, Hammer, Wallet, Package } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, MapPin, Building2, Hammer, Wallet, Package, FileText } from 'lucide-react'
 import Image from 'next/image'
 
 export const dynamic = 'force-dynamic'
@@ -166,6 +166,26 @@ export default async function TrackPage({ params }: { params: Promise<{ token: s
                   {s.done ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> : <Circle className="h-4 w-4 text-gray-300 shrink-0" />}
                   <span className={`text-sm ${s.done ? 'text-gray-900' : 'text-gray-400'}`}>{s.label}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Attachments */}
+        {data.attachments.length > 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50"><FileText className="h-4 w-4 text-blue-600" /></div>
+              <h2 className="text-sm font-bold text-gray-900">المرفقات</h2>
+            </div>
+            <div className="space-y-2">
+              {data.attachments.map((a, i) => (
+                <a key={i} href={a.url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2.5 rounded-xl border border-gray-100 px-3.5 py-2.5 hover:bg-gray-50 transition-colors">
+                  <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                  <span className="flex-1 text-sm text-gray-700 truncate">{a.name}</span>
+                  <span className="text-xs font-medium text-brand-600">عرض</span>
+                </a>
               ))}
             </div>
           </div>
