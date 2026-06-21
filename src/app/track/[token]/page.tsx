@@ -1,4 +1,5 @@
 import { getPublicProject } from '@/lib/actions/share'
+import { AutoRefresh } from './auto-refresh'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { CheckCircle2, Circle, Clock, MapPin, Building2, Hammer, Wallet, Package, FileText } from 'lucide-react'
 import Image from 'next/image'
@@ -48,8 +49,14 @@ export default async function TrackPage({ params }: { params: Promise<{ token: s
             <p className="text-sm font-bold text-gray-900 leading-tight">منصة سمنان</p>
             <p className="text-xs text-gray-400 leading-tight">متابعة المشروع</p>
           </div>
+          <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-600">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            تحديث مباشر
+          </span>
         </div>
       </div>
+      <AutoRefresh />
+
 
       <div className="mx-auto max-w-2xl px-5 py-6 space-y-5">
         {/* Header card */}
