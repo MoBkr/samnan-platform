@@ -59,6 +59,17 @@ export function ProjectSummaryView({ project, payments, material, installations,
     const s = (it.status || '—').trim() || '—'; acc[s] = (acc[s] ?? 0) + 1; return acc
   }, {})
 
+  // ── Completion percentages per section ──
+  const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
+  const materialsPct = items.length > 0
+    ? Math.round((items.filter((it) => it.status === 'مكتمل').length / items.length) * 100)
+    : material ? (MAT_PCT[material.status] ?? 0) : 0
+  const installPct = project.has_installation
+    ? (reqStages.length > 0 ? Math.round((doneStages / reqStages.length) * 100) : 0)
+    : null
+  const overallParts = [pct, materialsPct, ...(installPct !== null ? [installPct] : [])]
+  const overallPct = Math.round(overallParts.reduce((a, b) => a + b, 0) / overallParts.length)
+
   const keyDocs: { label: string; url: string }[] = []
   if (project.contract_url) keyDocs.push({ label: 'العقد', url: project.contract_url })
   for (const d of attachments.slice(0, 6)) keyDocs.push({ label: d.description || DOCUMENT_TYPE_LABELS[d.type] || 'مستند', url: d.url })
@@ -94,6 +105,22 @@ export function ProjectSummaryView({ project, payments, material, installations,
           <p className="text-xs text-gray-400">نظرة عامة سريعة للإدارة · {formatDateShort(new Date().toISOString())}</p>
         </div>
 
+        {/* Completion percentages */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-gray-900">نسبة الإنجاز</h3>
+            <span className="text-lg font-extrabold text-brand-700">{overallPct}%</span>
+          </div>
+          <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden mb-4">
+            <div className="h-full rounded-full bg-brand-600" style={{ width: `${Math.min(overallPct, 100)}%` }} />
+          </div>
+          <div className={`grid gap-3 ${installPct !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <Meter label="التحصيل" pct={pct} />
+            <Meter label="المواد" pct={materialsPct} />
+            {installPct !== null && <Meter label="التركيب" pct={installPct} />}
+          </div>
+        </div>
+
         {/* 1) Client & project */}
         <Section icon={<Building2 className="h-4 w-4" />} title="العميل والمشروع">
           <Grid>
@@ -107,7 +134,7 @@ export function ProjectSummaryView({ project, payments, material, installations,
         </Section>
 
         {/* 2) Financial — clickable payments */}
-        <Section icon={<Wallet className="h-4 w-4" />} title="المالي والدفعات">
+        <Section icon={<Wallet className="h-4 w-4" />} title="المالي والدفعات" pct={pct}>
           <div className="grid grid-cols-3 gap-2 mb-3">
             <Stat label="قيمة المشروع" value={formatCurrency(projectValue)} />
             <Stat label="المحصّل" value={formatCurrency(totalPaid)} tone="green" />
@@ -149,7 +176,7 @@ export function ProjectSummaryView({ project, payments, material, installations,
         </Section>
 
         {/* 3) Materials & installation */}
-        <Section icon={<Package className="h-4 w-4" />} title="المواد والتركيب">
+        <Section icon={<Package className="h-4 w-4" />} title="المواد والتركيب" pct={installPct !== null ? Math.round((materialsPct + installPct) / 2) : materialsPct}>
           <div className="rounded-lg border border-gray-100 px-3 py-2.5 mb-2">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 text-gray-600"><Package className="h-3.5 w-3.5 text-amber-500" /> المواد</span>
@@ -243,14 +270,33 @@ export function ProjectSummaryView({ project, payments, material, installations,
   )
 }
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({ icon, title, pct, children }: { icon: React.ReactNode; title: string; pct?: number; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm print:shadow-none print:break-inside-avoid">
       <div className="flex items-center gap-2 mb-3">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-700">{icon}</span>
         <h3 className="text-sm font-bold text-gray-900">{title}</h3>
+        {pct !== undefined && (
+          <span className={`ms-auto rounded-full px-2.5 py-0.5 text-xs font-bold ${pct >= 100 ? 'bg-emerald-100 text-emerald-700' : pct > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+            {pct}%
+          </span>
+        )}
       </div>
       {children}
+    </div>
+  )
+}
+
+function Meter({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium text-gray-600">{label}</span>
+        <span className={`text-xs font-bold ${pct >= 100 ? 'text-emerald-600' : 'text-gray-700'}`}>{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
     </div>
   )
 }

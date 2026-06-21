@@ -50,10 +50,8 @@ function DocRow({ doc }: { doc: Document }) {
 
 const STATUS_PILL: Record<string, string> = {
   'مكتمل': 'bg-emerald-100 text-emerald-700',
-  'تم التوريد': 'bg-emerald-100 text-emerald-700',
   'قيد المعالجة': 'bg-amber-100 text-amber-700',
-  'بانتظار التوريد': 'bg-blue-100 text-blue-700',
-  'ملغي': 'bg-gray-200 text-gray-500',
+  'لم يطلب': 'bg-gray-200 text-gray-500',
 }
 
 function ItemsTable({ items }: { items: MaterialItem[] }) {
@@ -65,11 +63,12 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
           <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
             <th className="px-3 py-2.5 text-start font-medium">#</th>
             <th className="px-3 py-2.5 text-start font-medium" dir="ltr">SAP No</th>
-            <th className="px-3 py-2.5 text-start font-medium">الوصف</th>
-            <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
             <th className="px-3 py-2.5 text-start font-medium" dir="ltr">STO No</th>
-            <th className="px-3 py-2.5 text-start font-medium">الحالة</th>
+            <th className="px-3 py-2.5 text-start font-medium">اسم الصنف</th>
+            <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
+            <th className="px-3 py-2.5 text-start font-medium">الوحدة</th>
             <th className="px-3 py-2.5 text-start font-medium">ملاحظات</th>
+            <th className="px-3 py-2.5 text-start font-medium">الحالة</th>
             <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
           </tr>
         </thead>
@@ -78,15 +77,16 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
             <tr key={i}>
               <td className="px-3 py-2.5 text-gray-400">{i + 1}</td>
               <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sap_no || '—'}</td>
+              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
               <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-normal">{item.description || item.name || '—'}</td>
               <td className="px-3 py-2.5 text-gray-700">{item.quantity ?? '—'}</td>
-              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
+              <td className="px-3 py-2.5 text-gray-500">{item.unit || '—'}</td>
+              <td className="px-3 py-2.5 text-gray-400 italic whitespace-normal">{item.notes || '—'}</td>
               <td className="px-3 py-2.5">
                 {item.status
                   ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[item.status] ?? 'bg-gray-100 text-gray-600'}`}>{item.status}</span>
                   : <span className="text-gray-400">—</span>}
               </td>
-              <td className="px-3 py-2.5 text-gray-400 italic whitespace-normal">{item.notes || '—'}</td>
               <td className="px-3 py-2.5">
                 {item.attachments && item.attachments.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
@@ -199,7 +199,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   }
 
   // Paste multiple rows from Excel: TSV (tab between columns, newline between rows).
-  // Column order: SAP No · الوصف · الكمية · STO No · الحالة · ملاحظات
+  // Column order: SAP No · STO No · اسم الصنف · الكمية · الوحدة · ملاحظات · الحالة
   function handlePasteRows(e: React.ClipboardEvent, startIdx: number) {
     const text = e.clipboardData.getData('text/plain')
     if (!text || !/[\t\n]/.test(text)) return  // single value → let default paste happen
@@ -214,14 +214,15 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     }
     const parsed: MaterialItem[] = rows.map((r) => {
       const c = r.split('\t')
-      const qty = parseFloat((c[2] ?? '').replace(/[^\d.]/g, ''))
+      const qty = parseFloat((c[3] ?? '').replace(/[^\d.]/g, ''))
       return {
         sap_no: (c[0] ?? '').trim() || undefined,
-        description: (c[1] ?? '').trim(),
+        sto_no: (c[1] ?? '').trim() || undefined,
+        description: (c[2] ?? '').trim(),
         quantity: isNaN(qty) ? undefined : qty,
-        sto_no: (c[3] ?? '').trim() || undefined,
-        status: (c[4] ?? '').trim() || 'قيد المعالجة',
+        unit: (c[4] ?? '').trim() || undefined,
         notes: (c[5] ?? '').trim() || undefined,
+        status: (c[6] ?? '').trim() || 'قيد المعالجة',
         attachments: [],
       }
     })
@@ -428,7 +429,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 {/* Excel paste hint (optional — manual entry still works) */}
                 <div className="flex items-start gap-2 rounded-lg bg-blue-50/60 border border-blue-100 px-3 py-2 text-[11px] text-blue-700">
                   <ClipboardPaste className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>أدخل يدويًا، أو انسخ الصفوف من Excel والصقها في أي خانة — بالترتيب: <b>SAP No · الوصف · الكمية · STO No · الحالة · ملاحظات</b>. صف العناوين يُتجاهل تلقائيًا (عربي أو إنجليزي).</span>
+                  <span>أدخل يدويًا، أو انسخ الصفوف من Excel والصقها في أي خانة — بالترتيب: <b>SAP No · STO No · اسم الصنف · الكمية · الوحدة · ملاحظات · الحالة</b>. صف العناوين يُتجاهل تلقائيًا (عربي أو إنجليزي).</span>
                 </div>
 
                 {draftItems.length > 0 ? (
@@ -437,11 +438,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                       <thead>
                         <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
                           <th className="px-2 py-2 text-start font-medium" dir="ltr">SAP No</th>
-                          <th className="px-2 py-2 text-start font-medium">الوصف *</th>
-                          <th className="px-2 py-2 text-start font-medium">الكمية</th>
                           <th className="px-2 py-2 text-start font-medium" dir="ltr">STO No</th>
-                          <th className="px-2 py-2 text-start font-medium">الحالة</th>
+                          <th className="px-2 py-2 text-start font-medium">اسم الصنف *</th>
+                          <th className="px-2 py-2 text-start font-medium">الكمية</th>
+                          <th className="px-2 py-2 text-start font-medium">الوحدة</th>
                           <th className="px-2 py-2 text-start font-medium">ملاحظات</th>
+                          <th className="px-2 py-2 text-start font-medium">الحالة</th>
                           <th className="px-2 py-2 text-start font-medium">مرفقات</th>
                           <th className="px-2 py-2" />
                         </tr>
@@ -454,8 +456,13 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { sap_no: e.target.value })} />
                             </td>
+                            <td className="px-2 py-1.5 w-28">
+                              <Input className="h-9" dir="ltr" placeholder="STO" value={item.sto_no ?? ''}
+                                onPaste={(e) => handlePasteRows(e, i)}
+                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
+                            </td>
                             <td className="px-2 py-1.5 min-w-[180px]">
-                              <Input className="h-9" placeholder="وصف الصنف" value={item.description ?? item.name ?? ''}
+                              <Input className="h-9" placeholder="اسم الصنف" value={item.description ?? item.name ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { description: e.target.value })} />
                             </td>
@@ -464,9 +471,13 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                 value={item.quantity ?? ''}
                                 onChange={(e) => updateDraftItem(i, { quantity: e.target.value === '' ? undefined : parseFloat(e.target.value) })} />
                             </td>
-                            <td className="px-2 py-1.5 w-28">
-                              <Input className="h-9" dir="ltr" placeholder="STO" value={item.sto_no ?? ''}
-                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
+                            <td className="px-2 py-1.5 w-24">
+                              <Input className="h-9" placeholder="متر، قطعة" value={item.unit ?? ''}
+                                onChange={(e) => updateDraftItem(i, { unit: e.target.value })} />
+                            </td>
+                            <td className="px-2 py-1.5 min-w-[140px]">
+                              <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
+                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 w-36">
                               <select
@@ -479,10 +490,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                   <option value={item.status}>{item.status}</option>
                                 )}
                               </select>
-                            </td>
-                            <td className="px-2 py-1.5 min-w-[140px]">
-                              <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
-                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 min-w-[120px]">
                               <div className="flex flex-wrap items-center gap-1">
@@ -597,7 +604,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100">
                     <FileText className="h-4 w-4 text-brand-700" />
                   </div>
-                  <h4 className="text-sm font-bold text-gray-900">فاتورة المواد</h4>
+                  <h4 className="text-sm font-bold text-gray-900">مذكرة تسليم مواد</h4>
                 </div>
                 {materialsPayment ? (
                   <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
