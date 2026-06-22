@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>منصة سمنان — تحديثات v1.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{--brand:#1841A0;--brand2:#0f2a66;--brand50:#eef3fc;--ink:#0f172a;--muted:#64748b;--line:#e6e9f0;--bg:#eef2f9;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased}
+  #app{height:100vh;display:flex;flex-direction:column}
+  .top{height:54px;display:flex;align-items:center;gap:14px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--brand);font-size:15px}
+  .brand .dot{width:26px;height:26px;border-radius:8px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:12px}
+  .counter{margin-inline-start:auto;font-size:13px;color:var(--muted);font-weight:700}
+  .agenda-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-family:inherit;font-weight:700;font-size:13px;color:var(--brand);cursor:pointer;transition:.15s}
+  .agenda-btn:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .pbar{height:4px;background:#e3e9f4;flex:none}
+  .pbar>i{display:block;height:100%;background:var(--brand);width:0;transition:width .3s}
+  .stage{flex:1;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:34px 20px 110px}
+  .slide{width:100%;max-width:880px;animation:in .25s ease}
+  @keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ===== Cover — professional partnership ===== */
+  .cover{position:relative;overflow:hidden;min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;
+    background:linear-gradient(135deg,#0b1f4d,var(--brand2) 55%,var(--brand));color:#fff;border-radius:26px;padding:64px 30px;box-shadow:0 24px 60px rgba(11,31,77,.35)}
+  .cover::after{content:"";position:absolute;inset:0;pointer-events:none;background:
+    radial-gradient(620px 320px at 86% -12%,rgba(255,255,255,.12),transparent),
+    radial-gradient(520px 280px at 0% 120%,rgba(120,170,255,.20),transparent)}
+  .cover>*{position:relative;z-index:2}
+  .eyebrow{letter-spacing:4px;font-size:12px;font-weight:700;color:#9fb6e8}
+  .cover h1{font-size:48px;font-weight:800;letter-spacing:-.5px}
+  .cover .sub{color:#cdd9f3;font-size:18px;font-weight:600;margin-top:-6px}
+  .rule{width:64px;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,#9fb6e8,transparent);margin:6px auto}
+  .lockup{display:flex;align-items:center;gap:24px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+  .logo-card{background:#fff;border-radius:20px;padding:22px 30px;height:128px;min-width:230px;display:grid;place-items:center;box-shadow:0 14px 38px rgba(0,0,0,.3)}
+  .logo-card img{max-height:88px;max-width:260px;object-fit:contain}
+  .logo-card.fill{padding:0;overflow:hidden}
+  .logo-card.fill img{height:128px;width:128px;max-height:none;max-width:none;object-fit:cover;border-radius:20px}
+  .lockup .x{color:#9fb6e8;font-size:22px;font-weight:300}
+  .tfmark{display:flex;align-items:center;gap:12px}
+  .tflogo{height:84px;width:auto;object-fit:contain}
+  .tficon{width:50px;height:50px;border-radius:15px;background:linear-gradient(135deg,#1841A0,#3b82f6);color:#fff;display:grid;place-items:center;box-shadow:0 6px 16px rgba(24,65,160,.4)}
+  .tftext{display:flex;flex-direction:column;line-height:1.15;text-align:start}
+  .tftext b{font-size:21px;color:#0f2a66;font-weight:800;letter-spacing:.3px}
+  .tftext span{font-size:13px;color:#64748b;font-weight:600}
+  .partner{color:#aebfe6;font-size:14.5px;margin-top:6px}
+  .cover .go{margin-top:14px;background:#fff;color:var(--brand);border:none;border-radius:14px;padding:15px 40px;font-family:inherit;font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+  .cover .go:hover{transform:translateY(-1px)}
+
+  /* ===== Agenda slide ===== */
+  .ovw{background:#fff;border:1px solid var(--line);border-radius:24px;padding:40px;box-shadow:0 10px 30px rgba(20,40,90,.06)}
+  .ovw h2{font-size:28px;font-weight:800;text-align:center}
+  .ovw .lead{color:var(--muted);text-align:center;margin-top:8px;font-size:15.5px;line-height:1.8}
+  .ovw-list{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ovw-row{display:flex;align-items:center;gap:11px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:13px 15px;font-weight:700;font-size:15px}
+  .ovw-row .d{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;font-size:17px}
+  .ovw-row .cc{margin-inline-start:auto;background:var(--brand50);color:var(--brand);font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px}
+
+  .section{min-height:52vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;
+    background:#fff;border:1px solid var(--line);border-radius:24px;padding:60px 30px;box-shadow:0 10px 30px rgba(20,40,90,.06)}
+  .section .ic{width:88px;height:88px;border-radius:24px;display:grid;place-items:center;font-size:42px}
+  .section h2{font-size:30px;font-weight:800}
+  .section .cnt{color:var(--muted);font-size:15px;font-weight:700}
+
+  .feat{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 10px 30px rgba(20,40,90,.06);overflow:hidden}
+  .feat-head{padding:24px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcfe,#fff)}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--brand);background:var(--brand50);border:1px solid #dbe5fa;padding:5px 13px;border-radius:999px}
+  .feat h3{font-size:25px;font-weight:800;margin-top:13px;line-height:1.45}
+  .tag{display:inline-block;font-size:12px;font-weight:800;padding:4px 13px;border-radius:999px;margin-top:11px}
+  .feat-body{padding:24px 28px;display:flex;flex-direction:column;gap:20px}
+  .blk h4{font-size:14px;font-weight:800;color:var(--brand);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .blk p{font-size:16px;color:#334155;line-height:1.85}
+  .steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:10px}
+  .steps li{counter-increment:s;position:relative;padding-inline-start:42px;font-size:15.5px;color:#334155;line-height:1.7}
+  .steps li::before{content:counter(s);position:absolute;right:0;top:0;width:28px;height:28px;border-radius:8px;background:var(--brand);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center}
+  .btns{display:flex;flex-direction:column;gap:8px}
+  .btnrow{display:flex;gap:12px;align-items:flex-start;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+  .btnrow .b{flex:none;background:var(--brand);color:#fff;font-size:13px;font-weight:700;border-radius:8px;padding:5px 13px;white-space:nowrap}
+  .btnrow .m{font-size:14.5px;color:#475569}
+
+  .end{min-height:52vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:60px;box-shadow:0 10px 30px rgba(20,40,90,.06)}
+  .end h2{font-size:30px;font-weight:800}
+  .end .credit{color:var(--muted);font-size:14px}
+  .end .credit b{color:var(--brand)}
+  .restart{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 28px;font-family:inherit;font-weight:700;cursor:pointer}
+
+  .nav{position:fixed;bottom:0;inset-inline:0;height:74px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:10px;padding:0 16px;z-index:20}
+  .nav button{font-family:inherit;font-weight:800;font-size:15px;border-radius:12px;padding:12px 24px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);transition:.15s;display:inline-flex;align-items:center;gap:8px}
+  .nav button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+  .nav .next{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .nav .next:hover:not(:disabled){background:var(--brand2);color:#fff}
+  .nav .edge{padding:12px 15px;font-size:13px;font-weight:700;color:var(--muted)}
+  .nav button:disabled{opacity:.3;cursor:default}
+  .nav .pos{font-size:13px;color:var(--muted);min-width:74px;text-align:center;font-weight:700}
+
+  .ov{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;z-index:50;justify-content:center;align-items:flex-start;padding:40px 16px;overflow-y:auto}
+  .ov.show{display:flex}
+  .ovbox{background:#fff;border-radius:18px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .ovhead{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line)}
+  .ovhead h3{font-size:17px;font-weight:800}
+  .ovclose{border:none;background:#f1f5f9;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:15px}
+  .aglist{padding:10px;max-height:72vh;overflow-y:auto}
+  .agcat{font-size:12px;font-weight:800;color:var(--muted);padding:14px 10px 6px}
+  .agitem{display:flex;gap:11px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;font-size:14.5px}
+  .agitem:hover{background:#f1f5f9}
+  .agitem .n{flex:none;width:25px;height:25px;border-radius:7px;background:var(--brand50);color:var(--brand);font-size:12px;font-weight:700;display:grid;place-items:center}
+  @media(max-width:640px){.cover h1{font-size:30px}.feat h3{font-size:20px}.ovw-list{grid-template-columns:1fr}.feat-head,.feat-body{padding-inline:20px}.stage{padding:22px 14px 100px}.nav button{padding:11px 14px}.nav .edge{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="brand"><span class="dot">⬛</span> منصة سمنان — عرض التعديلات</div>
+    <button class="agenda-btn" id="agendaBtn">☰ الفهرس</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="pbar"><i id="pfill"></i></div>
+  <div class="stage" id="stage"></div>
+  <div class="nav">
+    <button id="first" class="edge" title="البداية (Home)">« البداية</button>
+    <button id="prev">السابق ›</button>
+    <span class="pos" id="pos"></span>
+    <button class="next" id="next">‹ التالي</button>
+    <button id="last" class="edge" title="النهاية (End)">النهاية »</button>
+  </div>
+</div>
+<div class="ov" id="ov"><div class="ovbox">
+  <div class="ovhead"><h3>فهرس التعديلات</h3><button class="ovclose" id="ovclose">✕</button></div>
+  <div class="aglist" id="aglist"></div>
+</div></div>
+
+<script>
+const CATS = {
+  summary:  {label:'ملخص المشروع',        icon:'📋', color:'#eef3fc'},
+  projects: {label:'المشاريع والفلترة',   icon:'📁', color:'#eef9f1'},
+  payments: {label:'الدفعات والفواتير',   icon:'💰', color:'#fdf3e7'},
+  materials:{label:'المواد',              icon:'📦', color:'#f3eefe'},
+  purchase: {label:'طلبات الشراء (BR)',   icon:'🛒', color:'#fff0f0'},
+  client:   {label:'متابعة العميل',       icon:'🔗', color:'#e9f6ff'},
+};
+
+const TAG = {new:{t:'جديد',c:'#059669',b:'#e7f6ef'}, improve:{t:'تحسين',c:'#1841A0',b:'#eef3fc'}, fix:{t:'إصلاح',c:'#d97706',b:'#fdf3e7'}};
+
+const F = [
+  // ===== SUMMARY =====
+  {cat:'summary',tag:'new',title:'زر «ملخص المشروع» — نافذة شاملة قابلة للطباعة',
+   purpose:'نظرة شاملة سريعة على كل ما يخص المشروع في نافذة واحدة، قابلة للطباعة.',
+   why:'بدل فتح كل تاب على حدة لمعرفة وضع المشروع — كل المعلومات المهمة في مكان واحد.',
+   how:['افتح المشروع','اضغط زر «ملخص المشروع» جنب أزرار حالة المشروع','تظهر نافذة: العميل والمشروع · المالي والدفعات · المواد والتركيب · الفريق والمرفقات','اضغط «طباعة» لإخراج نسخة نظيفة'],
+   btns:[['ملخص المشروع','يفتح النافذة الشاملة'],['طباعة','يطبع الملخص أو يحفظه PDF']]},
+
+  {cat:'summary',tag:'new',title:'نِسب الإنجاز لكل قسم',
+   purpose:'عرض نسبة الإنجاز الكلية للمشروع + نسبة لكل قسم (التحصيل، المواد، التركيب).',
+   why:'تعرف بسرعة المشروع وصل لفين في كل جانب دون قراءة التفاصيل.',
+   how:['افتح «ملخص المشروع»','أعلى النافذة شريط «نسبة الإنجاز» الكلي','تحته مقاييس منفصلة لكل قسم'],
+   btns:[]},
+
+  // ===== PROJECTS / FILTERS =====
+  {cat:'projects',tag:'improve',title:'فلترة المشاريع برقم حساب العميل',
+   purpose:'كتابة رقم حساب العميل في البحث تعرض كل مشاريع نفس العميل.',
+   why:'وصول سريع لكل مشاريع عميل معيّن من رقم حسابه.',
+   how:['افتح صفحة المشاريع','اكتب رقم حساب العميل في خانة البحث','تظهر كل مشاريعه'],
+   btns:[]},
+
+  {cat:'projects',tag:'improve',title:'تحديد عدد المشاريع المعروضة بحرية',
+   purpose:'كتابة العدد الذي تريد عرضه بدل الأزرار الثابتة (12/30/الكل)، ويُطبَّق فورًا.',
+   why:'تحكّم مرن في كثافة العرض حسب رغبة المستخدم.',
+   how:['فوق قائمة المشاريع، خانة «عرض كم مشروع؟»','اكتب الرقم المطلوب — يُطبَّق تلقائيًا','أو اضغط «الكل» لعرض الجميع'],
+   btns:[['الكل','يعرض كل المشاريع']]},
+
+  // ===== PAYMENTS =====
+  {cat:'payments',tag:'improve',title:'اسم الفاتورة بارز وبخط عريض',
+   purpose:'اسم الدفعة/الفاتورة يظهر واضحاً وبخط عريض أعلى كرت الدفعة.',
+   why:'تمييز سريع لكل فاتورة دون بحث أو تدقيق.',
+   how:['افتح المشروع ← الدفعات','اسم كل دفعة يظهر بخط بارز أعلى الكرت'],
+   btns:[]},
+
+  {cat:'payments',tag:'new',title:'إرفاق أكثر من ملف عند إنشاء الدفعة',
+   purpose:'رفع عدة مرفقات (فاتورة، إيصال، ضمان...) أثناء إنشاء الدفعة مباشرة.',
+   why:'بدل إنشاء الدفعة ثم رفع المرفقات في خطوة منفصلة.',
+   how:['افتح المشروع ← الدفعات ← «إضافة دفعة»','من قسم «المرفقات» اضغط «إضافة ملفات» واختر أكثر من ملف','اضغط «إضافة» — تُحفظ الدفعة ومرفقاتها معًا'],
+   btns:[['إضافة ملفات','يضيف عدة مرفقات للدفعة الجديدة']]},
+
+  // ===== MATERIALS =====
+  {cat:'materials',tag:'fix',title:'جدول المواد قابل للتعديل الكامل + إصلاح الحفظ',
+   purpose:'إضافة/تعديل/حذف أصناف المواد مباشرة في الجدول، وتظهر فورًا بعد الحفظ.',
+   why:'كان الإدخال اليدوي أحيانًا لا يظهر بعد الحفظ — تم إصلاحه، والجدول الآن قابل للتحرير بالكامل.',
+   how:['افتح المشروع ← المواد ← «إضافة مواد / تعديل»','عدّل أي خانة مباشرة، أو احذف صنفًا، أو أضف صنفًا','اضغط «حفظ القائمة» — تظهر المواد فورًا'],
+   btns:[['إضافة صنف','يضيف صفًا جديدًا للجدول'],['حفظ القائمة','يحفظ المواد وتظهر مباشرة']]},
+
+  {cat:'materials',tag:'new',title:'لصق صفوف المواد من Excel',
+   purpose:'نسخ صفوف من ملف Excel ولصقها مباشرة في جدول المواد.',
+   why:'إدخال أسرع بكثير لقوائم المواد الكبيرة.',
+   how:['انسخ الصفوف من Excel','الصقها في أي خانة داخل جدول المواد','تتوزّع تلقائيًا: SAP · STO · اسم الصنف · الكمية · الوحدة · ملاحظات · الحالة','صف العناوين يُتجاهل تلقائيًا'],
+   btns:[]},
+
+  {cat:'materials',tag:'improve',title:'أعمدة المواد الجديدة وحالة كل صنف',
+   purpose:'أعمدة منظّمة: SAP No · STO No · اسم الصنف · الكمية · الوحدة · ملاحظات · الحالة · مرفقات.',
+   why:'مطابقة لبيانات النظام (SAP) ومتابعة حالة كل صنف بدقة.',
+   how:['افتح جدول المواد','لكل صنف حدّد حالته: مكتمل / قيد المعالجة / لم يطلب','أرفق ملفًا للصنف عند الحاجة'],
+   btns:[]},
+
+  {cat:'materials',tag:'improve',title:'«مذكرة تسليم مواد» بدل «فاتورة المواد»',
+   purpose:'تغيير المسمّى ليعكس وظيفته الصحيحة (مذكرة تسليم وليست فاتورة).',
+   why:'توضيح طبيعة المستند ومنع اللبس.',
+   how:['افتح المشروع ← المواد','بعد تجهيز المواد يظهر القسم باسم «مذكرة تسليم مواد»'],
+   btns:[]},
+
+  // ===== PURCHASE REQUESTS =====
+  {cat:'purchase',tag:'new',title:'بحث طلبات الشراء (BR / التعميد / المشروع)',
+   purpose:'الوصول لأي طلب شراء برقم BR أو رقم التعميد (Release) أو اسم المشروع أو المورّد.',
+   why:'وصول سريع للطلب المطلوب وسط كثرة الطلبات.',
+   how:['افتح «طلبات المشتريات»','اكتب في خانة البحث رقم BR أو التعميد أو اسم المشروع','تظهر الطلبات المطابقة فورًا'],
+   btns:[]},
+
+  {cat:'purchase',tag:'new',title:'مرفقات إضافية تُحفظ في مرفقات المشروع',
+   purpose:'إرفاق أكثر من ملف مع طلب الشراء (غير ملف المواد)، وتُحفظ في تاب «مرفقات» المشروع المرتبط.',
+   why:'تجميع كل مستندات المشروع في مكان واحد تلقائيًا.',
+   how:['عند إنشاء/تعديل طلب الشراء، قسم «مرفقات إضافية»','اضغط «رفع ملفات» واختر الملفات','تُحفظ تلقائيًا في تاب مرفقات المشروع المرتبط بالطلب'],
+   btns:[['رفع ملفات','يرفع مرفقات تُخزَّن في مرفقات المشروع المرتبط']]},
+
+  // ===== CLIENT TRACKING =====
+  {cat:'client',tag:'new',title:'متابعة العميل لايف — تحديث مباشر ولينك ثابت',
+   purpose:'صفحة متابعة العميل تتحدّث تلقائيًا، واللينك ثابت دائم لا يتغيّر.',
+   why:'العميل يأخذ اللينك مرة واحدة ويرى كل جديد مباشرة دون إرسال لينك جديد.',
+   how:['افتح المشروع ← «مشاركة مع العميل» وانسخ اللينك (مرة واحدة)','العميل يفتحه ويتابع: المراحل · التحصيل · المواد · التركيب','يتحدّث تلقائيًا كل 30 ثانية وعند العودة للصفحة'],
+   btns:[['مشاركة مع العميل','يُنشئ/يعرض رابط المتابعة الثابت']]},
+];
+
+var catOrder = Object.keys(CATS);
+var slides = [{type:'cover'}, {type:'ovw'}];
+catOrder.forEach(function(k){
+  var items = F.filter(function(f){return f.cat===k;});
+  if(!items.length) return;
+  slides.push({type:'section',cat:k});
+  items.forEach(function(f){ slides.push({type:'feat',f:f,cat:k}); });
+});
+slides.push({type:'end'});
+
+var TOTAL = slides.filter(function(s){return s.type==='feat';}).length;
+var i = 0;
+var stage = document.getElementById('stage');
+
+var TF = '<div class="tfmark"><img class="tflogo" src="/thakaa-flow.png" alt="ذكاء فلو" />'
+  + '<div class="tftext"><b>Thakaa Flow</b><span>ذكاء فلو</span></div></div>';
+
+function render(){
+  var s = slides[i];
+  var html = '';
+  if(s.type==='cover'){
+    html = '<div class="slide"><div class="cover">'
+      + '<div class="eyebrow">عرض تقديمي · تحديثات الإصدار v1.1</div>'
+      + '<h1>منصة سمنان</h1>'
+      + '<div class="sub">تحديثات الإصدار v1.1 — الجديد فقط</div>'
+      + '<div class="rule"></div>'
+      + '<div class="lockup">'
+      +   '<div class="logo-card fill"><img src="/samnan.jpg" alt="مجموعة سمنان القابضة" /></div>'
+      +   '<div class="x">✕</div>'
+      +   '<div class="logo-card">' + TF + '</div>'
+      + '</div>'
+      + '<div class="partner">بالتعاون بين مجموعة سمنان القابضة و ذكاء فلو</div>'
+      + '<button class="go" id="goBtn">ابدأ العرض ‹</button>'
+      + '</div></div>';
+  } else if(s.type==='ovw'){
+    var rows = '';
+    catOrder.forEach(function(k){
+      var cnt = F.filter(function(f){return f.cat===k;}).length;
+      if(!cnt) return;
+      rows += '<div class="ovw-row"><span class="d" style="background:' + CATS[k].color + '">' + CATS[k].icon + '</span>'
+        + '<span style="flex:1">' + CATS[k].label + '</span><span class="cc">' + cnt + '</span></div>';
+    });
+    html = '<div class="slide"><div class="ovw">'
+      + '<h2>محاور العرض</h2>'
+      + '<p class="lead">نستعرض التحديثات على المنصة قسماً قسماً — لكل تعديل: الهدف منه، سبب تنفيذه، خطوات استخدامه، ومعاني الأزرار.</p>'
+      + '<div class="ovw-list">' + rows + '</div></div></div>';
+  } else if(s.type==='section'){
+    var c = CATS[s.cat];
+    var cnt = F.filter(function(f){return f.cat===s.cat;}).length;
+    html = '<div class="slide"><div class="section">'
+      + '<div class="ic" style="background:' + c.color + '">' + c.icon + '</div>'
+      + '<h2>' + c.label + '</h2><div class="cnt">' + cnt + ' تعديل في هذا القسم</div>'
+      + '</div></div>';
+  } else if(s.type==='end'){
+    html = '<div class="slide"><div class="end"><div style="font-size:52px">🎉</div>'
+      + '<h2>شكراً لكم</h2>'
+      + '<p style="color:#64748b;font-size:16px">دي كل التعديلات حتى الآن. تقدر ترجع لأي تعديل من «الفهرس» بالأعلى.</p>'
+      + '<div class="credit">تطوير <b>ذكاء فلو</b> — ai@tfco.sa · لمجموعة سمنان القابضة</div>'
+      + '<button class="restart" id="restartBtn">⟲ من البداية</button></div></div>';
+  } else {
+    var f = s.f, c = CATS[s.cat], tag = TAG[f.tag];
+    var btns = '';
+    if(f.btns && f.btns.length){
+      btns = '<div class="blk"><h4>🔘 معاني الأزرار</h4><div class="btns">';
+      f.btns.forEach(function(b){ btns += '<div class="btnrow"><span class="b">' + b[0] + '</span><span class="m">' + b[1] + '</span></div>'; });
+      btns += '</div></div>';
+    }
+    var steps = '';
+    f.how.forEach(function(st){ steps += '<li>' + st + '</li>'; });
+    html = '<div class="slide"><div class="feat">'
+      + '<div class="feat-head">'
+      +   '<span class="chip">' + c.icon + ' ' + c.label + '</span>'
+      +   '<h3>' + f.title + '</h3>'
+      +   '<span class="tag" style="color:' + tag.c + ';background:' + tag.b + '">' + tag.t + '</span>'
+      + '</div>'
+      + '<div class="feat-body">'
+      +   '<div class="blk"><h4>🎯 الهدف</h4><p>' + f.purpose + '</p></div>'
+      +   '<div class="blk"><h4>💡 لماذا عملناه</h4><p>' + f.why + '</p></div>'
+      +   '<div class="blk"><h4>🧭 طريقة التنفيذ على المنصة</h4><ol class="steps">' + steps + '</ol></div>'
+      +   btns
+      + '</div></div></div>';
+  }
+  stage.innerHTML = html;
+  stage.scrollTop = 0;
+
+  var posText = '';
+  if(s.type==='feat'){
+    var seen = 0;
+    for(var j=0;j<=i;j++){ if(slides[j].type==='feat') seen++; }
+    posText = 'تعديل ' + seen + ' / ' + TOTAL;
+  }
+  document.getElementById('counter').textContent = posText;
+  document.getElementById('pos').textContent = (i+1) + ' / ' + slides.length;
+  document.getElementById('pfill').style.width = (i/(slides.length-1)*100) + '%';
+  document.getElementById('prev').disabled = (i===0);
+  document.getElementById('first').disabled = (i===0);
+  document.getElementById('next').disabled = (i===slides.length-1);
+  document.getElementById('last').disabled = (i===slides.length-1);
+
+  var go = document.getElementById('goBtn'); if(go) go.onclick = next;
+  var rs = document.getElementById('restartBtn'); if(rs) rs.onclick = function(){ i=0; render(); };
+}
+
+function next(){ if(i<slides.length-1){ i++; render(); } }
+function prev(){ if(i>0){ i--; render(); } }
+function first(){ if(i!==0){ i=0; render(); } }
+function last(){ if(i!==slides.length-1){ i=slides.length-1; render(); } }
+document.getElementById('next').onclick = next;
+document.getElementById('prev').onclick = prev;
+document.getElementById('first').onclick = first;
+document.getElementById('last').onclick = last;
+
+document.addEventListener('keydown', function(e){
+  var ov = document.getElementById('ov');
+  if(ov.classList.contains('show')){ if(e.key==='Escape') toggleAg(false); return; }
+  if(e.key==='ArrowLeft' || e.key===' ' || e.key==='PageDown'){ e.preventDefault(); next(); }
+  else if(e.key==='ArrowRight' || e.key==='PageUp'){ e.preventDefault(); prev(); }
+  else if(e.key==='Home'){ e.preventDefault(); first(); }
+  else if(e.key==='End'){ e.preventDefault(); last(); }
+});
+
+function toggleAg(show){ document.getElementById('ov').classList.toggle('show', show); }
+function buildAgenda(){
+  var box = document.getElementById('aglist');
+  var h = ''; var num = 0;
+  catOrder.forEach(function(k){
+    var items = F.filter(function(f){return f.cat===k;});
+    if(!items.length) return;
+    h += '<div class="agcat">' + CATS[k].icon + ' ' + CATS[k].label + '</div>';
+    items.forEach(function(f){
+      num++;
+      var si = slides.findIndex(function(s){ return s.type==='feat' && s.f===f; });
+      h += '<div class="agitem" data-si="' + si + '"><span class="n">' + num + '</span>' + f.title + '</div>';
+    });
+  });
+  box.innerHTML = h;
+  box.querySelectorAll('.agitem').forEach(function(el){
+    el.onclick = function(){ i = parseInt(el.dataset.si,10); render(); toggleAg(false); };
+  });
+}
+document.getElementById('agendaBtn').onclick = function(){ toggleAg(true); };
+document.getElementById('ovclose').onclick = function(){ toggleAg(false); };
+document.getElementById('ov').onclick = function(e){ if(e.target.id==='ov') toggleAg(false); };
+
+buildAgenda();
+render();
+</script>
+</body>
+</html>
