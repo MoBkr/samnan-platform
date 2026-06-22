@@ -538,9 +538,17 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                 <button type="button" onClick={() => otherInputRef.current?.click()}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700">
                   <Upload className="h-4 w-4" /> إضافة ملفات
+                  {otherFiles.length > 0 && <span className="rounded-full bg-brand-100 px-1.5 text-[10px] font-bold text-brand-700">{otherFiles.length}</span>}
                 </button>
                 <input ref={otherInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
-                  onChange={(e) => { setOtherFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]); e.target.value = '' }} />
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? [])
+                    e.target.value = ''
+                    if (picked.length) {
+                      setOtherFiles((prev) => [...prev, ...picked])
+                      toast.success(`تمت إضافة ${picked.length} ملف للقائمة`)
+                    }
+                  }} />
               </div>
             </div>
 
