@@ -68,12 +68,14 @@ export interface Payment {
 }
 
 export interface MaterialItem {
-  // New procurement columns
+  // Procurement columns — order matches the client's Excel sheet:
+  // Legal Study · SAP No · Description · Qty · STO No · Item Status · Note · Attachment
+  legal_study?: string                  // الفحص القانوني (Completed / ...)
   sap_no?: string
   description?: string
   quantity?: number
   sto_no?: string
-  status?: string                       // مكتمل / قيد المعالجة / بانتظار التوريد / تم التوريد ...
+  status?: string                       // حالة الصنف: مكتمل / قيد المعالجة / لم يطلب ...
   notes?: string
   attachments?: { url: string; name: string }[]
   // Legacy fields (older records) — kept optional for backward compatibility

@@ -28,6 +28,16 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Riyadh' })
 }
 
+// Map common English Excel statuses to the Arabic options used in the dropdown.
+function normalizeStatus(v: string): string {
+  const s = v.trim().toLowerCase()
+  if (!s) return ''
+  if (s === 'completed' || s === 'complete' || s === 'done') return 'مكتمل'
+  if (s === 'in progress' || s === 'inprogress' || s === 'in-progress' || s === 'processing') return 'قيد المعالجة'
+  if (s === 'not requested' || s === 'pending' || s === 'not ordered') return 'لم يطلب'
+  return v.trim()  // keep as-is (already Arabic or custom)
+}
+
 function DocRow({ doc }: { doc: Document }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
@@ -62,13 +72,13 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
             <th className="px-3 py-2.5 text-start font-medium">#</th>
+            <th className="px-3 py-2.5 text-start font-medium">الفحص القانوني</th>
             <th className="px-3 py-2.5 text-start font-medium" dir="ltr">SAP No</th>
-            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">STO No</th>
-            <th className="px-3 py-2.5 text-start font-medium">اسم الصنف</th>
+            <th className="px-3 py-2.5 text-start font-medium">الوصف</th>
             <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
-            <th className="px-3 py-2.5 text-start font-medium">الوحدة</th>
+            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">STO No</th>
+            <th className="px-3 py-2.5 text-start font-medium">حالة الصنف</th>
             <th className="px-3 py-2.5 text-start font-medium">ملاحظات</th>
-            <th className="px-3 py-2.5 text-start font-medium">الحالة</th>
             <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
           </tr>
         </thead>
@@ -76,17 +86,21 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
           {items.map((item, i) => (
             <tr key={i}>
               <td className="px-3 py-2.5 text-gray-400">{i + 1}</td>
+              <td className="px-3 py-2.5">
+                {item.legal_study
+                  ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[item.legal_study] ?? 'bg-gray-100 text-gray-600'}`}>{item.legal_study}</span>
+                  : <span className="text-gray-400">—</span>}
+              </td>
               <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sap_no || '—'}</td>
-              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
               <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-normal">{item.description || item.name || '—'}</td>
               <td className="px-3 py-2.5 text-gray-700">{item.quantity ?? '—'}</td>
-              <td className="px-3 py-2.5 text-gray-500">{item.unit || '—'}</td>
-              <td className="px-3 py-2.5 text-gray-400 italic whitespace-normal">{item.notes || '—'}</td>
+              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
               <td className="px-3 py-2.5">
                 {item.status
                   ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[item.status] ?? 'bg-gray-100 text-gray-600'}`}>{item.status}</span>
                   : <span className="text-gray-400">—</span>}
               </td>
+              <td className="px-3 py-2.5 text-gray-400 italic whitespace-normal">{item.notes || '—'}</td>
               <td className="px-3 py-2.5">
                 {item.attachments && item.attachments.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
@@ -199,31 +213,33 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   }
 
   // Paste multiple rows from Excel: TSV (tab between columns, newline between rows).
-  // Column order: SAP No · STO No · اسم الصنف · الكمية · الوحدة · ملاحظات · الحالة
+  // Column order matches the client's sheet: Legal Study · SAP No · Description · Qty · STO No · Item Status · Note · Attachment
   function handlePasteRows(e: React.ClipboardEvent, startIdx: number) {
     const text = e.clipboardData.getData('text/plain')
     if (!text || !/[\t\n]/.test(text)) return  // single value → let default paste happen
     e.preventDefault()
     let rows = text.replace(/\r/g, '').split('\n').filter((r) => r.trim() !== '')
     // Skip an Excel header row if present (works for Arabic or English headers).
-    const HEADER_HINT = /sap|sto|qty|quant|desc|status|note|الوصف|كمية|الحالة|ملاحظ|الكمية/i
+    const HEADER_HINT = /legal|study|sap|sto|qty|quant|desc|status|note|attach|الوصف|كمية|الحالة|ملاحظ|الكمية|قانون|مرفق/i
     if (rows.length > 1) {
       const first = rows[0].toLowerCase()
       const looksHeader = (first.includes('sap') || first.includes('sto') || HEADER_HINT.test(rows[0])) && !/\d{3,}/.test(rows[0])
       if (looksHeader) rows = rows.slice(1)
     }
+    // Excel column order: Legal Study · SAP No · Description · Qty · STO No · Item Status · Note · Attachment
     const parsed: MaterialItem[] = rows.map((r) => {
       const c = r.split('\t')
       const qty = parseFloat((c[3] ?? '').replace(/[^\d.]/g, ''))
       return {
-        sap_no: (c[0] ?? '').trim() || undefined,
-        sto_no: (c[1] ?? '').trim() || undefined,
+        legal_study: normalizeStatus((c[0] ?? '').trim()) || undefined,
+        sap_no: (c[1] ?? '').trim() || undefined,
         description: (c[2] ?? '').trim(),
         quantity: isNaN(qty) ? undefined : qty,
-        unit: (c[4] ?? '').trim() || undefined,
-        notes: (c[5] ?? '').trim() || undefined,
-        status: (c[6] ?? '').trim() || 'قيد المعالجة',
+        sto_no: (c[4] ?? '').trim() || undefined,
+        status: normalizeStatus((c[5] ?? '').trim()) || 'قيد المعالجة',
+        notes: (c[6] ?? '').trim() || undefined,
         attachments: [],
+        // c[7] = Attachment column from Excel — files can't be pasted; upload manually.
       }
     })
     setDraftItems((prev) => {
@@ -429,7 +445,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 {/* Excel paste hint (optional — manual entry still works) */}
                 <div className="flex items-start gap-2 rounded-lg bg-blue-50/60 border border-blue-100 px-3 py-2 text-[11px] text-blue-700">
                   <ClipboardPaste className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>أدخل يدويًا، أو انسخ الصفوف من Excel والصقها في أي خانة — بالترتيب: <b>SAP No · STO No · اسم الصنف · الكمية · الوحدة · ملاحظات · الحالة</b>. صف العناوين يُتجاهل تلقائيًا (عربي أو إنجليزي).</span>
+                  <span>أدخل يدويًا، أو انسخ الصفوف من Excel والصقها في أي خانة — بنفس ترتيب ملفكم: <b>الفحص القانوني · SAP No · الوصف · الكمية · STO No · حالة الصنف · ملاحظات · المرفق</b>. صف العناوين يُتجاهل تلقائيًا، وعمود المرفق يُرفع يدويًا.</span>
                 </div>
 
                 {draftItems.length > 0 ? (
@@ -437,13 +453,13 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     <table className="w-full text-sm whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
+                          <th className="px-2 py-2 text-start font-medium">الفحص القانوني</th>
                           <th className="px-2 py-2 text-start font-medium" dir="ltr">SAP No</th>
-                          <th className="px-2 py-2 text-start font-medium" dir="ltr">STO No</th>
-                          <th className="px-2 py-2 text-start font-medium">اسم الصنف *</th>
+                          <th className="px-2 py-2 text-start font-medium">الوصف *</th>
                           <th className="px-2 py-2 text-start font-medium">الكمية</th>
-                          <th className="px-2 py-2 text-start font-medium">الوحدة</th>
+                          <th className="px-2 py-2 text-start font-medium" dir="ltr">STO No</th>
+                          <th className="px-2 py-2 text-start font-medium">حالة الصنف</th>
                           <th className="px-2 py-2 text-start font-medium">ملاحظات</th>
-                          <th className="px-2 py-2 text-start font-medium">الحالة</th>
                           <th className="px-2 py-2 text-start font-medium">مرفقات</th>
                           <th className="px-2 py-2" />
                         </tr>
@@ -451,33 +467,39 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                       <tbody className="bg-white divide-y divide-gray-50">
                         {draftItems.map((item, i) => (
                           <tr key={i}>
+                            <td className="px-2 py-1.5 w-36">
+                              <select
+                                value={item.legal_study ?? ''}
+                                onChange={(e) => updateDraftItem(i, { legal_study: e.target.value })}
+                                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15"
+                              >
+                                <option value="">—</option>
+                                {MATERIAL_ITEM_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                {item.legal_study && !MATERIAL_ITEM_STATUSES.includes(item.legal_study as typeof MATERIAL_ITEM_STATUSES[number]) && (
+                                  <option value={item.legal_study}>{item.legal_study}</option>
+                                )}
+                              </select>
+                            </td>
                             <td className="px-2 py-1.5 w-28">
                               <Input className="h-9" dir="ltr" placeholder="SAP" value={item.sap_no ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { sap_no: e.target.value })} />
                             </td>
-                            <td className="px-2 py-1.5 w-28">
-                              <Input className="h-9" dir="ltr" placeholder="STO" value={item.sto_no ?? ''}
-                                onPaste={(e) => handlePasteRows(e, i)}
-                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
-                            </td>
                             <td className="px-2 py-1.5 min-w-[180px]">
-                              <Input className="h-9" placeholder="اسم الصنف" value={item.description ?? item.name ?? ''}
+                              <Input className="h-9" placeholder="الوصف" value={item.description ?? item.name ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { description: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 w-20">
                               <Input className="h-9" type="number" min="0" step="0.01" placeholder="0" dir="ltr"
                                 value={item.quantity ?? ''}
+                                onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { quantity: e.target.value === '' ? undefined : parseFloat(e.target.value) })} />
                             </td>
-                            <td className="px-2 py-1.5 w-24">
-                              <Input className="h-9" placeholder="متر، قطعة" value={item.unit ?? ''}
-                                onChange={(e) => updateDraftItem(i, { unit: e.target.value })} />
-                            </td>
-                            <td className="px-2 py-1.5 min-w-[140px]">
-                              <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
-                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
+                            <td className="px-2 py-1.5 w-28">
+                              <Input className="h-9" dir="ltr" placeholder="STO" value={item.sto_no ?? ''}
+                                onPaste={(e) => handlePasteRows(e, i)}
+                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 w-36">
                               <select
@@ -490,6 +512,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                   <option value={item.status}>{item.status}</option>
                                 )}
                               </select>
+                            </td>
+                            <td className="px-2 py-1.5 min-w-[140px]">
+                              <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
+                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 min-w-[120px]">
                               <div className="flex flex-wrap items-center gap-1">
