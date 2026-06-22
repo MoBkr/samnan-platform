@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import {
-  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, ClipboardPaste, X, Printer,
+  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -220,18 +220,22 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       const looksHeader = (first.includes('sap') || first.includes('sto') || HEADER_HINT.test(rows[0])) && !/\d{3,}/.test(rows[0])
       if (looksHeader) rows = rows.slice(1)
     }
-    // Excel column order: [Legal Study] · SAP No · Description · Qty · STO No · Item Status · Note · Attachment
-    // The first column (Legal Study) and the last (Attachment) are ignored.
+    // Target order: SAP No · Description · Qty · STO No · Item Status · Note.
+    // Some sheets start with a leading "Legal Study" status column — auto-detect
+    // it (a status word in the first cell, not a SAP-like number) and shift by one.
+    const STATUS_WORDS = /^(completed|complete|done|in[\s-]?progress|processing|not[\s-]?requested|pending|مكتمل|قيد|لم\s)/i
+    const firstCell = (rows[0].split('\t')[0] ?? '').trim()
+    const off = STATUS_WORDS.test(firstCell) ? 1 : 0
     const parsed: MaterialItem[] = rows.map((r) => {
       const c = r.split('\t')
-      const qty = parseFloat((c[3] ?? '').replace(/[^\d.]/g, ''))
+      const qty = parseFloat((c[2 + off] ?? '').replace(/[^\d.]/g, ''))
       return {
-        sap_no: (c[1] ?? '').trim() || undefined,
-        description: (c[2] ?? '').trim(),
+        sap_no: (c[0 + off] ?? '').trim() || undefined,
+        description: (c[1 + off] ?? '').trim(),
         quantity: isNaN(qty) ? undefined : qty,
-        sto_no: (c[4] ?? '').trim() || undefined,
-        status: normalizeStatus((c[5] ?? '').trim()) || 'قيد المعالجة',
-        notes: (c[6] ?? '').trim() || undefined,
+        sto_no: (c[3 + off] ?? '').trim() || undefined,
+        status: normalizeStatus((c[4 + off] ?? '').trim()) || 'قيد المعالجة',
+        notes: (c[5 + off] ?? '').trim() || undefined,
         attachments: [],
       }
     })
@@ -435,12 +439,6 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
             {editingItems ? (
               <div className="space-y-3 rounded-xl border border-brand-100 bg-white p-4">
-                {/* Excel paste hint (optional — manual entry still works) */}
-                <div className="flex items-start gap-2 rounded-lg bg-blue-50/60 border border-blue-100 px-3 py-2 text-[11px] text-blue-700">
-                  <ClipboardPaste className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>أدخل يدويًا، أو انسخ الصفوف من Excel والصقها في أي خانة — بنفس ترتيب ملفكم. يتم تجاهل عمود «الفحص القانوني» (الأول) وعمود «المرفق» تلقائيًا، وتتوزّع الباقي: <b>SAP No · الوصف · الكمية · STO No · الحالة · ملاحظات</b>. صف العناوين يُتجاهل أيضًا.</span>
-                </div>
-
                 {draftItems.length > 0 ? (
                   <div className="overflow-x-auto rounded-lg border border-gray-100">
                     <table className="w-full text-sm whitespace-nowrap">
