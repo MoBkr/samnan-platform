@@ -45,10 +45,12 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   const [isPending, startTransition] = useTransition()
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
-  const [addFiles, setAddFiles] = useState<File[]>([])
+  const [primaryFile, setPrimaryFile] = useState<File | null>(null)   // المرفق الأساسي للدفعة
+  const [otherFiles, setOtherFiles] = useState<File[]>([])            // مرفقات أخرى
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachInputRef = useRef<HTMLInputElement>(null)
-  const addFilesInputRef = useRef<HTMLInputElement>(null)
+  const primaryInputRef = useRef<HTMLInputElement>(null)
+  const otherInputRef = useRef<HTMLInputElement>(null)
 
   const selectedPayment = payments.find((p) => p.id === recordPaymentId)
   const editingPayment = payments.find((p) => p.id === editPaymentId)
@@ -66,7 +68,8 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   function openAddDialog() {
     setAddType('')
     setInv({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
-    setAddFiles([])
+    setPrimaryFile(null)
+    setOtherFiles([])
     setShowAddDialog(true)
   }
 
@@ -89,18 +92,24 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
       try {
         const result = await createPayment(formData)
         if (result?.error) { toast.error(result.error); return }
-        // Upload any attachments staged during creation → link to the new payment
+        // Upload attachments staged during creation → link to the new payment
         const newId = result?.paymentId
-        if (newId && addFiles.length > 0) {
+        if (newId && (primaryFile || otherFiles.length > 0)) {
+          const typeLabel = type === 'custom'
+            ? ((formData.get('name') as string)?.trim() || 'الدفعة')
+            : (PAYMENT_TYPE_LABELS[type as keyof typeof PAYMENT_TYPE_LABELS] ?? 'الدفعة')
           let ok = 0
-          for (const file of addFiles) {
-            const up = await uploadFileDirect(file, 'receipts')
+          const jobs: { file: File; desc: string }[] = []
+          if (primaryFile) jobs.push({ file: primaryFile, desc: `مرفق ${typeLabel}` })
+          for (const f of otherFiles) jobs.push({ file: f, desc: f.name })
+          for (const job of jobs) {
+            const up = await uploadFileDirect(job.file, 'receipts')
             if ('error' in up) { toast.error(up.error); continue }
-            const res = await savePaymentAttachment(projectId, newId, 'receipt', up.url, file.name)
-            if (!('error' in res)) ok++
+            const res = await savePaymentAttachment(projectId, newId, 'receipt', up.url, job.desc)
+            if ('error' in res) toast.error(res.error)
+            else ok++
           }
-          if (ok > 0) toast.success(`تم إضافة الدفعة و ${ok} مرفق`)
-          else toast.success('تم إضافة الدفعة بنجاح')
+          toast.success(ok > 0 ? `تم إضافة الدفعة و ${ok} مرفق` : 'تم إضافة الدفعة')
         } else {
           toast.success('تم إضافة الدفعة بنجاح')
         }
@@ -487,29 +496,51 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
               </div>
             </div>
 
-            {/* Attachments at creation (multiple) */}
+            {/* Primary attachment — labelled by the payment type */}
             <div className="space-y-1.5">
-              <Label>المرفقات (فاتورة، إيصال، ضمان… — أكثر من ملف)</Label>
+              <Label>
+                المرفق الأساسي
+                <span className="text-gray-400 font-normal"> — {addType === 'custom' ? 'مرفق الدفعة' : `مرفق ${PAYMENT_TYPE_LABELS[addType as keyof typeof PAYMENT_TYPE_LABELS] ?? 'الدفعة'}`}</span>
+              </Label>
+              {primaryFile ? (
+                <div className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2">
+                  {primaryFile.type === 'application/pdf' ? <FileText className="h-4 w-4 text-brand-700 shrink-0" /> : <ImageIcon className="h-4 w-4 text-brand-700 shrink-0" />}
+                  <span className="flex-1 text-sm text-gray-800 truncate">{primaryFile.name}</span>
+                  <button type="button" onClick={() => setPrimaryFile(null)} className="text-gray-400 hover:text-red-500"><X className="h-4 w-4" /></button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => primaryInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-3 text-sm text-gray-500 hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
+                  <Upload className="h-4 w-4" /> رفع المرفق الأساسي
+                </button>
+              )}
+              <input ref={primaryInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+                onChange={(e) => { setPrimaryFile(e.target.files?.[0] ?? null); e.target.value = '' }} />
+            </div>
+
+            {/* Other attachments (multiple) */}
+            <div className="space-y-1.5">
+              <Label>مرفقات أخرى <span className="text-gray-400 font-normal">— اختياري (أكثر من ملف)</span></Label>
               <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 space-y-2">
-                {addFiles.length > 0 && (
+                {otherFiles.length > 0 && (
                   <div className="space-y-1.5">
-                    {addFiles.map((f, i) => (
+                    {otherFiles.map((f, i) => (
                       <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-white px-2.5 py-1.5">
                         {f.type === 'application/pdf' ? <FileText className="h-4 w-4 text-gray-400 shrink-0" /> : <ImageIcon className="h-4 w-4 text-gray-400 shrink-0" />}
                         <span className="flex-1 text-xs text-gray-700 truncate">{f.name}</span>
-                        <button type="button" onClick={() => setAddFiles((prev) => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">
+                        <button type="button" onClick={() => setOtherFiles((prev) => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
-                <button type="button" onClick={() => addFilesInputRef.current?.click()}
+                <button type="button" onClick={() => otherInputRef.current?.click()}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700">
                   <Upload className="h-4 w-4" /> إضافة ملفات
                 </button>
-                <input ref={addFilesInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
-                  onChange={(e) => { setAddFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]); e.target.value = '' }} />
+                <input ref={otherInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+                  onChange={(e) => { setOtherFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])]); e.target.value = '' }} />
               </div>
             </div>
 
