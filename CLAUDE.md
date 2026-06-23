@@ -25,8 +25,8 @@
 
 ⚙️ **Supabase — Password reset + email (Mohamed, dashboard).** Code is ready (`/auth/callback` handles both PKCE `code` and OTP `token_hash`). Remaining dashboard steps so the email link stops showing "expired":
 1. **Auth → URL Configuration:** Site URL = `https://samnan-platform.vercel.app`; add Redirect URL `https://samnan-platform.vercel.app/**`. (If `/auth/callback` isn't allow-listed the link fails.)
-2. **Auth → Email Templates → Reset Password:** switch the link to token_hash (cross-browser/device safe, avoids PKCE verifier failure):
-   `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">إعادة تعيين</a>`
+2. **Auth → Email Templates → Reset Password:** switch the link to token_hash pointing straight at the reset page (scanner-proof: page verifies only on submit via `completePasswordReset`, and token_hash needs no PKCE verifier so it works on any device):
+   `<a href="{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery">إعادة تعيين كلمة المرور</a>`
 3. **Custom SMTP** (Auth → Settings → SMTP) with Resend / SES / SendGrid — built-in email is testing-only & rate-limited (~2–4/hr).
 Interim: admins set passwords directly from إدارة المستخدمين (no email needed).
 

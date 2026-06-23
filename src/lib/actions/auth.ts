@@ -82,6 +82,31 @@ export async function requestPasswordReset(formData: FormData) {
   return { success: true }
 }
 
+// Scanner-resistant password reset: the email link carries a token_hash and
+// lands on the reset page WITHOUT verifying. Verification + password update
+// happen here only when the user actually submits — so email link scanners
+// (Outlook Safe Links, antivirus) that just GET the link can't consume it.
+// token_hash also needs no PKCE verifier, so it works from any device/browser.
+export async function completePasswordReset(tokenHash: string, password: string) {
+  if (!tokenHash) return { error: 'رابط غير صالح' }
+  if (!password || password.length < 6) return { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }
+
+  const supabase = await createClient()
+  const { error: verifyError } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
+  if (verifyError) {
+    return { error: 'انتهت صلاحية الرابط أو أنه غير صالح. اطلب رابطاً جديداً.' }
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password })
+  if (updateError) {
+    if (updateError.message.includes('New password should be different')) {
+      return { error: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن القديمة' }
+    }
+    return { error: 'تعذّر تحديث كلمة المرور. حاول مرة أخرى' }
+  }
+  return { success: true }
+}
+
 export async function createUser(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string

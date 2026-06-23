@@ -9,54 +9,40 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { createClient } from '@/lib/supabase/client'
+import { completePasswordReset } from '@/lib/actions/auth'
 
 type Status = 'verifying' | 'ready' | 'invalid' | 'done'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [status, setStatus] = useState<Status>('verifying')
+  const [tokenHash, setTokenHash] = useState<string | null>(null)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [show, setShow] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Detect the recovery session that Supabase places in the URL when the
-  // user clicks the email link. The browser client auto-processes it.
   useEffect(() => {
-    // The server callback redirects here with ?error=expired when it couldn't
-    // establish the recovery session — show the invalid state immediately.
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('error')) {
-      setStatus('invalid')
-      return
-    }
+    const params = new URLSearchParams(window.location.search)
 
+    // Server callback couldn't establish a session.
+    if (params.get('error')) { setStatus('invalid'); return }
+
+    // Preferred flow: email link carries a token_hash. Show the form WITHOUT
+    // verifying yet — we verify on submit (scanner-proof, works any device).
+    const th = params.get('token_hash')
+    if (th) { setTokenHash(th); setStatus('ready'); return }
+
+    // Fallback: PKCE/session flow (came via /auth/callback which set a session).
     const supabase = createClient()
     let resolved = false
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) {
-        resolved = true
-        setStatus('ready')
-      }
+      if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) { resolved = true; setStatus('ready') }
     })
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        resolved = true
-        setStatus('ready')
-      }
-    })
-
-    // If no recovery session appears, the link is invalid or expired.
-    const timer = setTimeout(() => {
-      if (!resolved) setStatus('invalid')
-    }, 3500)
-
-    return () => {
-      subscription.unsubscribe()
-      clearTimeout(timer)
-    }
+    supabase.auth.getSession().then(({ data }) => { if (data.session) { resolved = true; setStatus('ready') } })
+    const timer = setTimeout(() => { if (!resolved) setStatus('invalid') }, 3500)
+    return () => { subscription.unsubscribe(); clearTimeout(timer) }
   }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -73,10 +59,24 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true)
+
+    // token_hash flow → verify + update on the server in one step
+    if (tokenHash) {
+      const result = await completePasswordReset(tokenHash, password)
+      setLoading(false)
+      if (result?.error) {
+        if (result.error.includes('انتهت')) setStatus('invalid')
+        else setError(result.error)
+        return
+      }
+      setStatus('done')
+      return
+    }
+
+    // Fallback: session already established (PKCE)
     const supabase = createClient()
     const { error: updateError } = await supabase.auth.updateUser({ password })
     setLoading(false)
-
     if (updateError) {
       if (updateError.message.includes('New password should be different')) {
         setError('كلمة المرور الجديدة يجب أن تكون مختلفة عن القديمة')
@@ -87,7 +87,6 @@ export default function ResetPasswordPage() {
       }
       return
     }
-
     setStatus('done')
   }
 
