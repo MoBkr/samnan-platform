@@ -28,6 +28,38 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Riyadh' })
 }
 
+// Parse clipboard TSV from Excel respecting quoted fields, doubled quotes ("")
+// and newlines INSIDE quoted cells — so descriptions with " or line breaks
+// don't shift the columns.
+function parseClipboardTable(text: string): string[][] {
+  const s = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let inQuotes = false
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++ }
+        else inQuotes = false
+      } else field += ch
+    } else if (ch === '"') {
+      inQuotes = true
+    } else if (ch === '\t') {
+      row.push(field); field = ''
+    } else if (ch === '\n') {
+      row.push(field); rows.push(row); row = []; field = ''
+    } else {
+      field += ch
+    }
+  }
+  row.push(field)
+  rows.push(row)
+  // Drop fully-empty rows
+  return rows.filter((r) => r.some((c) => c.trim() !== ''))
+}
+
 // Map common English Excel statuses to the Arabic options used in the dropdown.
 function normalizeStatus(v: string): string {
   const s = v.trim().toLowerCase()
@@ -150,6 +182,19 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   // (Legacy price total — only meaningful for old records that carried unit_price.)
   const itemsTotal = draftItems.reduce((sum, item) => sum + ((item.quantity ?? 0) * (item.unit_price ?? 0)), 0)
 
+  // Count rows that repeat an earlier SAP No (to offer a dedupe button).
+  const sapDupCount = (() => {
+    const seen = new Set<string>()
+    let dups = 0
+    for (const it of draftItems) {
+      const s = (it.sap_no ?? '').trim()
+      if (!s) continue
+      if (seen.has(s)) dups++
+      else seen.add(s)
+    }
+    return dups
+  })()
+
   const [rowUploading, setRowUploading] = useState<number | null>(null)
 
   function rowEmpty(it: MaterialItem) {
@@ -196,6 +241,21 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     setDraftItems((prev) => prev.filter((_, i) => i !== idx))
   }
 
+  // Remove rows that repeat an earlier SAP No, keeping the first of each.
+  function dedupeBySap() {
+    const seen = new Set<string>()
+    const next = draftItems.filter((it) => {
+      const s = (it.sap_no ?? '').trim()
+      if (!s) return true               // rows without SAP are left untouched
+      if (seen.has(s)) return false
+      seen.add(s); return true
+    })
+    const removed = draftItems.length - next.length
+    if (removed === 0) { toast.info('لا يوجد تكرار في رقم SAP'); return }
+    setDraftItems(next)
+    toast.success(`تم حذف ${removed} صنف مكرر بنفس رقم SAP`)
+  }
+
   function printMaterials() {
     document.body.classList.add('printing-materials')
     const cleanup = () => {
@@ -212,22 +272,23 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     const text = e.clipboardData.getData('text/plain')
     if (!text || !/[\t\n]/.test(text)) return  // single value → let default paste happen
     e.preventDefault()
-    let rows = text.replace(/\r/g, '').split('\n').filter((r) => r.trim() !== '')
+    let rows = parseClipboardTable(text)
+    if (rows.length === 0) return
     // Skip an Excel header row if present (works for Arabic or English headers).
     const HEADER_HINT = /legal|study|sap|sto|qty|quant|desc|status|note|attach|الوصف|كمية|الحالة|ملاحظ|الكمية|قانون|مرفق/i
     if (rows.length > 1) {
-      const first = rows[0].toLowerCase()
-      const looksHeader = (first.includes('sap') || first.includes('sto') || HEADER_HINT.test(rows[0])) && !/\d{3,}/.test(rows[0])
+      const firstJoined = rows[0].join(' ')
+      const low = firstJoined.toLowerCase()
+      const looksHeader = (low.includes('sap') || low.includes('sto') || HEADER_HINT.test(firstJoined)) && !/\d{3,}/.test(firstJoined)
       if (looksHeader) rows = rows.slice(1)
     }
     // Target order: SAP No · Description · Qty · STO No · Item Status · Note.
     // Some sheets start with a leading "Legal Study" status column — auto-detect
     // it (a status word in the first cell, not a SAP-like number) and shift by one.
     const STATUS_WORDS = /^(completed|complete|done|in[\s-]?progress|processing|not[\s-]?requested|pending|مكتمل|قيد|لم\s)/i
-    const firstCell = (rows[0].split('\t')[0] ?? '').trim()
+    const firstCell = (rows[0][0] ?? '').trim()
     const off = STATUS_WORDS.test(firstCell) ? 1 : 0
-    const parsed: MaterialItem[] = rows.map((r) => {
-      const c = r.split('\t')
+    const parsed: MaterialItem[] = rows.map((c) => {
       const qty = parseFloat((c[2 + off] ?? '').replace(/[^\d.]/g, ''))
       return {
         sap_no: (c[0 + off] ?? '').trim() || undefined,
@@ -525,10 +586,19 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   <p className="text-xs text-gray-400 text-center py-3">اضغط «إضافة صنف» للإدخال اليدوي، أو الصق صفوف Excel</p>
                 )}
 
-                <Button type="button" size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5">
-                  <Plus className="h-3.5 w-3.5" />
-                  إضافة صنف
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    إضافة صنف
+                  </Button>
+                  {sapDupCount > 0 && (
+                    <Button type="button" size="sm" variant="outline" onClick={dedupeBySap}
+                      className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      حذف المكرر بنفس SAP ({sapDupCount})
+                    </Button>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
                   <Button size="sm" loading={isPending} onClick={handleSaveItems} className="gap-1.5">
