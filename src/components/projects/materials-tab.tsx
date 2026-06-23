@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer,
@@ -196,6 +196,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   })()
 
   const [rowUploading, setRowUploading] = useState<number | null>(null)
+  const [importingExcel, setImportingExcel] = useState(false)
+  const excelInputRef = useRef<HTMLInputElement>(null)
 
   function rowEmpty(it: MaterialItem) {
     return !(it.description?.trim() || it.name?.trim() || it.sap_no?.trim() || it.sto_no?.trim() || it.notes?.trim() || it.quantity)
@@ -254,6 +256,63 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     if (removed === 0) { toast.info('لا يوجد تكرار في رقم SAP'); return }
     setDraftItems(next)
     toast.success(`تم حذف ${removed} صنف مكرر بنفس رقم SAP`)
+  }
+
+  // Upload an Excel/CSV file and parse it with a real spreadsheet reader —
+  // far more reliable than pasting (reads actual cells, any column order).
+  async function handleExcelFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setImportingExcel(true)
+    try {
+      const XLSX = await import('xlsx')
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const grid = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: false, defval: '' })
+      if (!grid.length) { toast.error('الملف فارغ'); return }
+
+      // Find the header row within the first few rows
+      const isHeaderCell = (v: string) => /sap|sto|desc|qty|quant|status|note|الوصف|الصنف|الكمية|كمية|الحالة|ملاحظ|بيان/i.test(String(v))
+      let headerIdx = grid.findIndex((r) => r.some(isHeaderCell))
+      if (headerIdx < 0) headerIdx = 0
+      const headers = (grid[headerIdx] ?? []).map((h) => String(h).trim())
+
+      const find = (re: RegExp) => headers.findIndex((h) => re.test(h))
+      const iSap = find(/sap|ساب/i)
+      const iDesc = find(/desc|الوصف|الصنف|بيان/i)
+      const iQty = find(/qty|quant|الكمية|كمية|العدد/i)
+      const iSto = find(/sto/i)
+      const iStatus = find(/status|الحالة|^حالة/i)
+      const iNote = find(/note|ملاحظ/i)
+
+      const items: MaterialItem[] = []
+      for (const row of grid.slice(headerIdx + 1)) {
+        const cell = (i: number) => (i >= 0 ? String(row[i] ?? '').trim() : '')
+        const description = cell(iDesc)
+        const sap = cell(iSap)
+        if (!description && !sap) continue        // skip empty rows
+        const qty = parseFloat(cell(iQty).replace(/[^\d.]/g, ''))
+        items.push({
+          sap_no: sap || undefined,
+          description,
+          quantity: isNaN(qty) ? undefined : qty,
+          sto_no: cell(iSto) || undefined,
+          status: normalizeStatus(cell(iStatus)) || 'قيد المعالجة',
+          notes: cell(iNote) || undefined,
+          attachments: [],
+        })
+      }
+      if (items.length === 0) { toast.error('لم يتم العثور على صفوف مواد في الملف'); return }
+      setDraftItems((prev) => [...prev, ...items])
+      setEditingItems(true)
+      toast.success(`تم استيراد ${items.length} صنف من الملف`)
+    } catch {
+      toast.error('تعذّر قراءة الملف. تأكد أنه Excel أو CSV صالح')
+    } finally {
+      setImportingExcel(false)
+    }
   }
 
   function printMaterials() {
@@ -591,6 +650,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     <Plus className="h-3.5 w-3.5" />
                     إضافة صنف
                   </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => excelInputRef.current?.click()}
+                    disabled={importingExcel} className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                    {importingExcel ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    رفع ملف Excel
+                  </Button>
+                  <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelFile} />
                   {sapDupCount > 0 && (
                     <Button type="button" size="sm" variant="outline" onClick={dedupeBySap}
                       className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50">
