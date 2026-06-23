@@ -23,7 +23,12 @@
 
 ✅ **Session 2026-06-15 migrations (DONE — Mohamed confirmed):** installations `stages`+`expected_duration`, projects `public_token`, `technicians`+`technician_assignments` tables, `app_notifications` table. (SQL kept in git history / commit messages if ever needed to re-run.)
 
-⚙️ **Supabase — Custom SMTP for production email (RECOMMENDED, Mohamed):** The built-in Supabase email is testing-only and rate-limited (~2–4/hour) → blocks real password-reset usage. Configure custom SMTP (Auth → Settings → SMTP) with Resend / Amazon SES / SendGrid to remove the limit and improve deliverability. Password-reset code flow is already fixed (server-side exchange via `/auth/callback`); SMTP is the remaining production gap. Meanwhile, admins can set passwords directly from إدارة المستخدمين.
+⚙️ **Supabase — Password reset + email (Mohamed, dashboard).** Code is ready (`/auth/callback` handles both PKCE `code` and OTP `token_hash`). Remaining dashboard steps so the email link stops showing "expired":
+1. **Auth → URL Configuration:** Site URL = `https://samnan-platform.vercel.app`; add Redirect URL `https://samnan-platform.vercel.app/**`. (If `/auth/callback` isn't allow-listed the link fails.)
+2. **Auth → Email Templates → Reset Password:** switch the link to token_hash (cross-browser/device safe, avoids PKCE verifier failure):
+   `<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">إعادة تعيين</a>`
+3. **Custom SMTP** (Auth → Settings → SMTP) with Resend / SES / SendGrid — built-in email is testing-only & rate-limited (~2–4/hr).
+Interim: admins set passwords directly from إدارة المستخدمين (no email needed).
 
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
