@@ -14,11 +14,19 @@ import { cn } from '@/lib/utils'
 import { STATUS_LABELS } from '@/lib/constants'
 import type { Project, Profile, ProjectStatus } from '@/types/database'
 
+export interface ProjectProgress {
+  overall: number
+  collection: number
+  materials: number
+  installation: number | null
+}
+
 interface ProjectsListProps {
   projects: Project[]
   myProjectIds: Set<string>
   currentProfile: Profile
   canCreate: boolean
+  progress?: Record<string, ProjectProgress>
 }
 
 type View = 'mine' | 'all'
@@ -35,7 +43,7 @@ function projectTeam(p: Project) {
   return [p.coordinator, p.sales_engineer, p.installation_person].filter(Boolean) as Profile[]
 }
 
-export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate }: ProjectsListProps) {
+export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate, progress }: ProjectsListProps) {
   const isAdmin = currentProfile.role === 'admin'
   const [view, setView] = useState<View>('mine')
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all')
@@ -300,6 +308,7 @@ export function ProjectsList({ projects, myProjectIds, currentProfile, canCreate
               project={project}
               isMine={myProjectIds.has(project.id)}
               showMineTag={!isAdmin && view === 'all'}
+              progress={progress?.[project.id]}
             />
           ))}
         </div>
@@ -416,6 +425,21 @@ function MultiSelect({
   )
 }
 
+function MiniMeter({ label, pct }: { label: string; pct: number }) {
+  const done = pct >= 100
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[10px] text-gray-500">{label}</span>
+        <span className={`text-[10px] font-bold ${done ? 'text-emerald-600' : 'text-gray-600'}`}>{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+        <div className={`h-full rounded-full ${done ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+    </div>
+  )
+}
+
 function FilterChip({ label, icon, onRemove }: { label: string; icon: React.ReactNode; onRemove: () => void }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
@@ -432,10 +456,12 @@ function ProjectCard({
   project,
   isMine,
   showMineTag,
+  progress,
 }: {
   project: Project
   isMine: boolean
   showMineTag: boolean
+  progress?: ProjectProgress
 }) {
   return (
     <Link href={`/projects/${project.id}`} className="group block">
@@ -516,6 +542,23 @@ function ProjectCard({
             <span className="text-xs text-gray-400 italic">لم يُحدد الفريق بعد</span>
           )}
         </div>
+
+        {/* Per-section completion */}
+        {progress && (
+          <div className="border-t border-gray-50 pt-3 mb-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-gray-500">نسبة الإنجاز</span>
+              <span className="text-[11px] font-bold text-brand-700">{progress.overall}%</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <MiniMeter label="التحصيل" pct={progress.collection} />
+              <MiniMeter label="المواد" pct={progress.materials} />
+              {progress.installation !== null
+                ? <MiniMeter label="التركيب" pct={progress.installation} />
+                : <div className="text-center text-[10px] text-gray-300 self-center">بدون تركيب</div>}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-end border-t border-gray-50 pt-3">
