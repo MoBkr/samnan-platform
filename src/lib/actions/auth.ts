@@ -73,8 +73,10 @@ export async function requestPasswordReset(formData: FormData) {
 
   // Send the reset email. We intentionally always return success (even if the
   // email isn't registered) so we never reveal which emails exist in the system.
+  // Route through a server-side callback that exchanges the code (reads the
+  // httpOnly PKCE verifier) — far more reliable than browser-side exchange.
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/reset-password`,
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
   })
 
   return { success: true }

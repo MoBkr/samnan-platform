@@ -24,6 +24,13 @@ export default function ResetPasswordPage() {
   // Detect the recovery session that Supabase places in the URL when the
   // user clicks the email link. The browser client auto-processes it.
   useEffect(() => {
+    // The server callback redirects here with ?error=expired when it couldn't
+    // establish the recovery session — show the invalid state immediately.
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('error')) {
+      setStatus('invalid')
+      return
+    }
+
     const supabase = createClient()
     let resolved = false
 
