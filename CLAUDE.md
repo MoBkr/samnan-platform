@@ -23,6 +23,8 @@
 
 ✅ **Session 2026-06-15 migrations (DONE — Mohamed confirmed):** installations `stages`+`expected_duration`, projects `public_token`, `technicians`+`technician_assignments` tables, `app_notifications` table. (SQL kept in git history / commit messages if ever needed to re-run.)
 
+⚙️ **Supabase — Custom SMTP for production email (RECOMMENDED, Mohamed):** The built-in Supabase email is testing-only and rate-limited (~2–4/hour) → blocks real password-reset usage. Configure custom SMTP (Auth → Settings → SMTP) with Resend / Amazon SES / SendGrid to remove the limit and improve deliverability. Password-reset code flow is already fixed (server-side exchange via `/auth/callback`); SMTP is the remaining production gap. Meanwhile, admins can set passwords directly from إدارة المستخدمين.
+
 1. **Supabase — SQL Migration (REQUIRED):** Run this in Supabase SQL Editor. The `documents` table type constraint needs updating to support new document types (`delivery_note`, `materials_request`), and the `installation_id` column needs to exist on `projects`:
    ```sql
    -- Add installation_id to projects (if not already done)
