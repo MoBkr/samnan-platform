@@ -85,11 +85,13 @@ export function AuditLogView({ logs, brs }: Props) {
         th,td{border:1px solid #ddd;padding:7px 9px;text-align:right;vertical-align:top}
         th{background:#1841A0;color:#fff}
         tr:nth-child(even) td{background:#f7f9fc}
-        .brand{display:flex;align-items:center;gap:10px;border-bottom:2px solid #1841A0;padding-bottom:10px;margin-bottom:14px}
+        .brand{display:flex;align-items:center;justify-content:center;gap:10px;border-bottom:2px solid #1841A0;padding-bottom:10px;margin-bottom:6px}
         .brand img{width:46px;height:46px;border-radius:8px;object-fit:cover}
-        .brand b{color:#1841A0;font-size:16px;display:block}
+        .brand b{color:#1841A0;font-size:17px;display:block}
+        .brand .en{color:#1841A0;font-size:9px;font-weight:700;letter-spacing:2px}
       </style></head><body>
-      <div class="brand"><img src="${window.location.origin}/samnan.jpg" alt="سمنان" /><div><b>مجموعة سمنان القابضة</b><span style="color:#555;font-size:12px">سجل التدقيق</span></div></div>
+      <div class="brand"><img src="${window.location.origin}/samnan.jpg" alt="سمنان" /><div style="text-align:center"><b>سمنان للخدمات البترولية</b><span class="en">SAMNAN PETROLEUM SERVICES</span></div></div>
+      <div class="sub" style="text-align:center">سجل التدقيق</div>
       <div class="sub">عدد السجلات: ${filtered.length} · طُبع في ${formatDateTime(new Date().toISOString())} (توقيت السعودية)</div>
       <table><thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السياق</th></tr></thead>
       <tbody>${rows}</tbody></table></body></html>`)

@@ -86,7 +86,8 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/samnan.jpg" alt="سمنان" width={46} height={46} style={{ borderRadius: 8, objectFit: 'cover' }} />
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">مجموعة سمنان القابضة</p>
+              <p className="text-base font-extrabold text-brand-700 leading-tight">سمنان للخدمات البترولية</p>
+              <p className="text-[9px] font-bold tracking-[2px] text-brand-700 mb-1">SAMNAN PETROLEUM SERVICES</p>
               <h1 className="text-2xl font-bold text-gray-900">تقرير {tabLabel}</h1>
             </div>
           </div>
