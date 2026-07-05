@@ -197,6 +197,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   const [rowUploading, setRowUploading] = useState<number | null>(null)
   const [importingExcel, setImportingExcel] = useState(false)
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const excelInputRef = useRef<HTMLInputElement>(null)
 
   function rowEmpty(it: MaterialItem) {
@@ -241,6 +242,32 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   function handleRemoveItem(idx: number) {
     setDraftItems((prev) => prev.filter((_, i) => i !== idx))
+    setSelectedRows(new Set())
+  }
+
+  // ── Multi-select delete ──
+  function toggleRow(i: number) {
+    setSelectedRows((prev) => {
+      const n = new Set(prev)
+      if (n.has(i)) n.delete(i); else n.add(i)
+      return n
+    })
+  }
+  function toggleAllRows() {
+    setSelectedRows((prev) => prev.size === draftItems.length ? new Set() : new Set(draftItems.map((_, i) => i)))
+  }
+  function deleteSelectedRows() {
+    if (selectedRows.size === 0) return
+    const removed = selectedRows.size
+    setDraftItems((prev) => prev.filter((_, i) => !selectedRows.has(i)))
+    setSelectedRows(new Set())
+    toast.success(`تم حذف ${removed} صنف`)
+  }
+  function deleteAllRows() {
+    if (draftItems.length === 0) return
+    if (!confirm(`حذف كل الأصناف (${draftItems.length})؟`)) return
+    setDraftItems([])
+    setSelectedRows(new Set())
   }
 
   // Remove rows that repeat an earlier SAP No, keeping the first of each.
@@ -255,6 +282,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     const removed = draftItems.length - next.length
     if (removed === 0) { toast.info('لا يوجد تكرار في رقم SAP'); return }
     setDraftItems(next)
+    setSelectedRows(new Set())
     toast.success(`تم حذف ${removed} صنف مكرر بنفس رقم SAP`)
   }
 
@@ -564,6 +592,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     <table className="w-full text-sm whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
+                          <th className="px-2 py-2 w-8 text-center">
+                            <input type="checkbox" className="h-4 w-4 accent-brand-600 align-middle"
+                              checked={draftItems.length > 0 && selectedRows.size === draftItems.length}
+                              onChange={toggleAllRows} title="تحديد الكل" />
+                          </th>
                           <th className="px-2 py-2 text-start font-medium" dir="ltr">SAP No</th>
                           <th className="px-2 py-2 text-start font-medium">الوصف *</th>
                           <th className="px-2 py-2 text-start font-medium">الكمية</th>
@@ -576,7 +609,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-50">
                         {draftItems.map((item, i) => (
-                          <tr key={i}>
+                          <tr key={i} className={selectedRows.has(i) ? 'bg-brand-50/40' : ''}>
+                            <td className="px-2 py-1.5 text-center">
+                              <input type="checkbox" className="h-4 w-4 accent-brand-600 align-middle"
+                                checked={selectedRows.has(i)} onChange={() => toggleRow(i)} />
+                            </td>
                             <td className="px-2 py-1.5 w-28">
                               <Input className="h-9" dir="ltr" placeholder="SAP" value={item.sap_no ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
@@ -661,6 +698,20 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                       className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50">
                       <Trash2 className="h-3.5 w-3.5" />
                       حذف المكرر بنفس SAP ({sapDupCount})
+                    </Button>
+                  )}
+                  {selectedRows.size > 0 && (
+                    <Button type="button" size="sm" variant="outline" onClick={deleteSelectedRows}
+                      className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      حذف المحدد ({selectedRows.size})
+                    </Button>
+                  )}
+                  {draftItems.length > 0 && (
+                    <Button type="button" size="sm" variant="outline" onClick={deleteAllRows}
+                      className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      حذف الكل
                     </Button>
                   )}
                 </div>
