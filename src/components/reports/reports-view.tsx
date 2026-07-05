@@ -82,9 +82,13 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
       {/* ─── Print header (hidden on screen) ─── */}
       <div className="print-only mb-6 pb-5 border-b-2 border-gray-800">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">مجموعة سمنان القابضة</p>
-            <h1 className="text-2xl font-bold text-gray-900">تقرير {tabLabel}</h1>
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/samnan.jpg" alt="سمنان" width={46} height={46} style={{ borderRadius: 8, objectFit: 'cover' }} />
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">مجموعة سمنان القابضة</p>
+              <h1 className="text-2xl font-bold text-gray-900">تقرير {tabLabel}</h1>
+            </div>
           </div>
           <div className="text-left text-sm text-gray-500 mt-1">
             <p>تاريخ الإصدار: {printDate}</p>

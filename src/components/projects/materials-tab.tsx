@@ -14,6 +14,7 @@ import { saveDocumentRecord } from '@/lib/actions/attachments'
 import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/materials'
 import { createPayment } from '@/lib/actions/payments'
 import { uploadFileDirect } from '@/lib/upload-client'
+import { PrintHeader } from '@/components/shared/print-header'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
 interface MaterialsTabProps {
@@ -726,9 +727,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               </div>
             ) : (
               <div id="materials-print">
-                <div className="hidden print:block mb-3 border-b border-gray-300 pb-2">
-                  <h2 className="text-lg font-bold">قائمة المواد</h2>
-                </div>
+                <PrintHeader title="قائمة المواد" />
                 <ItemsTable items={draftItems} />
               </div>
             )}

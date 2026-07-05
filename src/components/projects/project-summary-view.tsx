@@ -6,6 +6,7 @@ import {
   Printer, ArrowRight, Building2, MapPin, Wallet, Package, Hammer, Users, FileText, Clock, HardHat, Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PrintHeader } from '@/components/shared/print-header'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent } from '@/components/ui/dialog'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import {
@@ -94,6 +95,7 @@ export function ProjectSummaryView({ project, payments, material, installations,
       </div>
 
       <div id="project-summary-print" className="space-y-4">
+        <PrintHeader title="ملخص المشروع" subtitle={project.project_name} />
         {/* Header */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 mb-1">
