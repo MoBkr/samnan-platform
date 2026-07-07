@@ -336,7 +336,17 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       if (items.length === 0) { toast.error('لم يتم العثور على صفوف مواد في الملف'); return }
       setDraftItems((prev) => [...prev, ...items])
       setEditingItems(true)
-      toast.success(`تم استيراد ${items.length} صنف من الملف`)
+
+      // Also save the original file so it can be viewed/opened inside the platform
+      let savedFile = false
+      const up = await uploadFileDirect(file, 'materials_request')
+      if (!('error' in up)) {
+        const rec = await saveDocumentRecord(projectId, 'materials_request', up.url, file.name)
+        savedFile = !('error' in rec)
+      }
+      toast.success(savedFile
+        ? `تم استيراد ${items.length} صنف وحفظ الملف في «ملفات الطلب»`
+        : `تم استيراد ${items.length} صنف من الملف`)
     } catch {
       toast.error('تعذّر قراءة الملف. تأكد أنه Excel أو CSV صالح')
     } finally {
@@ -561,7 +571,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               {canManage && !isReady && (
                 <label className="cursor-pointer">
                   <UploadChip loading={isPending && !readyDialog} label="رفع ملف" />
-                  <input type="file" accept=".pdf,image/*,application/pdf" className="hidden"
+                  <input type="file" accept=".pdf,image/*,application/pdf,.xlsx,.xls,.csv" className="hidden"
                     disabled={isPending} onChange={handleRequestFileUpload} />
                 </label>
               )}

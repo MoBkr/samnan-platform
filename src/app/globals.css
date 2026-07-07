@@ -184,3 +184,30 @@
     margin: 0 !important;
   }
 }
+
+/* ─── Materials list print: landscape, wrapping, bordered, fits page ─── */
+@media print {
+  @page materials { size: A4 landscape; margin: 10mm; }
+  body.printing-materials #materials-print { page: materials; }
+  body.printing-materials #materials-print .overflow-x-auto { overflow: visible !important; }
+  body.printing-materials #materials-print table {
+    width: 100% !important; border-collapse: collapse !important;
+    font-size: 8.5pt !important; table-layout: auto !important;
+  }
+  body.printing-materials #materials-print th,
+  body.printing-materials #materials-print td {
+    border: 1px solid #94a3b8 !important;
+    padding: 3px 5px !important;
+    white-space: normal !important;
+    word-break: break-word;
+    vertical-align: top;
+  }
+  body.printing-materials #materials-print th {
+    background: #1841A0 !important; color: #fff !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.printing-materials #materials-print tr { page-break-inside: avoid !important; }
+  /* Hide the attachments column (last) — not useful on paper */
+  body.printing-materials #materials-print thead th:last-child,
+  body.printing-materials #materials-print tbody td:last-child { display: none !important; }
+}

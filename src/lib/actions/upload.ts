@@ -5,7 +5,12 @@ import { createClient } from '@/lib/supabase/server'
 
 const BUCKET = 'documents'
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const ALLOWED_MIMES = [
+  'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls / some .csv
+  'text/csv',
+]
 
 // ── New: returns a signed URL so the browser uploads directly to Supabase ──
 // The file never passes through Vercel, so no 4.5 MB limit applies.

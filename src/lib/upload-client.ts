@@ -5,7 +5,12 @@
 import { createUploadSignedUrl } from '@/lib/actions/upload'
 
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const ALLOWED_MIMES = [
+  'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls / some .csv
+  'text/csv',
+]
 
 export async function uploadFileDirect(
   file: File,
