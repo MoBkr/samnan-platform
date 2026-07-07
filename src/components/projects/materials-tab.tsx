@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { MATERIAL_ITEM_STATUSES } from '@/lib/constants'
-import { saveDocumentRecord } from '@/lib/actions/attachments'
+import { saveDocumentRecord, deleteAttachment } from '@/lib/actions/attachments'
 import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/materials'
 import { createPayment } from '@/lib/actions/payments'
 import { uploadFileDirect } from '@/lib/upload-client'
@@ -71,7 +71,7 @@ function normalizeStatus(v: string): string {
   return v.trim()  // keep as-is (already Arabic or custom)
 }
 
-function DocRow({ doc }: { doc: Document }) {
+function DocRow({ doc, onDelete }: { doc: Document; onDelete?: (id: string) => void }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 shrink-0">
@@ -87,6 +87,12 @@ function DocRow({ doc }: { doc: Document }) {
         className="shrink-0 text-sm font-medium text-brand-600 hover:text-brand-700">
         عرض
       </a>
+      {onDelete && (
+        <button type="button" onClick={() => onDelete(doc.id)} title="حذف الملف"
+          className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
     </div>
   )
 }
@@ -457,6 +463,17 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     })
   }
 
+  function handleDeleteDoc(id: string) {
+    if (!confirm('حذف هذا الملف نهائياً؟')) return
+    startTransition(async () => {
+      try {
+        const r = await deleteAttachment(id, projectId)
+        if (r && 'error' in r) toast.error(r.error)
+        else toast.success('تم حذف الملف')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
   function handleMarkReady() {
     setReadyDialog(true)
     setReadyFile(null)
@@ -585,7 +602,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 </label>
               )}
             </div>
-            {requestDocs.map((d) => <DocRow key={d.id} doc={d} />)}
+            {requestDocs.map((d) => <DocRow key={d.id} doc={d} onDelete={canManage ? handleDeleteDoc : undefined} />)}
             {requestDocs.length === 0 && (
               <p className="text-xs text-gray-400 text-center py-2">لا توجد ملفات مرفوعة</p>
             )}
@@ -848,7 +865,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           {requestDocs.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">مستندات الطلب</p>
-              {requestDocs.map((d) => <DocRow key={d.id} doc={d} />)}
+              {requestDocs.map((d) => <DocRow key={d.id} doc={d} onDelete={canManage ? handleDeleteDoc : undefined} />)}
             </div>
           )}
 
@@ -894,7 +911,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           {requestDocs.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">مستندات الطلب</p>
-              {requestDocs.map((d) => <DocRow key={d.id} doc={d} />)}
+              {requestDocs.map((d) => <DocRow key={d.id} doc={d} onDelete={canManage ? handleDeleteDoc : undefined} />)}
             </div>
           )}
 
@@ -917,7 +934,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               )}
             </div>
             {deliveryDocs.length > 0
-              ? deliveryDocs.map((d) => <DocRow key={d.id} doc={d} />)
+              ? deliveryDocs.map((d) => <DocRow key={d.id} doc={d} onDelete={canManage ? handleDeleteDoc : undefined} />)
               : <p className="text-xs text-gray-400 text-center py-2">لم يُرفع وصل الاستلام بعد</p>
             }
           </div>
