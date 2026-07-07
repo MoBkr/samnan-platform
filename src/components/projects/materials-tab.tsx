@@ -370,21 +370,29 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       const looksHeader = (low.includes('sap') || low.includes('sto') || HEADER_HINT.test(firstJoined)) && !/\d{3,}/.test(firstJoined)
       if (looksHeader) rows = rows.slice(1)
     }
-    // Target order: SAP No · Description · Qty · STO No · Item Status · Note.
-    // Some sheets start with a leading "Legal Study" status column — auto-detect
-    // it (a status word in the first cell, not a SAP-like number) and shift by one.
-    const STATUS_WORDS = /^(completed|complete|done|in[\s-]?progress|processing|not[\s-]?requested|pending|مكتمل|قيد|لم\s)/i
-    const firstCell = (rows[0][0] ?? '').trim()
-    const off = STATUS_WORDS.test(firstCell) ? 1 : 0
+    // Anchor on the SAP column: the first cell that looks like a SAP code
+    // (5–8 digit number; STO codes are ~10 digits and excluded). This makes
+    // paste robust to leading columns like "#" / "No" / "Legal Study" that
+    // would otherwise shift every field by one (the reported "skipped cells").
+    // Then map from that anchor: SAP · Description · Qty · STO · Status · Note.
+    let base = -1
+    for (const r of rows) {
+      const idx = r.findIndex((c) => /^\d{5,8}$/.test((c ?? '').trim()))
+      if (idx >= 0) { base = idx; break }
+    }
+    if (base < 0) {
+      const STATUS_WORDS = /^(completed|complete|done|in[\s-]?progress|processing|not[\s-]?requested|pending|مكتمل|قيد|لم\s)/i
+      base = STATUS_WORDS.test((rows[0][0] ?? '').trim()) ? 1 : 0
+    }
     const parsed: MaterialItem[] = rows.map((c) => {
-      const qty = parseFloat((c[2 + off] ?? '').replace(/[^\d.]/g, ''))
+      const qty = parseFloat((c[base + 2] ?? '').replace(/[^\d.]/g, ''))
       return {
-        sap_no: (c[0 + off] ?? '').trim() || undefined,
-        description: (c[1 + off] ?? '').trim(),
+        sap_no: (c[base] ?? '').trim() || undefined,
+        description: (c[base + 1] ?? '').trim(),
         quantity: isNaN(qty) ? undefined : qty,
-        sto_no: (c[3 + off] ?? '').trim() || undefined,
-        status: normalizeStatus((c[4 + off] ?? '').trim()) || 'قيد المعالجة',
-        notes: (c[5 + off] ?? '').trim() || undefined,
+        sto_no: (c[base + 3] ?? '').trim() || undefined,
+        status: normalizeStatus((c[base + 4] ?? '').trim()) || 'قيد المعالجة',
+        notes: (c[base + 5] ?? '').trim() || undefined,
         attachments: [],
       }
     })
