@@ -295,60 +295,69 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     if (!file) return
     setImportingExcel(true)
     try {
-      const XLSX = await import('xlsx')
-      const buf = await file.arrayBuffer()
-      const wb = XLSX.read(buf, { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const grid = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: false, defval: '' })
-      if (!grid.length) { toast.error('الملف فارغ'); return }
-
-      // Find the header row within the first few rows
-      const isHeaderCell = (v: string) => /sap|sto|desc|qty|quant|status|note|الوصف|الصنف|الكمية|كمية|الحالة|ملاحظ|بيان/i.test(String(v))
-      let headerIdx = grid.findIndex((r) => r.some(isHeaderCell))
-      if (headerIdx < 0) headerIdx = 0
-      const headers = (grid[headerIdx] ?? []).map((h) => String(h).trim())
-
-      const find = (re: RegExp) => headers.findIndex((h) => re.test(h))
-      const iSap = find(/sap|ساب/i)
-      const iDesc = find(/desc|الوصف|الصنف|بيان/i)
-      const iQty = find(/qty|quant|الكمية|كمية|العدد/i)
-      const iSto = find(/sto/i)
-      const iStatus = find(/status|الحالة|^حالة/i)
-      const iNote = find(/note|ملاحظ/i)
-
-      const items: MaterialItem[] = []
-      for (const row of grid.slice(headerIdx + 1)) {
-        const cell = (i: number) => (i >= 0 ? String(row[i] ?? '').trim() : '')
-        const description = cell(iDesc)
-        const sap = cell(iSap)
-        if (!description && !sap) continue        // skip empty rows
-        const qty = parseFloat(cell(iQty).replace(/[^\d.]/g, ''))
-        items.push({
-          sap_no: sap || undefined,
-          description,
-          quantity: isNaN(qty) ? undefined : qty,
-          sto_no: cell(iSto) || undefined,
-          status: normalizeStatus(cell(iStatus)) || 'قيد المعالجة',
-          notes: cell(iNote) || undefined,
-          attachments: [],
-        })
-      }
-      if (items.length === 0) { toast.error('لم يتم العثور على صفوف مواد في الملف'); return }
-      setDraftItems((prev) => [...prev, ...items])
-      setEditingItems(true)
-
-      // Also save the original file so it can be viewed/opened inside the platform
+      // 1) ALWAYS upload & save the original file first — this is the main goal,
+      //    and it never depends on parsing succeeding.
       let savedFile = false
       const up = await uploadFileDirect(file, 'materials_request')
-      if (!('error' in up)) {
+      if ('error' in up) { toast.error(up.error) }
+      else {
         const rec = await saveDocumentRecord(projectId, 'materials_request', up.url, file.name)
         savedFile = !('error' in rec)
       }
-      toast.success(savedFile
-        ? `تم استيراد ${items.length} صنف وحفظ الملف في «ملفات الطلب»`
-        : `تم استيراد ${items.length} صنف من الملف`)
-    } catch {
-      toast.error('تعذّر قراءة الملف. تأكد أنه Excel أو CSV صالح')
+
+      // 2) Best-effort extraction to also fill the editable table (never blocks).
+      let imported = 0
+      try {
+        const XLSX = await import('xlsx')
+        const buf = await file.arrayBuffer()
+        const wb = XLSX.read(buf, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const grid = (XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: false, defval: '' }) ?? [])
+          .map((r) => (r ?? []).map((c) => String(c ?? '')))
+        const items: MaterialItem[] = []
+
+        // (a) Header-based mapping (maps by column name, any order)
+        const isHeaderCell = (v: string) => /sap|sto|desc|qty|quant|status|note|الوصف|الصنف|الكمية|كمية|الحالة|ملاحظ|بيان/i.test(v)
+        const headerIdx = grid.findIndex((r) => r.some(isHeaderCell))
+        const headers = headerIdx >= 0 ? grid[headerIdx].map((h) => h.trim()) : []
+        const find = (re: RegExp) => headers.findIndex((h) => re.test(h))
+        const iSap = find(/sap|ساب/i), iDesc = find(/desc|الوصف|الصنف|بيان/i), iQty = find(/qty|quant|الكمية|كمية|العدد/i),
+          iSto = find(/sto/i), iStatus = find(/status|الحالة|^حالة/i), iNote = find(/note|ملاحظ/i)
+        if (headerIdx >= 0 && (iSap >= 0 || iDesc >= 0)) {
+          for (const row of grid.slice(headerIdx + 1)) {
+            const cell = (i: number) => (i >= 0 ? (row[i] ?? '').trim() : '')
+            const description = cell(iDesc), sap = cell(iSap)
+            if (!description && !sap) continue
+            const qty = parseFloat(cell(iQty).replace(/[^\d.]/g, ''))
+            items.push({ sap_no: sap || undefined, description, quantity: isNaN(qty) ? undefined : qty, sto_no: cell(iSto) || undefined, status: normalizeStatus(cell(iStatus)) || 'قيد المعالجة', notes: cell(iNote) || undefined, attachments: [] })
+          }
+        }
+
+        // (b) Fallback: anchor on the SAP column (5–8 digit) and map positionally
+        if (items.length === 0) {
+          let base = -1, firstData = -1
+          for (let ri = 0; ri < grid.length; ri++) {
+            const idx = grid[ri].findIndex((c) => /^\d{5,8}$/.test(c.trim()))
+            if (idx >= 0) { base = idx; firstData = ri; break }
+          }
+          if (base >= 0) {
+            for (let ri = firstData; ri < grid.length; ri++) {
+              const c = grid[ri]
+              const sap = (c[base] ?? '').trim(), description = (c[base + 1] ?? '').trim()
+              if (!sap && !description) continue
+              const qty = parseFloat((c[base + 2] ?? '').replace(/[^\d.]/g, ''))
+              items.push({ sap_no: sap || undefined, description, quantity: isNaN(qty) ? undefined : qty, sto_no: (c[base + 3] ?? '').trim() || undefined, status: normalizeStatus((c[base + 4] ?? '').trim()) || 'قيد المعالجة', notes: (c[base + 5] ?? '').trim() || undefined, attachments: [] })
+            }
+          }
+        }
+
+        if (items.length) { setDraftItems((prev) => [...prev, ...items]); setEditingItems(true); imported = items.length }
+      } catch { /* extraction is best-effort — the file is already saved */ }
+
+      if (savedFile && imported) toast.success(`تم رفع الملف واستيراد ${imported} صنف`)
+      else if (savedFile) toast.success('تم رفع الملف وحفظه في «ملفات الطلب» (بدون استخلاص تلقائي)')
+      else if (imported) toast.success(`تم استيراد ${imported} صنف`)
+      else toast.error('تعذّر رفع الملف')
     } finally {
       setImportingExcel(false)
     }
