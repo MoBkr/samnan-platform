@@ -103,6 +103,15 @@ const STATUS_PILL: Record<string, string> = {
   'لم يطلب': 'bg-gray-200 text-gray-500',
 }
 
+// Fallback completion % when no item-level statuses exist yet
+const MAT_STATUS_PCT: Record<string, number> = {
+  delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10,
+}
+const MAT_STATUS_LABEL: Record<string, string> = {
+  pending: 'قيد الانتظار', preparing: 'قيد التجهيز', ready: 'جاهزة للتسليم',
+  delivered: 'تم الاستلام', partial: 'استلام جزئي',
+}
+
 function ItemsTable({ items }: { items: MaterialItem[] }) {
   if (items.length === 0) return null
   return (
@@ -188,6 +197,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   // draftItems is always the display source — no flicker after save.
   // (Legacy price total — only meaningful for old records that carried unit_price.)
   const itemsTotal = draftItems.reduce((sum, item) => sum + ((item.quantity ?? 0) * (item.unit_price ?? 0)), 0)
+
+  // Materials completion — share of items marked مكتمل, else derived from the record status.
+  const completedItemsCount = draftItems.filter((it) => it.status === 'مكتمل').length
+  const materialsPct = draftItems.length > 0
+    ? Math.round((completedItemsCount / draftItems.length) * 100)
+    : material ? (MAT_STATUS_PCT[status] ?? 0) : 0
 
   // Count rows that repeat an earlier SAP No (to offer a dedupe button).
   const sapDupCount = (() => {
@@ -551,6 +566,25 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   return (
     <div className="space-y-5">
+
+      {/* ── Materials completion — first thing in the section ── */}
+      <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
+            <Package className="h-4 w-4 text-amber-600" />
+            نسبة إنجاز المواد
+          </span>
+          <span className="text-2xl font-extrabold text-amber-700">{materialsPct}%</span>
+        </div>
+        <div className="h-3 w-full rounded-full bg-white overflow-hidden border border-amber-100">
+          <div className="h-full rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${materialsPct}%` }} />
+        </div>
+        <p className="text-xs text-gray-500 mt-1.5">
+          {draftItems.length > 0
+            ? `${completedItemsCount} من ${draftItems.length} أصناف مكتملة`
+            : material ? `الحالة: ${MAT_STATUS_LABEL[status] ?? status}` : 'لم تُدخَل مواد بعد'}
+        </p>
+      </div>
 
       {/* ── HEADER ── */}
       <div className="flex items-center justify-between">

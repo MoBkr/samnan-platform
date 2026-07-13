@@ -208,6 +208,13 @@ export function ProjectDetail({
 
   const isFullyPaid = project.total_amount != null && project.total_amount > 0 && totalPaid >= project.total_amount
 
+  // Materials completion — % of items marked مكتمل, else derived from the record status
+  const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
+  const matItems = material?.items ?? []
+  const materialsPct = matItems.length > 0
+    ? Math.round((matItems.filter((it) => it.status === 'مكتمل').length / matItems.length) * 100)
+    : material ? (MAT_PCT[material.status] ?? 0) : 0
+
   // Installation completion — shown next to the financial boxes
   const installStagesData = installations[0]?.stages ?? {}
   const requiredInstallStages = INSTALL_STAGES.filter((s) => !s.optional)
@@ -496,6 +503,13 @@ export function ProjectDetail({
               <p className="text-xs text-gray-500 font-medium">الإجمالي</p>
               <p className="text-lg font-bold text-gray-700 mt-0.5">{formatCurrency(projectValue)}</p>
               <p className="text-xs text-gray-400 mt-0.5">قيمة المشروع</p>
+            </div>
+            <div className="rounded-xl bg-amber-50 px-4 py-3 text-center min-w-[100px]">
+              <p className="text-xs text-amber-600 font-medium">المواد</p>
+              <p className="text-lg font-bold text-amber-700 mt-0.5">{materialsPct}%</p>
+              <div className="mt-1.5 h-1.5 w-full rounded-full bg-amber-100 overflow-hidden">
+                <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${materialsPct}%` }} />
+              </div>
             </div>
             {installPct !== null && (
               <div className="rounded-xl bg-purple-50 px-4 py-3 text-center min-w-[100px]">
