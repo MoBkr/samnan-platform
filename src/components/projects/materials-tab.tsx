@@ -435,11 +435,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     e.target.value = ''
     if (!files.length) return
     setRowUploading(idx)
+    const itemName = draftItems[idx]?.description || draftItems[idx]?.sap_no || `صنف ${idx + 1}`
     const added: { url: string; name: string }[] = []
     for (const file of files) {
       const up = await uploadFileDirect(file, `materials/${projectId}`)
       if ('error' in up) { toast.error(up.error); continue }
       added.push({ url: up.url, name: file.name })
+      // Also register it in the project's Attachments tab + audit log
+      await saveDocumentRecord(projectId, 'other', up.url, `المواد — ${itemName}: ${file.name}`)
     }
     setRowUploading(null)
     if (added.length) {

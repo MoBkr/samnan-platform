@@ -150,6 +150,17 @@ export async function deletePurchaseRequest(id: string) {
   return { success: true }
 }
 
+// Resolve the project linked to a purchase request (matched by project name).
+async function resolveProjectId(
+  service: ReturnType<typeof createServiceClient>, projectName: string | null,
+): Promise<string | null> {
+  if (!projectName?.trim()) return null
+  const r = (await service
+    .from('projects').select('id').eq('project_name', projectName.trim())
+    .order('created_at', { ascending: false }).limit(1).single()) as QueryResult<{ id: string }>
+  return r.data?.id ?? null
+}
+
 // Save extra BR attachments into the LINKED PROJECT's documents (Attachments tab).
 // Resolves the project by exact project_name match.
 export async function attachDocsToProjectByName(projectName: string, docs: { url: string; name: string }[]) {
@@ -187,12 +198,30 @@ export async function addBrAttachment(id: string, attachment: BrAttachment) {
   if ('error' in auth) return { error: auth.error }
   const service = createServiceClient()
   const { data: cur } = (await service
-    .from('purchase_requests').select('attachments').eq('id', id).single()) as unknown as { data: { attachments: BrAttachment[] } | null }
+    .from('purchase_requests').select('attachments, project_name, br_number').eq('id', id).single()) as unknown as {
+      data: { attachments: BrAttachment[]; project_name: string | null; br_number: string | null } | null
+    }
   const list = [...(cur?.attachments ?? []), attachment]
   const { error } = (await service
     .from('purchase_requests').update({ attachments: list, updated_at: new Date().toISOString() } as never).eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حفظ المرفق' }
+
+  // Mirror it into the linked project's Attachments tab + audit log
+  const projectId = await resolveProjectId(service, cur?.project_name ?? null)
+  if (projectId) {
+    await service.from('documents').insert({
+      project_id: projectId, type: 'other', url: attachment.url, uploaded_by: auth.user.id,
+      description: `طلب شراء${cur?.br_number ? ` ${cur.br_number}` : ''}${attachment.stage ? ` / ${attachment.stage}` : ''}: ${attachment.name}`,
+    } as never)
+  }
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: `إرفاق ملف بطلب شراء${cur?.br_number ? ` ${cur.br_number}` : ''}: ${attachment.name}`,
+    details: { br_id: id, stage: attachment.stage ?? null, file: attachment.name },
+  } as never)
+
   revalidatePath('/purchase-requests')
+  if (projectId) revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
 
@@ -201,11 +230,24 @@ export async function removeBrAttachment(id: string, url: string) {
   if ('error' in auth) return { error: auth.error }
   const service = createServiceClient()
   const { data: cur } = (await service
-    .from('purchase_requests').select('attachments').eq('id', id).single()) as unknown as { data: { attachments: BrAttachment[] } | null }
+    .from('purchase_requests').select('attachments, project_name, br_number').eq('id', id).single()) as unknown as {
+      data: { attachments: BrAttachment[]; project_name: string | null; br_number: string | null } | null
+    }
+  const removed = (cur?.attachments ?? []).find((a) => a.url === url)
   const list = (cur?.attachments ?? []).filter((a) => a.url !== url)
   const { error } = (await service
     .from('purchase_requests').update({ attachments: list, updated_at: new Date().toISOString() } as never).eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حذف المرفق' }
+
+  const projectId = await resolveProjectId(service, cur?.project_name ?? null)
+  if (projectId) await service.from('documents').delete().eq('project_id', projectId).eq('url', url)
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: `حذف مرفق من طلب شراء${cur?.br_number ? ` ${cur.br_number}` : ''}: ${removed?.name ?? ''}`,
+    details: { br_id: id, file: removed?.name ?? null },
+  } as never)
+
   revalidatePath('/purchase-requests')
+  if (projectId) revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }

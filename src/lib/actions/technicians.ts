@@ -72,6 +72,11 @@ export async function addTechnician(data: { name: string; employee_no?: string; 
     phone: data.phone?.trim() || null,
   } as never)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل إضافة الفني' }
+  await service.from('activity_log').insert({
+    project_id: null, user_id: auth.user.id,
+    action: `إضافة فني: ${data.name.trim()}`,
+    details: { employee_no: data.employee_no ?? null },
+  } as never)
   revalidatePath('/technicians')
   return { success: true }
 }
@@ -88,6 +93,11 @@ export async function updateTechnician(id: string, data: { name: string; employe
   const { error } = (await service
     .from('technicians').update(patch as never).eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل تحديث الفني' }
+  await service.from('activity_log').insert({
+    project_id: null, user_id: auth.user.id,
+    action: data.is_active === false ? `إيقاف فني: ${data.name}` : data.is_active === true ? `تفعيل فني: ${data.name}` : `تعديل بيانات فني: ${data.name}`,
+    details: { technician_id: id, ...patch },
+  } as never)
   revalidatePath('/technicians')
   return { success: true }
 }

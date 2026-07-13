@@ -36,6 +36,23 @@ async function requireInstallEditor() {
   return { user }
 }
 
+// Every file uploaded anywhere in the installation section is also registered in
+// `documents` so it shows up in the project's Attachments tab.
+async function registerDocument(
+  service: ReturnType<typeof createServiceClient>,
+  projectId: string, userId: string, url: string, description: string,
+) {
+  await service.from('documents').insert({
+    project_id: projectId, type: 'other', url, uploaded_by: userId, description,
+  } as never)
+}
+
+async function unregisterDocument(
+  service: ReturnType<typeof createServiceClient>, projectId: string, url: string,
+) {
+  await service.from('documents').delete().eq('project_id', projectId).eq('url', url)
+}
+
 async function getStages(service: ReturnType<typeof createServiceClient>, installationId: string): Promise<InstallationStages> {
   const cur = (await service
     .from('installations').select('stages').eq('id', installationId).single()) as unknown as {
@@ -139,6 +156,11 @@ export async function addInstallStageFile(
   const { error } = (await service
     .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حفظ المرفق' }
+
+  // Also surface it in the project's Attachments tab
+  await registerDocument(service, projectId, auth.user.id, file.url,
+    `التركيب — ${stageLabel(stageKey)}${file.slot ? ` / ${file.slot}` : ''}: ${file.name}`)
+
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
     action: `إرفاق ملف في مرحلة التركيب — ${stageLabel(stageKey)}: ${file.name}`,
@@ -157,11 +179,20 @@ export async function removeInstallStageFile(
   const service = createServiceClient()
   const stages = await getStages(service, installationId)
   const stage = stages[stageKey] ?? {}
+  const removed = (stage.files ?? []).find((f) => f.url === url)
   stage.files = (stage.files ?? []).filter((f) => f.url !== url)
   stages[stageKey] = stage
   const { error } = (await service
     .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حذف المرفق' }
+
+  await unregisterDocument(service, projectId, url)
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: `حذف مرفق من مرحلة التركيب — ${stageLabel(stageKey)}: ${removed?.name ?? ''}`,
+    details: { installation_id: installationId, stage: stageKey, file: removed?.name ?? null },
+  } as never)
+
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')
   return { success: true }
@@ -184,7 +215,8 @@ export async function addInstallStageSlot(
   if (error) return { error: 'فشل إضافة البند' }
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
-    action: 'إضافة بند معاينة (IRS)', details: { installation_id: installationId, label: label.trim() },
+    action: `إضافة بند معاينة — ${stageLabel(stageKey)}: ${label.trim()}`,
+    details: { installation_id: installationId, stage: stageKey, label: label.trim() },
   } as never)
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')
@@ -199,12 +231,23 @@ export async function removeInstallStageSlot(
   const service = createServiceClient()
   const stages = await getStages(service, installationId)
   const stage = stages[stageKey] ?? {}
+  const slotLabel = (stage.customSlots ?? []).find((s) => s.key === slotKey)?.label ?? slotKey
+  const droppedFiles = (stage.files ?? []).filter((f) => f.slot === slotKey)
   stage.customSlots = (stage.customSlots ?? []).filter((s) => s.key !== slotKey)
   stage.files = (stage.files ?? []).filter((f) => f.slot !== slotKey)  // drop files under removed slot
+  if (stage.slotStates) { const ss = { ...stage.slotStates }; delete ss[slotKey]; stage.slotStates = ss }
   stages[stageKey] = stage
   const { error } = (await service
     .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حذف البند' }
+
+  for (const f of droppedFiles) await unregisterDocument(service, projectId, f.url)
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: `حذف بند معاينة — ${stageLabel(stageKey)}: ${slotLabel}`,
+    details: { installation_id: installationId, stage: stageKey, slot: slotKey, files_removed: droppedFiles.length },
+  } as never)
+
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')
   return { success: true }
@@ -295,6 +338,12 @@ export async function setInstallSlotRejection(
     .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حفظ الرفض' }
 
+  // Rejection evidence also lands in the project's Attachments tab
+  for (const f of files) {
+    await registerDocument(service, projectId, auth.user.id, f.url,
+      `رفض ${stageLabel(stageKey)} / ${slotKey}: ${f.name}`)
+  }
+
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
     action: note === null
@@ -349,6 +398,12 @@ export async function setInstallStageRejection(
   const { error } = (await service
     .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حفظ الرفض' }
+
+  // Rejection evidence also lands in the project's Attachments tab
+  for (const f of files) {
+    await registerDocument(service, projectId, auth.user.id, f.url,
+      `رفض ${stageLabel(stageKey)}: ${f.name}`)
+  }
 
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
