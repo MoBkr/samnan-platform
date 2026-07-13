@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import {
   scheduleInstallation, updateInstallationStatus, markClientNotified,
   setInstallExpectedDuration, addInstallStageFile, removeInstallStageFile, updateInstallStageFlags,
-  addInstallStageSlot, removeInstallStageSlot,
+  addInstallStageSlot, removeInstallStageSlot, setInstallStageRejection,
 } from '@/lib/actions/installation'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatDateShort } from '@/lib/utils'
@@ -386,7 +386,10 @@ function StageItem({
 }: {
   index: number
   config: InstallStageConfig
-  data: { done?: boolean; started?: boolean; files?: InstallAttachment[]; customSlots?: { key: string; label: string }[] }
+  data: {
+    done?: boolean; started?: boolean; files?: InstallAttachment[]; customSlots?: { key: string; label: string }[]
+    rejected?: boolean; rejection_note?: string; rejected_at?: string; rejected_by?: string
+  }
   installationId: string
   projectId: string
   canEdit: boolean
@@ -399,11 +402,35 @@ function StageItem({
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
   const [addingSlot, setAddingSlot] = useState(false)
   const [newSlotLabel, setNewSlotLabel] = useState('')
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectNote, setRejectNote] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingSlot = useRef<string | undefined>(undefined)
 
   const isDone = !!data.done
+  const isRejected = !!data.rejected
   const hasFiles = files.length > 0
+
+  function submitRejection() {
+    if (!rejectNote.trim()) { toast.error('اكتب سبب الرفض / المشكلة'); return }
+    startTransition(async () => {
+      try {
+        const result = await setInstallStageRejection(installationId, projectId, config.key, rejectNote.trim())
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم تسجيل الرفض والملاحظة'); setRejecting(false); setRejectNote('') }
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function clearRejection() {
+    startTransition(async () => {
+      try {
+        const result = await setInstallStageRejection(installationId, projectId, config.key, null)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم إلغاء الرفض — المشكلة اتحلّت')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
 
   // IRS (dynamic) slots = materials (when ready) + manually-added items.
   const customSlots = data.customSlots ?? []
@@ -487,18 +514,19 @@ function StageItem({
   }
 
   return (
-    <div className={`rounded-xl border transition-colors ${isDone ? 'border-green-200 bg-green-50/40' : hasFiles ? 'border-purple-100 bg-white' : 'border-gray-100 bg-gray-50/40'}`}>
+    <div className={`rounded-xl border transition-colors ${isRejected ? 'border-red-300 bg-red-50/50' : isDone ? 'border-green-200 bg-green-50/40' : hasFiles ? 'border-purple-100 bg-white' : 'border-gray-100 bg-gray-50/40'}`}>
       {/* Stage header (toggles open) */}
       <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-3.5 py-2.5 text-start">
         <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-          isDone ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
+          isRejected ? 'bg-red-500 text-white' : isDone ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
         }`}>
-          {isDone ? <Check className="h-4 w-4" /> : index}
+          {isRejected ? <AlertCircle className="h-4 w-4" /> : isDone ? <Check className="h-4 w-4" /> : index}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-gray-900">{config.label}</span>
             <span className="text-[10px] text-gray-400">{config.en}</span>
+            {isRejected && <span className="text-[10px] font-bold rounded-full bg-red-100 text-red-700 px-1.5 py-0.5">مرفوض</span>}
             {config.optional && <span className="text-[10px] rounded-full bg-gray-100 text-gray-500 px-1.5 py-0.5">اختياري</span>}
             {hasFiles && <span className="text-[10px] rounded-full bg-purple-100 text-purple-700 px-1.5 py-0.5">{files.length} ملف</span>}
           </div>
@@ -666,15 +694,65 @@ function StageItem({
             </div>
           )}
 
-          {/* Done toggle */}
-          {canEdit && (
-            <div className="flex justify-end pt-1">
+          {/* Rejection banner — shows the problem/rejection reason */}
+          {isRejected && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-red-700">مرفوض / يوجد مشكلة</p>
+                  <p className="text-sm text-red-800 mt-0.5 whitespace-pre-wrap">{data.rejection_note}</p>
+                  <p className="text-[10px] text-red-500 mt-1">
+                    {data.rejected_by ? `${data.rejected_by} · ` : ''}
+                    {data.rejected_at ? formatDateShort(data.rejected_at) : ''}
+                  </p>
+                </div>
+                {canEdit && (
+                  <Button size="sm" variant="outline" onClick={clearRejection}
+                    className="shrink-0 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                    <Check className="h-3.5 w-3.5" /> تم الحل
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Reject form */}
+          {canEdit && rejecting && (
+            <div className="rounded-lg border border-red-200 bg-red-50/60 p-3 space-y-2">
+              <Label className="text-xs text-red-700">سبب الرفض / المشكلة *</Label>
+              <textarea
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                rows={3}
+                placeholder="مثال: البراند غير مطابق للمواصفات — تم رفض الصنف"
+                className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+              />
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={submitRejection} className="bg-red-600 hover:bg-red-700 text-white">
+                  <AlertCircle className="h-3.5 w-3.5" /> تسجيل الرفض
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setRejecting(false); setRejectNote('') }}>إلغاء</Button>
+              </div>
+            </div>
+          )}
+
+          {/* Stage actions */}
+          {canEdit && !rejecting && (
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+              {!isRejected && (
+                <Button size="sm" variant="outline" onClick={() => { setRejecting(true); setRejectNote('') }}
+                  className="text-red-600 border-red-200 hover:bg-red-50">
+                  <AlertCircle className="h-3.5 w-3.5" /> رفض / فيه مشكلة
+                </Button>
+              )}
               {isDone ? (
                 <Button size="sm" variant="outline" onClick={toggleDone} className="text-gray-500">
                   <RotateCcw className="h-3.5 w-3.5" /> إعادة فتح
                 </Button>
               ) : (
-                <Button size="sm" variant="success" onClick={toggleDone}>
+                <Button size="sm" variant="success" onClick={toggleDone} disabled={isRejected}
+                  title={isRejected ? 'لا يمكن إتمام مرحلة مرفوضة — احسم المشكلة أولاً' : undefined}>
                   <Check className="h-3.5 w-3.5" /> تمت هذه المرحلة
                 </Button>
               )}

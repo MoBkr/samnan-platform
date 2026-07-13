@@ -210,6 +210,54 @@ export async function removeInstallStageSlot(
   return { success: true }
 }
 
+// Reject an inspection stage (e.g. materials rejected during MIR) with a reason,
+// or clear the rejection once resolved (pass note = null).
+// Allowed for the installation manager, coordinator and admin.
+export async function setInstallStageRejection(
+  installationId: string, projectId: string, stageKey: string, note: string | null
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  if (note !== null && !note.trim()) return { error: 'يرجى كتابة سبب الرفض' }
+
+  const service = createServiceClient()
+
+  // Who rejected (for display in the stage banner)
+  const supabase = await createClient()
+  const profileResult = (await supabase
+    .from('profiles').select('full_name').eq('id', auth.user.id).single()) as QueryResult<{ full_name: string }>
+  const byName = profileResult.data?.full_name ?? ''
+
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  if (note === null) {
+    delete stage.rejected; delete stage.rejection_note; delete stage.rejected_at; delete stage.rejected_by
+  } else {
+    stage.rejected = true
+    stage.rejection_note = note.trim()
+    stage.rejected_at = new Date().toISOString()
+    stage.rejected_by = byName
+    stage.done = false            // a rejected stage cannot stay "done"
+  }
+  stages[stageKey] = stage
+
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حفظ الرفض' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: note === null
+      ? `إلغاء الرفض — ${stageLabel(stageKey)}`
+      : `رفض/مشكلة في ${stageLabel(stageKey)}: ${note.trim()}`,
+    details: { installation_id: installationId, stage: stageKey, rejected: note !== null, note: note ?? null },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
 export async function updateInstallStageFlags(
   installationId: string, projectId: string, stageKey: string, flags: { done?: boolean; started?: boolean }
 ) {
