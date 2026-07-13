@@ -90,8 +90,31 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
     })
   }
 
+  // Overall installation completion — shown first, at the very top of the section
+  const primaryStages = installations[0]?.stages ?? {}
+  const requiredStages = INSTALL_STAGES.filter((s) => !s.optional)
+  const doneStages = requiredStages.filter((s) => primaryStages[s.key]?.done).length
+  const installPct = Math.round((doneStages / requiredStages.length) * 100)
+
   return (
     <div className="space-y-4">
+      {/* Installation completion — first thing in the section */}
+      {installations.length > 0 && (
+        <div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
+              <Hammer className="h-4 w-4 text-purple-600" />
+              نسبة إنجاز التركيب
+            </span>
+            <span className="text-2xl font-extrabold text-purple-700">{installPct}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-white overflow-hidden border border-purple-100">
+            <div className="h-full rounded-full bg-purple-600 transition-all duration-500" style={{ width: `${installPct}%` }} />
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5">{doneStages} من {requiredStages.length} مراحل مكتملة</p>
+        </div>
+      )}
+
       {/* Section header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -203,10 +226,6 @@ function InstallationCard({
   const isCompleted = installation.status === 'completed'
   const stages = installation.stages ?? {}
 
-  const requiredStages = INSTALL_STAGES.filter((s) => !s.optional)
-  const doneCount = requiredStages.filter((s) => stages[s.key]?.done).length
-  const stagePct = Math.round((doneCount / requiredStages.length) * 100)
-
   const [selectedStage, setSelectedStage] = useState<string | null>(null)
   const [editingDuration, setEditingDuration] = useState(false)
   const [durationVal, setDurationVal] = useState(installation.expected_duration ?? '')
@@ -299,18 +318,6 @@ function InstallationCard({
             لم يُبلَّغ العميل
           </span>
         )}
-      </div>
-
-      {/* Installation completion % */}
-      <div className="mx-5 mb-3 rounded-xl border border-purple-100 bg-purple-50/50 px-4 py-3">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-semibold text-gray-700">نسبة إنجاز التركيب</span>
-          <span className="text-xl font-extrabold text-purple-700">{stagePct}%</span>
-        </div>
-        <div className="h-2.5 w-full rounded-full bg-white overflow-hidden border border-purple-100">
-          <div className="h-full rounded-full bg-purple-600 transition-all duration-500" style={{ width: `${stagePct}%` }} />
-        </div>
-        <p className="text-xs text-gray-500 mt-1">{doneCount} من {requiredStages.length} مراحل مكتملة</p>
       </div>
 
       {/* Stepper — the installation journey, right to left. Click a step to open it.

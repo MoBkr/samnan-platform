@@ -22,6 +22,7 @@ import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
 import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
 import { getOrCreateShareToken } from '@/lib/actions/share'
+import { INSTALL_STAGES } from '@/lib/constants'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
@@ -206,6 +207,13 @@ export function ProjectDetail({
   const collectionPct = projectValue > 0 ? Math.round((totalPaid / projectValue) * 100) : 0
 
   const isFullyPaid = project.total_amount != null && project.total_amount > 0 && totalPaid >= project.total_amount
+
+  // Installation completion — shown next to the financial boxes
+  const installStagesData = installations[0]?.stages ?? {}
+  const requiredInstallStages = INSTALL_STAGES.filter((s) => !s.optional)
+  const installPct = project.has_installation
+    ? Math.round((requiredInstallStages.filter((s) => installStagesData[s.key]?.done).length / requiredInstallStages.length) * 100)
+    : null
 
   const stageKey = getStageKey(payments, installations, material, attachments)
   const stageLabel = STAGE_LABEL[stageKey]
@@ -489,6 +497,15 @@ export function ProjectDetail({
               <p className="text-lg font-bold text-gray-700 mt-0.5">{formatCurrency(projectValue)}</p>
               <p className="text-xs text-gray-400 mt-0.5">قيمة المشروع</p>
             </div>
+            {installPct !== null && (
+              <div className="rounded-xl bg-purple-50 px-4 py-3 text-center min-w-[100px]">
+                <p className="text-xs text-purple-600 font-medium">التركيب</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{installPct}%</p>
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-purple-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-purple-600 transition-all" style={{ width: `${installPct}%` }} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
