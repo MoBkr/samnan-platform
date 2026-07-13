@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Hammer, CheckCircle2, Clock, Calendar, AlertCircle, Timer,
-  Upload, FileText, X, Check, ChevronDown, Pencil, RotateCcw, Package,
+  Upload, FileText, X, Check, Pencil, RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +22,7 @@ import { uploadFileDirect } from '@/lib/upload-client'
 import { formatDateShort } from '@/lib/utils'
 import { INSTALL_STAGES, type InstallStageConfig, type InstallSlot } from '@/lib/constants'
 import { ProjectTechnicians } from '@/components/installation/project-technicians'
-import type { Installation, Profile, InstallAttachment, InstallSlotState, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
+import type { Installation, Profile, InstallAttachment, InstallSlotState, InstallStageData, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
 
 interface InstallationTabProps {
   installations: Installation[]
@@ -207,6 +207,7 @@ function InstallationCard({
   const doneCount = requiredStages.filter((s) => stages[s.key]?.done).length
   const stagePct = Math.round((doneCount / requiredStages.length) * 100)
 
+  const [selectedStage, setSelectedStage] = useState<string | null>(null)
   const [editingDuration, setEditingDuration] = useState(false)
   const [durationVal, setDurationVal] = useState(installation.expected_duration ?? '')
 
@@ -300,34 +301,71 @@ function InstallationCard({
         )}
       </div>
 
-      {/* Stage progress bar */}
-      <div className="px-5 pb-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-gray-500">مراحل المعاينة</span>
-          <span className="text-xs font-semibold text-purple-700">{doneCount} / {requiredStages.length}</span>
+      {/* Installation completion % */}
+      <div className="mx-5 mb-3 rounded-xl border border-purple-100 bg-purple-50/50 px-4 py-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-sm font-semibold text-gray-700">نسبة إنجاز التركيب</span>
+          <span className="text-xl font-extrabold text-purple-700">{stagePct}%</span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-          <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${stagePct}%` }} />
+        <div className="h-2.5 w-full rounded-full bg-white overflow-hidden border border-purple-100">
+          <div className="h-full rounded-full bg-purple-600 transition-all duration-500" style={{ width: `${stagePct}%` }} />
         </div>
+        <p className="text-xs text-gray-500 mt-1">{doneCount} من {requiredStages.length} مراحل مكتملة</p>
       </div>
 
-      {/* Inspection stages */}
-      <div className="px-5 pb-4 pt-2 space-y-2">
-        {INSTALL_STAGES.map((cfg, idx) => (
-          <StageItem
-            key={cfg.key}
-            index={idx + 1}
-            config={cfg}
-            data={stages[cfg.key] ?? {}}
-            installationId={installation.id}
-            projectId={projectId}
-            canEdit={canEdit}
-            startTransition={startTransition}
-            materialSlots={materialSlots}
-            materialReady={materialReady}
-          />
-        ))}
+      {/* Stepper — the installation journey, right to left. Click a step to open it.
+          Scrolls on small screens; spreads across the full width on desktop. */}
+      <div className="px-5 pb-2">
+        <div className="flex items-start w-full overflow-x-auto sm:overflow-visible pb-1">
+          {INSTALL_STAGES.map((cfg, idx) => {
+            const isLast = idx === INSTALL_STAGES.length - 1
+            return (
+              <div key={cfg.key} className={`flex items-start shrink-0 ${isLast ? '' : 'sm:flex-1 sm:shrink'}`}>
+                <StageStep
+                  index={idx + 1}
+                  config={cfg}
+                  data={stages[cfg.key] ?? {}}
+                  materialSlots={materialSlots}
+                  selected={selectedStage === cfg.key}
+                  onClick={() => setSelectedStage(selectedStage === cfg.key ? null : cfg.key)}
+                />
+                {!isLast && (
+                  <div className={`h-0.5 w-6 sm:w-auto sm:flex-1 mt-[19px] mx-1 rounded shrink-0 sm:shrink ${
+                    stages[cfg.key]?.done ? 'bg-green-400' : 'bg-gray-200'
+                  }`} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {!selectedStage && (
+          <p className="text-[11px] text-gray-400 text-center mt-1">اضغط على أي مرحلة لفتح تفاصيلها</p>
+        )}
       </div>
+
+      {/* Selected stage details */}
+      {selectedStage && (() => {
+        const cfg = INSTALL_STAGES.find((s) => s.key === selectedStage)
+        if (!cfg) return null
+        const idx = INSTALL_STAGES.findIndex((s) => s.key === selectedStage)
+        return (
+          <div className="px-5 pb-4 pt-2">
+            <StageItem
+              key={cfg.key}
+              index={idx + 1}
+              config={cfg}
+              data={stages[cfg.key] ?? {}}
+              installationId={installation.id}
+              projectId={projectId}
+              canEdit={canEdit}
+              startTransition={startTransition}
+              materialSlots={materialSlots}
+              materialReady={materialReady}
+              onClose={() => setSelectedStage(null)}
+            />
+          </div>
+        )
+      })()}
 
       {/* Delay reason */}
       {installation.delay_reason && (
@@ -383,7 +421,7 @@ function InstallationCard({
 }
 
 function StageItem({
-  index, config, data, installationId, projectId, canEdit, startTransition, materialSlots, materialReady,
+  index, config, data, installationId, projectId, canEdit, startTransition, materialSlots, materialReady, onClose,
 }: {
   index: number
   config: InstallStageConfig
@@ -399,9 +437,9 @@ function StageItem({
   startTransition: React.TransitionStartFunction
   materialSlots: InstallSlot[]
   materialReady: boolean
+  onClose?: () => void
 }) {
   const files = data.files ?? []
-  const [open, setOpen] = useState(false)
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
   const [addingSlot, setAddingSlot] = useState(false)
   const [newSlotLabel, setNewSlotLabel] = useState('')
@@ -546,28 +584,34 @@ function StageItem({
   }
 
   return (
-    <div className={`rounded-xl border transition-colors ${isRejected ? 'border-red-300 bg-red-50/50' : isDone ? 'border-green-200 bg-green-50/40' : hasFiles ? 'border-purple-100 bg-white' : 'border-gray-100 bg-gray-50/40'}`}>
-      {/* Stage header (toggles open) */}
-      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-3.5 py-2.5 text-start">
-        <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
-          isRejected ? 'bg-red-500 text-white' : isDone ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
+    <div className={`rounded-xl border shadow-sm transition-colors ${isRejected ? 'border-red-300 bg-red-50/50' : isDone ? 'border-green-200 bg-green-50/40' : 'border-purple-200 bg-white'}`}>
+      {/* Stage header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shrink-0 ${
+          isRejected ? 'bg-red-500 text-white' : isDone ? 'bg-green-500 text-white' : 'bg-purple-600 text-white'
         }`}>
           {isRejected ? <AlertCircle className="h-4 w-4" /> : isDone ? <Check className="h-4 w-4" /> : index}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-gray-900">{config.label}</span>
-            <span className="text-[10px] text-gray-400">{config.en}</span>
+            <span className="text-base font-bold text-gray-900">{config.label}</span>
+            <span className="text-[11px] text-gray-400" dir="ltr">{config.en}</span>
             {isRejected && <span className="text-[10px] font-bold rounded-full bg-red-100 text-red-700 px-1.5 py-0.5">مرفوض</span>}
+            {isDone && <span className="text-[10px] font-bold rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">مكتملة</span>}
             {config.optional && <span className="text-[10px] rounded-full bg-gray-100 text-gray-500 px-1.5 py-0.5">اختياري</span>}
             {hasFiles && <span className="text-[10px] rounded-full bg-purple-100 text-purple-700 px-1.5 py-0.5">{files.length} ملف</span>}
           </div>
         </div>
-        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
-      </button>
+        {onClose && (
+          <button onClick={onClose} title="إغلاق التفاصيل"
+            className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
-      {open && (
-        <div className="border-t border-gray-100 px-3.5 py-3 space-y-3">
+      {(
+        <div className="px-4 py-3.5 space-y-3">
           <p className="text-xs text-gray-500 leading-relaxed">{config.desc}</p>
 
           {/* Site inspection: team start confirmation */}
@@ -774,6 +818,63 @@ function StageItem({
         </div>
       )}
     </div>
+  )
+}
+
+// One step in the installation stepper — status at a glance; click to open it.
+function StageStep({
+  index, config, data, materialSlots, selected, onClick,
+}: {
+  index: number
+  config: InstallStageConfig
+  data: InstallStageData
+  materialSlots: InstallSlot[]
+  selected: boolean
+  onClick: () => void
+}) {
+  const done = !!data.done
+  const slots: InstallSlot[] = [
+    ...(config.slots ?? []),
+    ...(config.dynamic ? materialSlots : []),
+    ...(data.customSlots ?? []),
+  ]
+  const slotStates = data.slotStates ?? {}
+  const applicable = slots.filter((s) => !slotStates[s.key]?.na)
+  const doneSlots = applicable.filter((s) => slotStates[s.key]?.done).length
+  const rejectedSlots = applicable.filter((s) => slotStates[s.key]?.rejected).length
+  const bad = !!data.rejected || rejectedSlots > 0
+
+  return (
+    <button
+      onClick={onClick}
+      className="group flex w-24 sm:w-28 shrink-0 flex-col items-center gap-1.5 px-1"
+    >
+      <span className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-all
+        ${bad ? 'border-red-500 bg-red-500 text-white'
+          : done ? 'border-green-500 bg-green-500 text-white'
+          : selected ? 'border-purple-600 bg-purple-600 text-white'
+          : 'border-gray-300 bg-white text-gray-500 group-hover:border-purple-400 group-hover:text-purple-600'}
+        ${selected ? 'ring-4 ring-purple-200' : ''}`}>
+        {bad ? <AlertCircle className="h-4.5 w-4.5" /> : done ? <Check className="h-5 w-5" /> : index}
+      </span>
+
+      <span className={`text-[11px] font-bold leading-tight text-center ${
+        selected ? 'text-purple-700' : bad ? 'text-red-700' : done ? 'text-green-700' : 'text-gray-600'
+      }`}>
+        {config.label}
+      </span>
+
+      {applicable.length > 0 ? (
+        <span className={`text-[10px] font-semibold ${rejectedSlots > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+          {doneSlots}/{applicable.length}
+          {rejectedSlots > 0 && ` · ${rejectedSlots} مرفوض`}
+        </span>
+      ) : (
+        <span className="text-[10px] text-gray-400">
+          {bad ? 'مرفوض' : done ? 'مكتملة' : config.optional ? 'اختياري' : '—'}
+        </span>
+      )}
+    </button>
   )
 }
 
