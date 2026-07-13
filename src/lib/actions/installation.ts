@@ -210,6 +210,104 @@ export async function removeInstallStageSlot(
   return { success: true }
 }
 
+// ── Per-item (slot) state inside a stage: each WIR item (Tank, Pipe, …) is
+//    approved / marked N/A / rejected on its own. ──
+export async function setInstallSlotState(
+  installationId: string, projectId: string, stageKey: string, slotKey: string,
+  patch: { done?: boolean; na?: boolean }
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const service = createServiceClient()
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  const slotStates = { ...(stage.slotStates ?? {}) }
+  const current = { ...(slotStates[slotKey] ?? {}) }
+
+  if (patch.done !== undefined) {
+    if (patch.done && current.rejected) return { error: 'لا يمكن اعتماد بند مرفوض — احسم المشكلة أولاً' }
+    current.done = patch.done
+    if (patch.done) current.na = false
+  }
+  if (patch.na !== undefined) {
+    current.na = patch.na
+    if (patch.na) { current.done = false }
+  }
+  slotStates[slotKey] = current
+  stage.slotStates = slotStates
+  stages[stageKey] = stage
+
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل تحديث البند' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: `${stageLabel(stageKey)} — ${patch.na ? 'بند لا ينطبق' : patch.done ? 'اعتماد بند' : 'إعادة فتح بند'}: ${slotKey}`,
+    details: { installation_id: installationId, stage: stageKey, slot: slotKey, ...patch },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+// Reject a single item inside a stage, with a note and/or attachments.
+// Pass note = null to clear the rejection once resolved.
+export async function setInstallSlotRejection(
+  installationId: string, projectId: string, stageKey: string, slotKey: string,
+  note: string | null,
+  files: { url: string; name: string }[] = [],
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  if (note !== null && !note.trim() && files.length === 0) {
+    return { error: 'اكتب سبب الرفض أو أرفق ملفاً على الأقل' }
+  }
+
+  const service = createServiceClient()
+  const supabase = await createClient()
+  const profileResult = (await supabase
+    .from('profiles').select('full_name').eq('id', auth.user.id).single()) as QueryResult<{ full_name: string }>
+  const byName = profileResult.data?.full_name ?? ''
+
+  const stages = await getStages(service, installationId)
+  const stage = stages[stageKey] ?? {}
+  const slotStates = { ...(stage.slotStates ?? {}) }
+  const current = { ...(slotStates[slotKey] ?? {}) }
+
+  if (note === null) {
+    delete current.rejected; delete current.rejection_note; delete current.rejection_files
+    delete current.rejected_by; delete current.rejected_at
+  } else {
+    current.rejected = true
+    current.rejection_note = note.trim()
+    current.rejection_files = files
+    current.rejected_by = byName
+    current.rejected_at = new Date().toISOString()
+    current.done = false        // a rejected item can't stay approved
+  }
+  slotStates[slotKey] = current
+  stage.slotStates = slotStates
+  stages[stageKey] = stage
+
+  const { error } = (await service
+    .from('installations').update({ stages } as never).eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حفظ الرفض' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: note === null
+      ? `${stageLabel(stageKey)} — إلغاء رفض بند: ${slotKey}`
+      : `${stageLabel(stageKey)} — رفض بند ${slotKey}: ${note.trim() || `${files.length} مرفق`}`,
+    details: { installation_id: installationId, stage: stageKey, slot: slotKey, rejected: note !== null, note: note ?? null, files: files.length },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
 // Reject an inspection stage (e.g. materials rejected during MIR) with a reason,
 // or clear the rejection once resolved (pass note = null).
 // Allowed for the installation manager, coordinator and admin.

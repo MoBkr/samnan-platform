@@ -118,10 +118,23 @@ export interface InstallAttachment {
   slot?: string
 }
 
+// Per-item (slot) state inside a stage — each WIR item (Tank, Pipe, …) is
+// approved / rejected on its own, with its own note and attachments.
+export interface InstallSlotState {
+  done?: boolean
+  na?: boolean                   // not applicable to this project
+  rejected?: boolean
+  rejection_note?: string
+  rejection_files?: { url: string; name: string }[]
+  rejected_by?: string
+  rejected_at?: string
+}
+
 export interface InstallStageData {
   done?: boolean
   started?: boolean              // Site Inspection: team start confirmation
   files?: InstallAttachment[]
+  slotStates?: Record<string, InstallSlotState>   // per-item approval/rejection
   customSlots?: { key: string; label: string }[]  // IRS: manually-added inspection items not in the materials list
   // Inspection rejection (e.g. materials rejected during MIR) with a reason.
   rejected?: boolean

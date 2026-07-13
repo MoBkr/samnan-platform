@@ -60,11 +60,20 @@ export const INSTALL_STAGES: InstallStageConfig[] = [
     ],
   },
   {
-    key: 'irs',
+    key: 'irs',   // key kept for backward compatibility with existing records
     label: 'معاينة التركيب',
-    en: 'IRS — Inspection Requests',
-    desc: 'البنود تظهر تلقائياً من مواد المشروع عند جاهزيتها — كل صنف بند معاينة منفصل بملفه. يمكن إضافة بنود إضافية يدوياً (مثل Pressure Test).',
-    dynamic: true,
+    en: 'WIR — Work Inspection Request',
+    desc: 'بنود قياسية — كل بند يُعتمد أو يُرفض على حدة بملاحظته ومرفقاته. ليست كل البنود مطلوبة في كل مشروع (استخدم «لا ينطبق»)، ويمكن إضافة بنود أخرى.',
+    slots: [
+      { key: 'tank', label: 'Tank' },
+      { key: 'pipe', label: 'Pipe' },
+      { key: 'pressure_test', label: 'Pressure Test' },
+      { key: 'conduit', label: 'Conduit' },
+      { key: 'control_panel', label: 'Control Panel' },
+      { key: 'connection_generator', label: 'Connection Generator' },
+      { key: 'cable_pulling', label: 'Cable Pulling' },
+      { key: 'cable_termination', label: 'Cable Termination' },
+    ],
   },
   {
     key: 'commissioning',

@@ -16,12 +16,13 @@ import {
   scheduleInstallation, updateInstallationStatus, markClientNotified,
   setInstallExpectedDuration, addInstallStageFile, removeInstallStageFile, updateInstallStageFlags,
   addInstallStageSlot, removeInstallStageSlot, setInstallStageRejection,
+  setInstallSlotState, setInstallSlotRejection,
 } from '@/lib/actions/installation'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatDateShort } from '@/lib/utils'
 import { INSTALL_STAGES, type InstallStageConfig, type InstallSlot } from '@/lib/constants'
 import { ProjectTechnicians } from '@/components/installation/project-technicians'
-import type { Installation, Profile, InstallAttachment, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
+import type { Installation, Profile, InstallAttachment, InstallSlotState, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
 
 interface InstallationTabProps {
   installations: Installation[]
@@ -390,6 +391,7 @@ function StageItem({
     done?: boolean; started?: boolean; files?: InstallAttachment[]; customSlots?: { key: string; label: string }[]
     rejected?: boolean; rejection_note?: string; rejected_at?: string; rejected_by?: string
     rejection_files?: { url: string; name: string }[]
+    slotStates?: Record<string, InstallSlotState>
   }
   installationId: string
   projectId: string
@@ -457,12 +459,17 @@ function StageItem({
     })
   }
 
-  // IRS (dynamic) slots = materials (when ready) + manually-added items.
+  // Slots = the stage's fixed standard items + any manually-added extras.
+  // (Legacy: a `dynamic` stage also merges the material-derived slots.)
   const customSlots = data.customSlots ?? []
-  const dynamicSlots: InstallSlot[] = config.dynamic ? [...materialSlots, ...customSlots] : []
+  const allSlots: InstallSlot[] = [
+    ...(config.slots ?? []),
+    ...(config.dynamic ? materialSlots : []),
+    ...customSlots,
+  ]
   // Files whose slot no longer matches any current slot — keep them visible, never lose data.
-  const knownSlotKeys = new Set([...(config.slots ?? []), ...dynamicSlots].map((s) => s.key))
-  const orphanFiles = config.dynamic ? files.filter((f) => f.slot && !knownSlotKeys.has(f.slot)) : []
+  const knownSlotKeys = new Set(allSlots.map((s) => s.key))
+  const orphanFiles = allSlots.length > 0 ? files.filter((f) => f.slot && !knownSlotKeys.has(f.slot)) : []
 
   function addSlot() {
     if (!newSlotLabel.trim()) return
@@ -580,56 +587,30 @@ function StageItem({
             </div>
           )}
 
-          {/* Dynamic IRS — slots from project materials + manual additions */}
-          {config.dynamic ? (
+          {/* Slotted stages — each item is approved / N-A / rejected on its own */}
+          {allSlots.length > 0 ? (
             <div className="space-y-2">
-              {!materialReady && dynamicSlots.length === 0 && (
-                <div className="flex items-center gap-2 rounded-lg border border-dashed border-amber-200 bg-amber-50/50 px-3 py-2.5 text-xs text-amber-700">
-                  <Package className="h-4 w-4 shrink-0" />
-                  بنود المعاينة هتظهر تلقائياً من المواد لما تبقى «جاهزة». ويمكنك إضافة بنود يدوياً الآن.
-                </div>
-              )}
+              {allSlots.map((slot) => (
+                <SlotItem
+                  key={slot.key}
+                  slot={slot}
+                  state={(data.slotStates ?? {})[slot.key] ?? {}}
+                  files={files.filter((f) => f.slot === slot.key)}
+                  isCustom={slot.key.startsWith('custom:')}
+                  stageKey={config.key}
+                  installationId={installationId}
+                  projectId={projectId}
+                  canEdit={canEdit}
+                  uploading={uploadingSlot === slot.key}
+                  uploadDisabled={uploadingSlot !== null}
+                  onPickFile={() => pickFile(slot.key)}
+                  onRemoveFile={removeFile}
+                  onRemoveSlot={() => removeSlot(slot.key)}
+                  startTransition={startTransition}
+                />
+              ))}
 
-              {dynamicSlots.map((slot) => {
-                const slotFiles = files.filter((f) => f.slot === slot.key)
-                const isCustom = slot.key.startsWith('custom:')
-                return (
-                  <div key={slot.key} className="rounded-lg border border-gray-100 bg-white px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
-                        {!isCustom && <Package className="h-3 w-3 text-amber-500" />}
-                        {slot.label}
-                      </span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {canEdit && (
-                          <button
-                            onClick={() => pickFile(slot.key)}
-                            disabled={uploadingSlot !== null}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-50"
-                          >
-                            {uploadingSlot === slot.key ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                            رفع
-                          </button>
-                        )}
-                        {canEdit && isCustom && (
-                          <button onClick={() => removeSlot(slot.key)} className="text-gray-300 hover:text-red-500 transition-colors">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {slotFiles.length > 0 && (
-                      <div className="mt-1.5 space-y-1">
-                        {slotFiles.map((f) => (
-                          <FileChip key={f.url} file={f} canEdit={canEdit} onRemove={() => removeFile(f.url)} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {/* Orphaned files (slot removed / material renamed) — keep visible */}
+              {/* Orphaned files (slot removed / renamed) — keep visible */}
               {orphanFiles.length > 0 && (
                 <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
                   <span className="text-xs font-medium text-gray-500">بنود أخرى / محذوفة</span>
@@ -641,7 +622,7 @@ function StageItem({
                 </div>
               )}
 
-              {/* Add manual inspection item */}
+              {/* Add an extra inspection item */}
               {canEdit && (
                 addingSlot ? (
                   <div className="flex items-center gap-2">
@@ -649,7 +630,7 @@ function StageItem({
                       value={newSlotLabel}
                       onChange={(e) => setNewSlotLabel(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSlot() } }}
-                      placeholder="اسم بند المعاينة (مثل Pressure Test)"
+                      placeholder="اسم بند إضافي"
                       className="h-8 text-sm"
                       autoFocus
                     />
@@ -663,40 +644,10 @@ function StageItem({
                     onClick={() => setAddingSlot(true)}
                     className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
                   >
-                    <Plus className="h-3.5 w-3.5" /> إضافة بند معاينة
+                    <Plus className="h-3.5 w-3.5" /> إضافة بند
                   </button>
                 )
               )}
-            </div>
-          ) : config.slots ? (
-            <div className="space-y-2">
-              {config.slots.map((slot) => {
-                const slotFiles = files.filter((f) => f.slot === slot.key)
-                return (
-                  <div key={slot.key} className="rounded-lg border border-gray-100 bg-white px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-gray-700">{slot.label}</span>
-                      {canEdit && (
-                        <button
-                          onClick={() => pickFile(slot.key)}
-                          disabled={uploadingSlot !== null}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-50"
-                        >
-                          {uploadingSlot === slot.key ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                          رفع
-                        </button>
-                      )}
-                    </div>
-                    {slotFiles.length > 0 && (
-                      <div className="mt-1.5 space-y-1">
-                        {slotFiles.map((f) => (
-                          <FileChip key={f.url} file={f} canEdit={canEdit} onRemove={() => removeFile(f.url)} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
             </div>
           ) : (
             /* Single-file stages */
@@ -820,6 +771,203 @@ function StageItem({
           )}
 
           <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onFile} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// A single inspection item (Tank, Pipe, Pressure Test, …) — approved, marked
+// not-applicable, or rejected on its own with its own note and attachments.
+function SlotItem({
+  slot, state, files, isCustom, stageKey, installationId, projectId, canEdit,
+  uploading, uploadDisabled, onPickFile, onRemoveFile, onRemoveSlot, startTransition,
+}: {
+  slot: InstallSlot
+  state: InstallSlotState
+  files: InstallAttachment[]
+  isCustom: boolean
+  stageKey: string
+  installationId: string
+  projectId: string
+  canEdit: boolean
+  uploading: boolean
+  uploadDisabled: boolean
+  onPickFile: () => void
+  onRemoveFile: (url: string) => void
+  onRemoveSlot: () => void
+  startTransition: React.TransitionStartFunction
+}) {
+  const [rejecting, setRejecting] = useState(false)
+  const [note, setNote] = useState('')
+  const [rejFiles, setRejFiles] = useState<{ url: string; name: string }[]>([])
+  const [uploadingRej, setUploadingRej] = useState(false)
+  const rejInputRef = useRef<HTMLInputElement>(null)
+
+  const done = !!state.done
+  const na = !!state.na
+  const rejected = !!state.rejected
+
+  function setDone(v: boolean) {
+    startTransition(async () => {
+      try {
+        const r = await setInstallSlotState(installationId, projectId, stageKey, slot.key, { done: v })
+        if (r?.error) toast.error(r.error)
+        else toast.success(v ? 'تم اعتماد البند' : 'تم إعادة فتح البند')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+  function setNA(v: boolean) {
+    startTransition(async () => {
+      try {
+        const r = await setInstallSlotState(installationId, projectId, stageKey, slot.key, { na: v })
+        if (r?.error) toast.error(r.error)
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+  async function pickRejFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!picked.length) return
+    setUploadingRej(true)
+    const added: { url: string; name: string }[] = []
+    for (const f of picked) {
+      const up = await uploadFileDirect(f, `installations/${projectId}`)
+      if ('error' in up) { toast.error(up.error); continue }
+      added.push({ url: up.url, name: f.name })
+    }
+    setUploadingRej(false)
+    if (added.length) setRejFiles((prev) => [...prev, ...added])
+  }
+  function submitReject() {
+    if (!note.trim() && rejFiles.length === 0) { toast.error('اكتب سبب المشكلة أو أرفق ملفاً'); return }
+    startTransition(async () => {
+      try {
+        const r = await setInstallSlotRejection(installationId, projectId, stageKey, slot.key, note.trim(), rejFiles)
+        if (r?.error) toast.error(r.error)
+        else { toast.success('تم تسجيل الرفض للبند'); setRejecting(false); setNote(''); setRejFiles([]) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+  function clearReject() {
+    startTransition(async () => {
+      try {
+        const r = await setInstallSlotRejection(installationId, projectId, stageKey, slot.key, null)
+        if (r?.error) toast.error(r.error)
+        else toast.success('تم حل مشكلة البند')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  return (
+    <div className={`rounded-lg border px-3 py-2.5 ${rejected ? 'border-red-200 bg-red-50/50' : done ? 'border-green-200 bg-green-50/40' : na ? 'border-gray-200 bg-gray-50 opacity-60' : 'border-gray-100 bg-white'}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-sm font-semibold text-gray-800" dir="ltr">
+          {rejected ? <AlertCircle className="h-4 w-4 text-red-600" />
+            : done ? <Check className="h-4 w-4 text-green-600" />
+            : <span className="h-2 w-2 rounded-full bg-gray-300" />}
+          {slot.label}
+        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {rejected && <span className="text-[10px] font-bold rounded-full bg-red-100 text-red-700 px-1.5 py-0.5">مرفوض</span>}
+          {done && <span className="text-[10px] font-bold rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">معتمد</span>}
+          {na && <span className="text-[10px] rounded-full bg-gray-200 text-gray-600 px-1.5 py-0.5">لا ينطبق</span>}
+          {canEdit && (
+            <button onClick={onPickFile} disabled={uploadDisabled}
+              className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-50">
+              {uploading ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} رفع
+            </button>
+          )}
+          {canEdit && isCustom && (
+            <button onClick={onRemoveSlot} className="text-gray-300 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+          )}
+        </div>
+      </div>
+
+      {/* Files */}
+      {files.length > 0 && (
+        <div className="mt-1.5 space-y-1">
+          {files.map((f) => <FileChip key={f.url} file={f} canEdit={canEdit} onRemove={() => onRemoveFile(f.url)} />)}
+        </div>
+      )}
+
+      {/* Rejection details */}
+      {rejected && (
+        <div className="mt-2 rounded-md border border-red-200 bg-white px-2.5 py-2">
+          {state.rejection_note && <p className="text-xs text-red-800 whitespace-pre-wrap">{state.rejection_note}</p>}
+          {(state.rejection_files ?? []).length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(state.rejection_files ?? []).map((f, i) => (
+                <a key={i} href={f.url} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-700 hover:bg-red-50">
+                  <FileText className="h-3 w-3" /> {f.name}
+                </a>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-red-500 mt-1">
+            {state.rejected_by ? `${state.rejected_by} · ` : ''}{state.rejected_at ? formatDateShort(state.rejected_at) : ''}
+          </p>
+        </div>
+      )}
+
+      {/* Reject form */}
+      {canEdit && rejecting && (
+        <div className="mt-2 rounded-md border border-red-200 bg-red-50/60 p-2.5 space-y-2">
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+            placeholder="سبب المشكلة / الرفض لهذا البند"
+            className="w-full rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200" />
+          {rejFiles.length > 0 && (
+            <div className="space-y-1">
+              {rejFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 rounded border border-red-100 bg-white px-2 py-1">
+                  <FileText className="h-3 w-3 text-red-400 shrink-0" />
+                  <span className="flex-1 truncate text-[11px] text-gray-700">{f.name}</span>
+                  <button onClick={() => setRejFiles((prev) => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => rejInputRef.current?.click()} disabled={uploadingRej}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
+            {uploadingRej ? <Clock className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} إرفاق ملف / صورة
+          </button>
+          <input ref={rejInputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={pickRejFiles} />
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={submitReject} className="bg-red-600 hover:bg-red-700 text-white">تسجيل الرفض</Button>
+            <Button size="sm" variant="outline" onClick={() => { setRejecting(false); setNote(''); setRejFiles([]) }}>إلغاء</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      {canEdit && !rejecting && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {rejected ? (
+            <Button size="sm" variant="outline" onClick={clearReject} className="text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+              <Check className="h-3.5 w-3.5" /> تم الحل
+            </Button>
+          ) : done ? (
+            <Button size="sm" variant="outline" onClick={() => setDone(false)} className="text-gray-500">
+              <RotateCcw className="h-3.5 w-3.5" /> إعادة فتح
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant="success" onClick={() => setDone(true)} disabled={na}>
+                <Check className="h-3.5 w-3.5" /> تم
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setRejecting(true)} className="text-red-600 border-red-200 hover:bg-red-50">
+                <AlertCircle className="h-3.5 w-3.5" /> مشكلة / رفض
+              </Button>
+              <button onClick={() => setNA(!na)}
+                className={`text-[11px] font-medium px-2 py-1 rounded-md border transition-colors ${na ? 'border-gray-300 bg-gray-100 text-gray-600' : 'border-gray-200 text-gray-400 hover:text-gray-600'}`}>
+                {na ? 'إلغاء «لا ينطبق»' : 'لا ينطبق'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
