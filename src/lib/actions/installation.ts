@@ -214,11 +214,16 @@ export async function removeInstallStageSlot(
 // or clear the rejection once resolved (pass note = null).
 // Allowed for the installation manager, coordinator and admin.
 export async function setInstallStageRejection(
-  installationId: string, projectId: string, stageKey: string, note: string | null
+  installationId: string, projectId: string, stageKey: string,
+  note: string | null,
+  files: { url: string; name: string }[] = [],
 ) {
   const auth = await requireInstallEditor()
   if ('error' in auth) return { error: auth.error }
-  if (note !== null && !note.trim()) return { error: 'يرجى كتابة سبب الرفض' }
+  // A rejection needs a reason: either a written note or at least one attachment.
+  if (note !== null && !note.trim() && files.length === 0) {
+    return { error: 'اكتب سبب الرفض أو أرفق ملفاً على الأقل' }
+  }
 
   const service = createServiceClient()
 
@@ -231,10 +236,12 @@ export async function setInstallStageRejection(
   const stages = await getStages(service, installationId)
   const stage = stages[stageKey] ?? {}
   if (note === null) {
-    delete stage.rejected; delete stage.rejection_note; delete stage.rejected_at; delete stage.rejected_by
+    delete stage.rejected; delete stage.rejection_note; delete stage.rejection_files
+    delete stage.rejected_at; delete stage.rejected_by
   } else {
     stage.rejected = true
     stage.rejection_note = note.trim()
+    stage.rejection_files = files
     stage.rejected_at = new Date().toISOString()
     stage.rejected_by = byName
     stage.done = false            // a rejected stage cannot stay "done"
@@ -249,8 +256,8 @@ export async function setInstallStageRejection(
     project_id: projectId, user_id: auth.user.id,
     action: note === null
       ? `إلغاء الرفض — ${stageLabel(stageKey)}`
-      : `رفض/مشكلة في ${stageLabel(stageKey)}: ${note.trim()}`,
-    details: { installation_id: installationId, stage: stageKey, rejected: note !== null, note: note ?? null },
+      : `رفض/مشكلة في ${stageLabel(stageKey)}: ${note.trim() || `${files.length} مرفق`}`,
+    details: { installation_id: installationId, stage: stageKey, rejected: note !== null, note: note ?? null, files: files.length },
   } as never)
 
   revalidatePath(`/projects/${projectId}`)

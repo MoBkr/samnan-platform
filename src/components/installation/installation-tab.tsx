@@ -389,6 +389,7 @@ function StageItem({
   data: {
     done?: boolean; started?: boolean; files?: InstallAttachment[]; customSlots?: { key: string; label: string }[]
     rejected?: boolean; rejection_note?: string; rejected_at?: string; rejected_by?: string
+    rejection_files?: { url: string; name: string }[]
   }
   installationId: string
   projectId: string
@@ -404,20 +405,44 @@ function StageItem({
   const [newSlotLabel, setNewSlotLabel] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const [rejectNote, setRejectNote] = useState('')
+  const [rejectFiles, setRejectFiles] = useState<{ url: string; name: string }[]>([])
+  const [rejectUploading, setRejectUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const rejectInputRef = useRef<HTMLInputElement>(null)
   const pendingSlot = useRef<string | undefined>(undefined)
 
   const isDone = !!data.done
   const isRejected = !!data.rejected
   const hasFiles = files.length > 0
 
+  async function onRejectFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!picked.length) return
+    setRejectUploading(true)
+    const added: { url: string; name: string }[] = []
+    for (const file of picked) {
+      const up = await uploadFileDirect(file, `installations/${projectId}`)
+      if ('error' in up) { toast.error(up.error); continue }
+      added.push({ url: up.url, name: file.name })
+    }
+    setRejectUploading(false)
+    if (added.length) {
+      setRejectFiles((prev) => [...prev, ...added])
+      toast.success(`تم رفع ${added.length} مرفق`)
+    }
+  }
+
   function submitRejection() {
-    if (!rejectNote.trim()) { toast.error('اكتب سبب الرفض / المشكلة'); return }
+    if (!rejectNote.trim() && rejectFiles.length === 0) {
+      toast.error('اكتب سبب الرفض أو أرفق ملفاً على الأقل')
+      return
+    }
     startTransition(async () => {
       try {
-        const result = await setInstallStageRejection(installationId, projectId, config.key, rejectNote.trim())
+        const result = await setInstallStageRejection(installationId, projectId, config.key, rejectNote.trim(), rejectFiles)
         if (result?.error) toast.error(result.error)
-        else { toast.success('تم تسجيل الرفض والملاحظة'); setRejecting(false); setRejectNote('') }
+        else { toast.success('تم تسجيل الرفض'); setRejecting(false); setRejectNote(''); setRejectFiles([]) }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -701,7 +726,19 @@ function StageItem({
                 <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-red-700">مرفوض / يوجد مشكلة</p>
-                  <p className="text-sm text-red-800 mt-0.5 whitespace-pre-wrap">{data.rejection_note}</p>
+                  {data.rejection_note && (
+                    <p className="text-sm text-red-800 mt-0.5 whitespace-pre-wrap">{data.rejection_note}</p>
+                  )}
+                  {(data.rejection_files ?? []).length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {(data.rejection_files ?? []).map((f, i) => (
+                        <a key={i} href={f.url} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-0.5 text-[11px] text-red-700 hover:bg-red-50">
+                          <FileText className="h-3 w-3" /> {f.name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-[10px] text-red-500 mt-1">
                     {data.rejected_by ? `${data.rejected_by} · ` : ''}
                     {data.rejected_at ? formatDateShort(data.rejected_at) : ''}
@@ -717,10 +754,10 @@ function StageItem({
             </div>
           )}
 
-          {/* Reject form */}
+          {/* Reject form — note and/or attachments */}
           {canEdit && rejecting && (
             <div className="rounded-lg border border-red-200 bg-red-50/60 p-3 space-y-2">
-              <Label className="text-xs text-red-700">سبب الرفض / المشكلة *</Label>
+              <Label className="text-xs text-red-700">سبب الرفض / المشكلة — نص و/أو مرفقات</Label>
               <textarea
                 value={rejectNote}
                 onChange={(e) => setRejectNote(e.target.value)}
@@ -728,11 +765,34 @@ function StageItem({
                 placeholder="مثال: البراند غير مطابق للمواصفات — تم رفض الصنف"
                 className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200"
               />
-              <div className="flex items-center gap-2">
+
+              {/* Rejection attachments */}
+              {rejectFiles.length > 0 && (
+                <div className="space-y-1">
+                  {rejectFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-lg border border-red-100 bg-white px-2.5 py-1.5">
+                      <FileText className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                      <span className="flex-1 truncate text-xs text-gray-700">{f.name}</span>
+                      <button type="button" onClick={() => setRejectFiles((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-gray-300 hover:text-red-500">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button type="button" onClick={() => rejectInputRef.current?.click()} disabled={rejectUploading}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
+                {rejectUploading ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                إرفاق ملف / صورة
+              </button>
+              <input ref={rejectInputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={onRejectFiles} />
+
+              <div className="flex items-center gap-2 pt-1">
                 <Button size="sm" onClick={submitRejection} className="bg-red-600 hover:bg-red-700 text-white">
                   <AlertCircle className="h-3.5 w-3.5" /> تسجيل الرفض
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setRejecting(false); setRejectNote('') }}>إلغاء</Button>
+                <Button size="sm" variant="outline" onClick={() => { setRejecting(false); setRejectNote(''); setRejectFiles([]) }}>إلغاء</Button>
               </div>
             </div>
           )}

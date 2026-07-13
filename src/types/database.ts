@@ -126,6 +126,7 @@ export interface InstallStageData {
   // Inspection rejection (e.g. materials rejected during MIR) with a reason.
   rejected?: boolean
   rejection_note?: string
+  rejection_files?: { url: string; name: string }[]   // evidence attached to the rejection
   rejected_at?: string
   rejected_by?: string           // full name of the person who rejected
 }
