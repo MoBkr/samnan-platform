@@ -103,6 +103,41 @@ const STATUS_PILL: Record<string, string> = {
   'لم يطلب': 'bg-gray-200 text-gray-500',
 }
 
+// The materials journey, shown as a horizontal stepper
+const MAT_STEPS = [
+  { n: 1, label: 'طلب المواد', en: 'Request' },
+  { n: 2, label: 'جاهزة للتوريد', en: 'Ready' },
+  { n: 3, label: 'التوريد والتسليم', en: 'Delivery' },
+  { n: 4, label: 'تم الاستلام', en: 'Received' },
+] as const
+
+function MatStep({ step, done, current, selected, onClick }: {
+  step: { n: number; label: string; en: string }
+  done: boolean
+  current: boolean
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button onClick={onClick} className="group flex w-24 sm:w-28 shrink-0 flex-col items-center gap-1.5 px-1">
+      <span className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-all
+        ${done ? 'border-emerald-500 bg-emerald-500 text-white'
+          : selected ? 'border-amber-600 bg-amber-600 text-white'
+          : current ? 'border-amber-500 bg-amber-100 text-amber-700'
+          : 'border-gray-300 bg-white text-gray-500 group-hover:border-amber-400 group-hover:text-amber-600'}
+        ${selected ? 'ring-4 ring-amber-200' : ''}`}>
+        {done ? <CheckCircle2 className="h-5 w-5" /> : step.n}
+      </span>
+      <span className={`text-[11px] font-bold leading-tight text-center ${
+        selected ? 'text-amber-700' : done ? 'text-emerald-700' : 'text-gray-600'
+      }`}>
+        {step.label}
+      </span>
+      <span className="text-[10px] text-gray-400" dir="ltr">{step.en}</span>
+    </button>
+  )
+}
+
 // Fallback completion % when no item-level statuses exist yet
 const MAT_STATUS_PCT: Record<string, number> = {
   delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10,
@@ -203,6 +238,17 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const materialsPct = draftItems.length > 0
     ? Math.round((completedItemsCount / draftItems.length) * 100)
     : material ? (MAT_STATUS_PCT[status] ?? 0) : 0
+
+  // ── Materials journey (horizontal stepper) ──
+  const hasAnyContent = draftItems.length > 0 || requestDocs.length > 0
+  const stepDone: Record<number, boolean> = {
+    1: hasAnyContent,
+    2: isReady || isDelivered,
+    3: isDelivered,
+    4: isDelivered && deliveryDocs.length > 0,
+  }
+  const currentStep = isDelivered ? 4 : isReady ? 3 : hasAnyContent ? 2 : 1
+  const [selectedStep, setSelectedStep] = useState<number>(currentStep)
 
   // Count rows that repeat an earlier SAP No (to offer a dedupe button).
   const sapDupCount = (() => {
@@ -597,6 +643,29 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         </div>
       </div>
 
+      {/* ── Materials stepper — the journey, right to left ── */}
+      <div className="flex items-start w-full overflow-x-auto sm:overflow-visible pb-1">
+        {MAT_STEPS.map((s, idx) => {
+          const isLast = idx === MAT_STEPS.length - 1
+          return (
+            <div key={s.n} className={`flex items-start shrink-0 ${isLast ? '' : 'sm:flex-1 sm:shrink'}`}>
+              <MatStep
+                step={s}
+                done={stepDone[s.n]}
+                current={currentStep === s.n}
+                selected={selectedStep === s.n}
+                onClick={() => setSelectedStep(s.n)}
+              />
+              {!isLast && (
+                <div className={`h-0.5 w-6 sm:w-auto sm:flex-1 mt-[19px] mx-1 rounded shrink-0 sm:shrink ${
+                  stepDone[s.n] ? 'bg-emerald-400' : 'bg-gray-200'
+                }`} />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
       {/* View-only notice for non-managers */}
       {!canManage && (
         <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
@@ -621,9 +690,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       )}
 
       {/* ══════════════════════════════════════════════
-          STEP 1 — طلب المواد (always visible unless delivered)
+          STEP 1 — طلب المواد
       ══════════════════════════════════════════════ */}
-      {!isDelivered && (
+      {selectedStep === 1 && (
         <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-5 space-y-4">
           <StepLabel number={1} done={hasContent} label="طلب المواد" />
 
@@ -848,21 +917,44 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       {/* ══════════════════════════════════════════════
           STEP 2 — المواد جاهزة
       ══════════════════════════════════════════════ */}
-      {(draftItems.length > 0 || requestDocs.length > 0) && !isReady && !isDelivered && canManage && (
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <StepLabel number={2} done={false} label="المواد جاهزة للتوريد" />
+      {selectedStep === 2 && (
+        isReady || isDelivered ? (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <p className="text-sm font-semibold text-emerald-800">المواد محدَّدة كجاهزة للتوريد ✓</p>
           </div>
-          <Button size="sm" onClick={handleMarkReady} className="shrink-0">
-            تحديد كجاهزة
-          </Button>
-        </div>
+        ) : !hasAnyContent ? (
+          <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/40 p-5 text-center">
+            <Package className="mx-auto h-7 w-7 text-amber-400 mb-2" />
+            <p className="text-sm text-amber-800 font-medium">أدخل المواد أولاً</p>
+            <p className="text-xs text-gray-500 mt-1">ارجع لمرحلة «طلب المواد» وأضف الأصناف أو ارفع الملف.</p>
+            <Button size="sm" variant="outline" className="mt-3" onClick={() => setSelectedStep(1)}>الذهاب لطلب المواد</Button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-gray-800">المواد جاهزة للتوريد؟</p>
+              <p className="text-xs text-gray-500 mt-0.5">بعد التحديد تظهر مذكرة التسليم وتُفتح خطوة التوريد.</p>
+            </div>
+            {canManage && (
+              <Button size="sm" onClick={handleMarkReady} className="shrink-0">تحديد كجاهزة</Button>
+            )}
+          </div>
+        )
       )}
 
       {/* ══════════════════════════════════════════════
-          STEP 3 — المواد جاهزة + الفاتورة + التوريد
+          STEP 3 — مذكرة التسليم + التوريد
       ══════════════════════════════════════════════ */}
-      {isReady && (
+      {selectedStep === 3 && !isReady && !isDelivered && (
+        <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/40 p-5 text-center">
+          <Truck className="mx-auto h-7 w-7 text-amber-400 mb-2" />
+          <p className="text-sm text-amber-800 font-medium">لم تُحدَّد المواد كجاهزة بعد</p>
+          <p className="text-xs text-gray-500 mt-1">حدِّد المواد كجاهزة أولاً لفتح خطوة التوريد.</p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => setSelectedStep(2)}>الذهاب لخطوة الجاهزية</Button>
+        </div>
+      )}
+      {selectedStep === 3 && (isReady || isDelivered) && (
         <div className="space-y-4">
 
           {/* ── Invoice card ── */}
@@ -931,9 +1023,17 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       )}
 
       {/* ══════════════════════════════════════════════
-          STEP 4 — مكتمل (status = delivered)
+          STEP 4 — تم الاستلام
       ══════════════════════════════════════════════ */}
-      {isDelivered && (
+      {selectedStep === 4 && !isDelivered && (
+        <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/40 p-5 text-center">
+          <CheckCircle2 className="mx-auto h-7 w-7 text-amber-400 mb-2" />
+          <p className="text-sm text-amber-800 font-medium">لم يتم تأكيد الاستلام بعد</p>
+          <p className="text-xs text-gray-500 mt-1">أكمل خطوة التوريد ثم أكّد استلام المواد.</p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => setSelectedStep(3)}>الذهاب لخطوة التوريد</Button>
+        </div>
+      )}
+      {selectedStep === 4 && isDelivered && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
