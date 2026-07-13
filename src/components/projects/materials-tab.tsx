@@ -923,18 +923,15 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
             <p className="text-sm font-semibold text-emerald-800">المواد محدَّدة كجاهزة للتوريد ✓</p>
           </div>
-        ) : !hasAnyContent ? (
-          <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/40 p-5 text-center">
-            <Package className="mx-auto h-7 w-7 text-amber-400 mb-2" />
-            <p className="text-sm text-amber-800 font-medium">أدخل المواد أولاً</p>
-            <p className="text-xs text-gray-500 mt-1">ارجع لمرحلة «طلب المواد» وأضف الأصناف أو ارفع الملف.</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={() => setSelectedStep(1)}>الذهاب لطلب المواد</Button>
-          </div>
         ) : (
           <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-gray-800">المواد جاهزة للتوريد؟</p>
-              <p className="text-xs text-gray-500 mt-0.5">بعد التحديد تظهر مذكرة التسليم وتُفتح خطوة التوريد.</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {hasAnyContent
+                  ? 'بعد التحديد تظهر مذكرة التسليم للطباعة.'
+                  : 'لم تُدخَل مواد بعد — يمكنك التحديد على أي حال أو إضافة الأصناف من خطوة «طلب المواد».'}
+              </p>
             </div>
             {canManage && (
               <Button size="sm" onClick={handleMarkReady} className="shrink-0">تحديد كجاهزة</Button>
@@ -946,15 +943,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       {/* ══════════════════════════════════════════════
           STEP 3 — مذكرة التسليم + التوريد
       ══════════════════════════════════════════════ */}
-      {selectedStep === 3 && !isReady && !isDelivered && (
-        <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/40 p-5 text-center">
-          <Truck className="mx-auto h-7 w-7 text-amber-400 mb-2" />
-          <p className="text-sm text-amber-800 font-medium">لم تُحدَّد المواد كجاهزة بعد</p>
-          <p className="text-xs text-gray-500 mt-1">حدِّد المواد كجاهزة أولاً لفتح خطوة التوريد.</p>
-          <Button size="sm" variant="outline" className="mt-3" onClick={() => setSelectedStep(2)}>الذهاب لخطوة الجاهزية</Button>
-        </div>
-      )}
-      {selectedStep === 3 && (isReady || isDelivered) && (
+      {selectedStep === 3 && (
         <div className="space-y-4">
 
           {/* ── Invoice card ── */}
@@ -1025,25 +1014,30 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       {/* ══════════════════════════════════════════════
           STEP 4 — تم الاستلام
       ══════════════════════════════════════════════ */}
-      {selectedStep === 4 && !isDelivered && (
-        <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/40 p-5 text-center">
-          <CheckCircle2 className="mx-auto h-7 w-7 text-amber-400 mb-2" />
-          <p className="text-sm text-amber-800 font-medium">لم يتم تأكيد الاستلام بعد</p>
-          <p className="text-xs text-gray-500 mt-1">أكمل خطوة التوريد ثم أكّد استلام المواد.</p>
-          <Button size="sm" variant="outline" className="mt-3" onClick={() => setSelectedStep(3)}>الذهاب لخطوة التوريد</Button>
-        </div>
-      )}
-      {selectedStep === 4 && isDelivered && (
+      {selectedStep === 4 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-emerald-800">تم استلام المواد بنجاح</p>
-              {material?.ready_at && (
-                <p className="text-xs text-emerald-600 mt-0.5">بتاريخ: {formatDate(material.ready_at)}</p>
-              )}
+          {isDelivered ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">تم استلام المواد بنجاح</p>
+                {material?.ready_at && (
+                  <p className="text-xs text-emerald-600 mt-0.5">بتاريخ: {formatDate(material.ready_at)}</p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/40 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <Truck className="h-5 w-5 text-amber-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">لم يُؤكَّد الاستلام بعد</p>
+                  <p className="text-xs text-gray-500 mt-0.5">يمكنك رفع وصل الاستلام هنا في أي وقت، أو تأكيد الاستلام من خطوة «التوريد».</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="shrink-0" onClick={() => setSelectedStep(3)}>خطوة التوريد</Button>
+            </div>
+          )}
 
           {requestDocs.length > 0 && (
             <div className="space-y-2">
