@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { formatCurrency } from '@/lib/utils'
 import { PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import { notify } from '@/lib/actions/notifications'
+import { removeStorageFiles } from '@/lib/file-cleanup'
 import type { Payment, PaymentType } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
@@ -173,14 +174,16 @@ export async function deletePayment(paymentId: string, projectId: string) {
   // Only allow deletion if payment is not fully paid
   const { data: payment } = (await service
     .from('payments')
-    .select('status')
+    .select('status, receipt_url')
     .eq('id', paymentId)
-    .single()) as unknown as { data: { status: string } | null }
+    .single()) as unknown as { data: { status: string; receipt_url: string | null } | null }
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
 
   // Attachments reference the payment (FK) — remove them first, otherwise the
   // delete is rejected and the user just sees "فشل".
+  const { data: payDocs } = (await service
+    .from('documents').select('url').eq('payment_id', paymentId)) as unknown as { data: { url: string }[] | null }
   await service.from('documents').delete().eq('payment_id', paymentId)
 
   const { error } = (await service
@@ -192,6 +195,10 @@ export async function deletePayment(paymentId: string, projectId: string) {
     console.error('[deletePayment] failed:', error)
     return { error: `فشل حذف الدفعة — ${error.message ?? 'يوجد سجلات مرتبطة بها'}` }
   }
+
+  // Its receipts leave no orphans behind in storage
+  const payUrls = [...(payDocs ?? []).map((d) => d.url), ...(payment.receipt_url ? [payment.receipt_url] : [])]
+  await removeStorageFiles(service, payUrls)
 
   await service.from('activity_log').insert({
     project_id: projectId,

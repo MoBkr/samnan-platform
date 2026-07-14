@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { BR_STAGE_LABELS } from '@/lib/constants'
+import { purgeFiles } from '@/lib/file-cleanup'
 import type { PurchaseRequest, BrStage, BrAttachment, BrMaterial } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
@@ -141,12 +142,27 @@ export async function deletePurchaseRequest(id: string) {
   const auth = await requireManager()
   if ('error' in auth) return { error: auth.error }
   const service = createServiceClient()
+
+  const { data: cur } = (await service
+    .from('purchase_requests').select('attachments, project_name, br_number').eq('id', id).single()) as unknown as {
+      data: { attachments: BrAttachment[] | null; project_name: string | null; br_number: string | null } | null
+    }
+
   const { error } = (await service.from('purchase_requests').delete().eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل حذف الطلب' }
+
+  // Its attachments must not linger in the project's Attachments tab or storage
+  const urls = (cur?.attachments ?? []).map((a) => a.url)
+  const projectId = await resolveProjectId(service, cur?.project_name ?? null)
+  await purgeFiles(service, projectId, urls)
+
   await service.from('activity_log').insert({
-    project_id: null, user_id: auth.user.id, action: 'حذف طلب شراء', details: { br_id: id },
+    project_id: projectId, user_id: auth.user.id,
+    action: `حذف طلب شراء${cur?.br_number ? ` ${cur.br_number}` : ''}`,
+    details: { br_id: id, attachments: (cur?.attachments ?? []).map((a) => a.name) },
   } as never)
   revalidatePath('/purchase-requests')
+  if (projectId) revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
 
@@ -240,7 +256,8 @@ export async function removeBrAttachment(id: string, url: string) {
   if (error) return { error: 'فشل حذف المرفق' }
 
   const projectId = await resolveProjectId(service, cur?.project_name ?? null)
-  if (projectId) await service.from('documents').delete().eq('project_id', projectId).eq('url', url)
+  // Also drop it from the project's Attachments tab and from storage
+  await purgeFiles(service, projectId, [url])
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
     action: `حذف مرفق من طلب شراء${cur?.br_number ? ` ${cur.br_number}` : ''}: ${removed?.name ?? ''}`,

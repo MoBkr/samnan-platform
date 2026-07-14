@@ -7,6 +7,7 @@ import type { Installation, InstallationStatus, InstallationStages, InstallAttac
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import { INSTALL_STAGES } from '@/lib/constants'
 import { notify } from '@/lib/actions/notifications'
+import { purgeFiles } from '@/lib/file-cleanup'
 
 function stageLabel(stageKey: string) {
   return INSTALL_STAGES.find((s) => s.key === stageKey)?.label ?? stageKey
@@ -47,10 +48,11 @@ async function registerDocument(
   } as never)
 }
 
+// Removing a file from a stage removes it everywhere: Attachments tab + storage.
 async function unregisterDocument(
   service: ReturnType<typeof createServiceClient>, projectId: string, url: string,
 ) {
-  await service.from('documents').delete().eq('project_id', projectId).eq('url', url)
+  await purgeFiles(service, projectId, [url])
 }
 
 async function getStages(service: ReturnType<typeof createServiceClient>, installationId: string): Promise<InstallationStages> {

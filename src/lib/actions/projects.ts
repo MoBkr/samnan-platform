@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatCurrency } from '@/lib/utils'
 import { notify } from '@/lib/actions/notifications'
+import { removeStorageFiles } from '@/lib/file-cleanup'
 import type { Project, ProjectStatus } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
@@ -311,16 +312,31 @@ export async function deleteProject(projectId: string) {
 
   const projectName = projectResult.data.project_name
 
+  // Every file this project owns — collected before the rows disappear so that
+  // nothing is left behind in storage.
+  const fileUrls = new Set<string>()
+  const docs = (await service
+    .from('documents').select('url').eq('project_id', projectId)) as unknown as { data: { url: string }[] | null }
+  for (const d of docs.data ?? []) fileUrls.add(d.url)
+
+  const custody = (await service
+    .from('custody_entries').select('attachments').eq('project_id', projectId)) as unknown as {
+      data: { attachments: { url: string }[] | null }[] | null
+    }
+  for (const c of custody.data ?? []) for (const f of c.attachments ?? []) fileUrls.add(f.url)
+
   // Delete every record that references the project (FK constraints), then the
   // project itself. Missing any of these makes the final delete fail silently.
+  // Order matters: documents point at payments, so they go first.
   await service.from('app_notifications').delete().eq('project_id', projectId)
   await service.from('technician_assignments').delete().eq('project_id', projectId)
   await service.from('activity_log').delete().eq('project_id', projectId)
-  await service.from('payments').delete().eq('project_id', projectId)
-  await service.from('installations').delete().eq('project_id', projectId)
-  await service.from('supply_orders').delete().eq('project_id', projectId)
-  await service.from('materials').delete().eq('project_id', projectId)
   await service.from('documents').delete().eq('project_id', projectId)
+  await service.from('custody_entries').delete().eq('project_id', projectId)
+  await service.from('payments').delete().eq('project_id', projectId)
+  await service.from('supply_orders').delete().eq('project_id', projectId)
+  await service.from('installations').delete().eq('project_id', projectId)
+  await service.from('materials').delete().eq('project_id', projectId)
 
   const { error } = (await service
     .from('projects').delete().eq('id', projectId)) as unknown as { error: { message?: string } | null }
@@ -330,12 +346,14 @@ export async function deleteProject(projectId: string) {
     return { error: `فشل حذف المشروع — يوجد سجلات مرتبطة به. ${error.message ?? ''}`.trim() }
   }
 
+  await removeStorageFiles(service, [...fileUrls])
+
   // Audit the deletion (project_id is gone, so record it against the name)
   await service.from('activity_log').insert({
     project_id: null,
     user_id: user.id,
     action: `حذف مشروع نهائياً: ${projectName}`,
-    details: { project_id: projectId, project_name: projectName },
+    details: { project_id: projectId, project_name: projectName, files_removed: fileUrls.size },
   } as never)
 
   revalidatePath('/projects')

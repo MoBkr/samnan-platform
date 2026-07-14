@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { CUSTODY_CATEGORY_LABELS } from '@/lib/constants'
+import { purgeFiles } from '@/lib/file-cleanup'
 import { formatCurrency } from '@/lib/utils'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import type { CustodyEntry, CustodyKind } from '@/types/database'
@@ -81,8 +82,11 @@ export async function addCustodyEntry(data: {
   const kindLabel = data.kind === 'advance' ? 'استلام عهدة' : 'صرف من العهدة'
   await service.from('activity_log').insert({
     project_id: data.projectId, user_id: auth.user.id,
-    action: `${kindLabel}: ${data.description.trim()} — ${formatCurrency(data.amount)}${data.category ? ` (${CUSTODY_CATEGORY_LABELS[data.category] ?? data.category})` : ''}`,
-    details: { kind: data.kind, amount: data.amount, category: data.category ?? null, recipient: data.recipient ?? null },
+    action: `${kindLabel}: ${data.description.trim()} — ${formatCurrency(data.amount)}${data.category ? ` (${CUSTODY_CATEGORY_LABELS[data.category] ?? data.category})` : ''}${attachments.length ? ` — ${attachments.length} مرفق` : ''}`,
+    details: {
+      kind: data.kind, amount: data.amount, category: data.category ?? null,
+      recipient: data.recipient ?? null, attachments: attachments.map((f) => f.name),
+    },
   } as never)
 
   revalidatePath(`/projects/${data.projectId}`)
@@ -106,15 +110,14 @@ export async function deleteCustodyEntry(id: string, projectId: string) {
     return { error: `فشل حذف السجل — ${error.message ?? ''}`.trim() }
   }
 
-  // Remove its receipts from the project's attachments too
-  for (const f of cur.data?.attachments ?? []) {
-    await service.from('documents').delete().eq('project_id', projectId).eq('url', f.url)
-  }
+  // Remove its receipts from the project's attachments and from storage too
+  const files = cur.data?.attachments ?? []
+  await purgeFiles(service, projectId, files.map((f) => f.url))
 
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
     action: `حذف سجل عهدة: ${cur.data?.description ?? ''} — ${cur.data ? formatCurrency(cur.data.amount) : ''}`,
-    details: { custody_id: id },
+    details: { custody_id: id, attachments: files.map((f) => f.name) },
   } as never)
 
   revalidatePath(`/projects/${projectId}`)

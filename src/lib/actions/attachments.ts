@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
+import { detachFromJsonb, removeDocumentRows, removeStorageFiles } from '@/lib/file-cleanup'
 import type { Document } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
@@ -184,11 +185,7 @@ export async function deleteAttachment(documentId: string, projectId: string) {
     if (!docResult.data) return { error: 'الملف غير موجود' }
 
     const service = createServiceClient()
-    const urlParts = docResult.data.url.split('/').pop()
-    if (urlParts) {
-      const filePath = `${docResult.data.type}/${urlParts}`
-      await service.storage.from('documents').remove([filePath])
-    }
+    const url = docResult.data.url
 
     const { error } = (await service
       .from('documents')
@@ -196,6 +193,11 @@ export async function deleteAttachment(documentId: string, projectId: string) {
       .eq('id', documentId)) as unknown as { error: Error | null }
 
     if (error) return { error: 'فشل حذف الملف' }
+
+    // The same file may still be referenced by an installation stage, a custody
+    // entry or a purchase request — clear those, then drop the stored file.
+    await detachFromJsonb(service, projectId, [url])
+    await removeStorageFiles(service, [url])
 
     await service.from('activity_log').insert({
       project_id: projectId,
@@ -219,12 +221,20 @@ export async function deleteContractUrl(projectId: string) {
     if (!user) return { error: 'غير مصرح' }
 
     const service = createServiceClient()
+    const cur = (await service
+      .from('projects').select('contract_url').eq('id', projectId).single()) as QueryResult<{ contract_url: string | null }>
+
     const { error } = (await service
       .from('projects')
       .update({ contract_url: null } as never)
       .eq('id', projectId)) as unknown as { error: Error | null }
 
     if (error) return { error: 'فشل حذف العقد' }
+
+    if (cur.data?.contract_url) {
+      await removeDocumentRows(service, projectId, [cur.data.contract_url])
+      await removeStorageFiles(service, [cur.data.contract_url])
+    }
 
     await service.from('activity_log').insert({
       project_id: projectId,
@@ -317,9 +327,18 @@ export async function clearClientDoc(projectId: string, field: ClientDocField) {
     if (!user) return { error: 'غير مصرح' }
 
     const service = createServiceClient()
+    const cur = (await service
+      .from('projects').select(field).eq('id', projectId).single()) as QueryResult<Record<string, string | null>>
+    const oldUrl = cur.data?.[field] ?? null
+
     const { error } = (await service
       .from('projects').update({ [field]: null } as never).eq('id', projectId)) as unknown as { error: Error | null }
     if (error) return { error: 'فشل حذف المستند' }
+
+    if (oldUrl) {
+      await removeDocumentRows(service, projectId, [oldUrl])
+      await removeStorageFiles(service, [oldUrl])
+    }
 
     await service.from('activity_log').insert({
       project_id: projectId, user_id: user.id,
@@ -341,12 +360,20 @@ export async function deletePaymentReceipt(paymentId: string, projectId: string)
     if (!user) return { error: 'غير مصرح' }
 
     const service = createServiceClient()
+    const cur = (await service
+      .from('payments').select('receipt_url').eq('id', paymentId).single()) as QueryResult<{ receipt_url: string | null }>
+
     const { error } = (await service
       .from('payments')
       .update({ receipt_url: null } as never)
       .eq('id', paymentId)) as unknown as { error: Error | null }
 
     if (error) return { error: 'فشل حذف الإيصال' }
+
+    if (cur.data?.receipt_url) {
+      await removeDocumentRows(service, projectId, [cur.data.receipt_url])
+      await removeStorageFiles(service, [cur.data.receipt_url])
+    }
 
     await service.from('activity_log').insert({
       project_id: projectId,

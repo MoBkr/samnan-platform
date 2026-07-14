@@ -22,6 +22,10 @@ function todaySA() {
  * Custody is a side concern — not part of the installation flow. So it lives
  * behind a small chip in the section header; clicking it opens everything
  * (summary, entries, add form) in one focused dialog.
+ *
+ * Only the installation manager, the coordinator and admin see it at all —
+ * it's project cash, not something sales/supply need. The server enforces the
+ * same rule on every write (requireCustodyEditor).
  */
 export function ProjectCustody({
   projectId, entries, canEdit,
