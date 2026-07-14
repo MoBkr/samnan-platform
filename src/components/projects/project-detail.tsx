@@ -25,7 +25,7 @@ import { getOrCreateShareToken } from '@/lib/actions/share'
 import { INSTALL_STAGES } from '@/lib/constants'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
+import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician, CustodyEntry } from '@/types/database'
 
 type Tab = 'payments' | 'installation' | 'materials' | 'attachments' | 'activity'
 type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | 'editInfo' | 'delete' | null
@@ -66,6 +66,7 @@ interface ProjectDetailProps {
   installationWorkload: Record<string, number>
   technicians: TechnicianWithStatus[]
   technicianAssignments: (TechnicianAssignment & { technician?: Technician })[]
+  custody: CustodyEntry[]
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -147,6 +148,7 @@ export function ProjectDetail({
   installationWorkload,
   technicians,
   technicianAssignments,
+  custody,
 }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('payments')
   const [dialog, setDialog] = useState<ActionDialog>(null)
@@ -362,7 +364,7 @@ export function ProjectDetail({
 
         {/* Installation only */}
         {project.has_installation ? (
-          <InstallationTab installations={installations} projectId={project.id} canManage={false} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} />
+          <InstallationTab installations={installations} projectId={project.id} canManage={false} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} custody={custody} />
         ) : (
           <div className="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
             <Hammer className="mx-auto h-8 w-8 text-gray-300 mb-2" />
@@ -688,7 +690,7 @@ export function ProjectDetail({
             canConfirmSales={currentProfile.role === 'sales_engineer' && project.sales_engineer_id === currentProfile.id} />
         )}
         {activeTab === 'installation' && (
-          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} />
+          <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} custody={custody} />
         )}
         {activeTab === 'materials' && (
           <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} />

@@ -159,6 +159,26 @@ export interface AppNotification {
   created_at: string
 }
 
+// ── العهد المالية (custody / advances for the installation team) ──
+// 'advance' = money handed over as custody; 'expense' = money spent from it.
+export type CustodyKind = 'advance' | 'expense'
+
+export interface CustodyEntry {
+  id: string
+  project_id: string
+  kind: CustodyKind
+  category: string | null          // مواد خاصة / سكن الفنيين / مواصلات / أخرى
+  description: string
+  amount: number
+  entry_date: string | null
+  recipient: string | null         // من استلم العهدة / من صرف
+  attachments: { url: string; name: string }[]
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  creator?: Pick<Profile, 'id' | 'full_name'>
+}
+
 // ── Technicians (shared company pool) ──
 export interface Technician {
   id: string

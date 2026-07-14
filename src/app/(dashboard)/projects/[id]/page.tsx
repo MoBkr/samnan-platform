@@ -5,6 +5,7 @@ import { getProjectInstallations } from '@/lib/actions/installation'
 import { getProjectAttachments } from '@/lib/actions/attachments'
 import { getProjectMaterials } from '@/lib/actions/materials'
 import { getTechnicians, getProjectTechnicians } from '@/lib/actions/technicians'
+import { getProjectCustody } from '@/lib/actions/custody'
 import { getCurrentProfile } from '@/lib/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import { ProjectDetail } from '@/components/projects/project-detail'
@@ -14,7 +15,7 @@ import type { ActivityLog, Profile } from '@/types/database'
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [project, payments, installations, attachments, material, profile, technicians, technicianAssignments] = await Promise.all([
+  const [project, payments, installations, attachments, material, profile, technicians, technicianAssignments, custody] = await Promise.all([
     getProject(id),
     getProjectPayments(id),
     getProjectInstallations(id),
@@ -23,6 +24,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     getCurrentProfile(),
     getTechnicians(),
     getProjectTechnicians(id),
+    getProjectCustody(id),
   ])
 
   if (!project) notFound()
@@ -89,6 +91,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       installationWorkload={installationWorkload}
       technicians={technicians}
       technicianAssignments={technicianAssignments}
+      custody={custody}
     />
   )
 }

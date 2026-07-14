@@ -22,7 +22,8 @@ import { uploadFileDirect } from '@/lib/upload-client'
 import { formatDateShort } from '@/lib/utils'
 import { INSTALL_STAGES, type InstallStageConfig, type InstallSlot } from '@/lib/constants'
 import { ProjectTechnicians } from '@/components/installation/project-technicians'
-import type { Installation, Profile, InstallAttachment, InstallSlotState, InstallStageData, Material, TechnicianWithStatus, TechnicianAssignment, Technician } from '@/types/database'
+import { ProjectCustody } from '@/components/installation/project-custody'
+import type { Installation, Profile, InstallAttachment, InstallSlotState, InstallStageData, Material, TechnicianWithStatus, TechnicianAssignment, Technician, CustodyEntry } from '@/types/database'
 
 interface InstallationTabProps {
   installations: Installation[]
@@ -32,9 +33,10 @@ interface InstallationTabProps {
   material: Material | null
   technicians: TechnicianWithStatus[]
   technicianAssignments: (TechnicianAssignment & { technician?: Technician })[]
+  custody: CustodyEntry[]
 }
 
-export function InstallationTab({ installations, projectId, canManage, currentProfile, material, technicians, technicianAssignments }: InstallationTabProps) {
+export function InstallationTab({ installations, projectId, canManage, currentProfile, material, technicians, technicianAssignments, custody }: InstallationTabProps) {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -143,6 +145,9 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
         assignments={technicianAssignments}
         canEdit={canEdit}
       />
+
+      {/* العهد المالية — advances & expenses for this project */}
+      <ProjectCustody projectId={projectId} entries={custody} canEdit={canEdit} />
 
       {/* Installations list */}
       {installations.length === 0 ? (

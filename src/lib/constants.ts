@@ -24,6 +24,18 @@ export const MATERIAL_ITEM_STATUSES = [
   'مكتمل',
 ] as const
 
+// ── العهد المالية (custody categories) ──
+export const CUSTODY_CATEGORIES: { value: string; label: string }[] = [
+  { value: 'materials', label: 'مواد خاصة للمشروع' },
+  { value: 'housing', label: 'سكن الفنيين' },
+  { value: 'transport', label: 'مواصلات' },
+  { value: 'tools', label: 'عدد وأدوات' },
+  { value: 'other', label: 'أخرى' },
+]
+export const CUSTODY_CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  CUSTODY_CATEGORIES.map((c) => [c.value, c.label])
+)
+
 // ── Installation inspection stages ──────────────────────────────────────
 // Fixed dropdown of stages shared by every project that has installation.
 export interface InstallSlot { key: string; label: string }

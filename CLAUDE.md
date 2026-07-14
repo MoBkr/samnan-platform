@@ -21,6 +21,27 @@
 
 > *Clear each item after completing.*
 
+🆕 **Supabase — العهد المالية (REQUIRED for the custody section in التركيبات):** Run in SQL Editor:
+   ```sql
+   create table if not exists public.custody_entries (
+     id uuid primary key default gen_random_uuid(),
+     project_id uuid references public.projects(id) not null,
+     kind text not null default 'expense' check (kind in ('advance','expense')),
+     category text,
+     description text not null,
+     amount numeric(12,2) not null,
+     entry_date date,
+     recipient text,
+     attachments jsonb default '[]'::jsonb,
+     notes text,
+     created_by uuid references public.profiles(id),
+     created_at timestamptz default now()
+   );
+   create index if not exists custody_entries_project_idx on public.custody_entries (project_id);
+   alter table public.custody_entries enable row level security;
+   ```
+   Without this, the العهد المالية section fails to save. (Service client is used, RLS on / no policies.)
+
 ✅ **Session 2026-06-15 migrations (DONE — Mohamed confirmed):** installations `stages`+`expected_duration`, projects `public_token`, `technicians`+`technician_assignments` tables, `app_notifications` table. (SQL kept in git history / commit messages if ever needed to re-run.)
 
 ⚙️ **Supabase — Password reset + email (Mohamed, dashboard).** Code is ready (`/auth/callback` handles both PKCE `code` and OTP `token_hash`). Remaining dashboard steps so the email link stops showing "expired":

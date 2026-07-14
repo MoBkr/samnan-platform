@@ -179,12 +179,19 @@ export async function deletePayment(paymentId: string, projectId: string) {
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
 
+  // Attachments reference the payment (FK) — remove them first, otherwise the
+  // delete is rejected and the user just sees "فشل".
+  await service.from('documents').delete().eq('payment_id', paymentId)
+
   const { error } = (await service
     .from('payments')
     .delete()
-    .eq('id', paymentId)) as unknown as { error: Error | null }
+    .eq('id', paymentId)) as unknown as { error: { message?: string } | null }
 
-  if (error) return { error: 'فشل حذف الدفعة' }
+  if (error) {
+    console.error('[deletePayment] failed:', error)
+    return { error: `فشل حذف الدفعة — ${error.message ?? 'يوجد سجلات مرتبطة بها'}` }
+  }
 
   await service.from('activity_log').insert({
     project_id: projectId,
