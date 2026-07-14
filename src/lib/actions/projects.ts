@@ -309,14 +309,34 @@ export async function deleteProject(projectId: string) {
     return { error: 'يمكن حذف المشاريع الملغاة أو المعلقة فقط' }
   }
 
-  // Delete related records in order (FK constraints)
+  const projectName = projectResult.data.project_name
+
+  // Delete every record that references the project (FK constraints), then the
+  // project itself. Missing any of these makes the final delete fail silently.
+  await service.from('app_notifications').delete().eq('project_id', projectId)
+  await service.from('technician_assignments').delete().eq('project_id', projectId)
   await service.from('activity_log').delete().eq('project_id', projectId)
   await service.from('payments').delete().eq('project_id', projectId)
   await service.from('installations').delete().eq('project_id', projectId)
   await service.from('supply_orders').delete().eq('project_id', projectId)
   await service.from('materials').delete().eq('project_id', projectId)
   await service.from('documents').delete().eq('project_id', projectId)
-  await (service.from('projects').delete().eq('id', projectId) as unknown as Promise<unknown>)
+
+  const { error } = (await service
+    .from('projects').delete().eq('id', projectId)) as unknown as { error: { message?: string } | null }
+
+  if (error) {
+    console.error('[deleteProject] failed:', error)
+    return { error: `فشل حذف المشروع — يوجد سجلات مرتبطة به. ${error.message ?? ''}`.trim() }
+  }
+
+  // Audit the deletion (project_id is gone, so record it against the name)
+  await service.from('activity_log').insert({
+    project_id: null,
+    user_id: user.id,
+    action: `حذف مشروع نهائياً: ${projectName}`,
+    details: { project_id: projectId, project_name: projectName },
+  } as never)
 
   revalidatePath('/projects')
   revalidatePath('/dashboard')
