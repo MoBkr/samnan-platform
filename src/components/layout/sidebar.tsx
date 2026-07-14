@@ -70,7 +70,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'مدونتي',
     href: '/notebook',
     icon: <NotebookPen className="h-5 w-5" />,
-    roles: ['coordinator', 'sales_engineer', 'installation', 'supply', 'admin'],
+    roles: ['coordinator', 'sales_engineer', 'installation', 'admin'],
   },
   {
     label: 'التقارير',
