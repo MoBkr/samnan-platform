@@ -21,6 +21,14 @@
 
 > *Clear each item after completing.*
 
+🆕 **Supabase — الملف الشخصي (REQUIRED for ملفي الشخصي):** Run in SQL Editor:
+   ```sql
+   alter table public.profiles
+     add column if not exists avatar_url text,
+     add column if not exists phone text;
+   ```
+   Without this, saving the profile picture / phone fails.
+
 🆕 **Supabase — المدونة (REQUIRED for مدونة المشروع + مدونتي):** Run in SQL Editor:
    ```sql
    -- Project board: WhatsApp-like group per project with smart entries

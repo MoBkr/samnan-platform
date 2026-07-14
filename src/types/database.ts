@@ -14,6 +14,8 @@ export interface Profile {
   full_name: string
   role: UserRole
   is_active: boolean
+  avatar_url: string | null
+  phone: string | null
   created_at: string
 }
 

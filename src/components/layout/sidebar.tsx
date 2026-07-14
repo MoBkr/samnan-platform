@@ -146,19 +146,29 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
         )}
       </div>
 
-      {/* User Profile Card */}
+      {/* User Profile Card — links to the profile page */}
       <div className="p-3">
-        <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/5 px-3 py-3">
-          <div
-            className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shrink-0 ${AVATAR_COLORS[profile.role] ?? 'bg-slate-600'}`}
-          >
-            {getInitials(profile.full_name)}
-          </div>
+        <Link
+          href="/profile"
+          onClick={onClose}
+          className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/5 px-3 py-3 transition-colors hover:bg-white/10"
+        >
+          {profile.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.avatar_url} alt={profile.full_name}
+              className="h-9 w-9 rounded-full object-cover shrink-0" />
+          ) : (
+            <div
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shrink-0 ${AVATAR_COLORS[profile.role] ?? 'bg-slate-600'}`}
+            >
+              {getInitials(profile.full_name)}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white leading-tight">{profile.full_name}</p>
             <p className="text-xs text-slate-400 leading-tight mt-0.5">{ROLE_LABELS[profile.role]}</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
