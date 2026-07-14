@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   MessageSquare, Send, Trash2, Calendar, Clock, CheckSquare, Square,
-  AtSign, AlarmClock, ListTodo, Users,
+  AtSign, AlarmClock, ListTodo, Users, Plus, X, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -94,6 +94,9 @@ export function ProjectBoard({
   const [isPending, startTransition] = useTransition()
   const [mentionOpen, setMentionOpen] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
+  const [plusOpen, setPlusOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'all' | NoteKind>('all')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const feedRef = useRef<HTMLDivElement>(null)
 
@@ -107,13 +110,23 @@ export function ProjectBoard({
     [notes],
   )
 
+  // Search + type filter, so an old note is findable without scrolling for it
+  const visible = useMemo(() => notes.filter((n) => {
+    if (filter !== 'all' && n.kind !== filter) return false
+    if (search.trim() && !n.body.includes(search.trim())) return false
+    return true
+  }), [notes, filter, search])
+  const filtering = filter !== 'all' || !!search.trim()
+
   useEffect(() => {
-    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight })
-  }, [notes.length])
+    if (!filtering) feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight })
+  }, [notes.length, filtering])
 
   const mentionMatches = members.filter((m) =>
     m.id !== currentProfile.id && m.full_name.includes(mentionQuery),
   ).slice(0, 6)
+
+  const activeKind = KINDS.find((k) => k.key === kind)!
 
   function onBodyChange(v: string) {
     setBody(v)
@@ -233,25 +246,51 @@ export function ProjectBoard({
 
       {/* The board */}
       <div className="flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-brand-600" />
-            <h3 className="text-sm font-bold text-gray-900">مدونة المشروع</h3>
+        <div className="border-b border-gray-100 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-brand-600" />
+              <h3 className="text-sm font-bold text-gray-900">مدونة المشروع</h3>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs text-gray-500">
+              <Users className="h-3.5 w-3.5" />
+              {members.length} أعضاء
+            </span>
           </div>
-          <span className="flex items-center gap-1.5 text-xs text-gray-500">
-            <Users className="h-3.5 w-3.5" />
-            {members.length} أعضاء
-          </span>
+
+          {/* Find anything without scrolling the whole history */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <div className="relative flex-1 min-w-[160px]">
+              <Search className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ابحث في المدونة…"
+                className="h-8 w-full rounded-full border border-gray-200 bg-gray-50 pe-8 ps-3 text-xs text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-brand-400 focus:bg-white"
+              />
+            </div>
+            {([{ key: 'all', label: 'الكل' }, ...KINDS.map((k) => ({ key: k.key, label: k.label }))] as { key: 'all' | NoteKind; label: string }[]).map((f) => (
+              <button key={f.key} onClick={() => setFilter(f.key)}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                  filter === f.key ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
+                )}>
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Feed */}
         <div ref={feedRef} className="max-h-[55vh] min-h-[220px] space-y-3 overflow-y-auto bg-gray-50/60 px-4 py-4">
-          {notes.length === 0 ? (
+          {visible.length === 0 ? (
             <div className="py-10 text-center">
               <MessageSquare className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-              <p className="text-sm text-gray-400">لا توجد رسائل بعد — ابدأ النقاش مع الفريق</p>
+              <p className="text-sm text-gray-400">
+                {filtering ? 'لا توجد نتائج مطابقة' : 'لا توجد رسائل بعد — ابدأ النقاش مع الفريق'}
+              </p>
             </div>
-          ) : notes.map((n) => {
+          ) : visible.map((n) => {
             const mine = n.author_id === currentProfile.id
             const k = KINDS.find((x) => x.key === n.kind)!
             const day = dayLabel(n.created_at)
@@ -328,27 +367,50 @@ export function ProjectBoard({
           })}
         </div>
 
-        {/* Composer */}
+        {/* Composer — plain chat by default; the "+" turns it into a smart entry */}
         <div className="border-t border-gray-100 bg-white px-4 py-3">
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            {KINDS.map((k) => (
-              <button key={k.key} onClick={() => setKind(k.key)}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all',
-                  kind === k.key ? k.color + ' ring-2 ring-offset-1 ring-gray-200' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300',
-                )}>
-                {k.icon} {k.label}
-              </button>
-            ))}
-            {kind !== 'note' && (
+          {kind !== 'note' && (
+            <div className={cn('mb-2 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2', activeKind.color)}>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold">
+                {activeKind.icon} {activeKind.label}
+              </span>
               <Input type="datetime-local" dir="ltr" value={dueAt} onChange={(e) => setDueAt(e.target.value)}
-                className="h-8 w-auto text-xs" />
-            )}
-          </div>
+                className="h-8 w-auto border-white/60 bg-white/70 text-xs" />
+              <span className="text-[11px] opacity-80">يصل إشعار للفريق عند حلول الموعد</span>
+              <button onClick={() => { setKind('note'); setDueAt('') }}
+                className="ms-auto rounded-full p-1 hover:bg-white/60" title="إلغاء">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           <div className="relative flex items-end gap-2">
+            {/* "+" menu */}
+            <div className="relative">
+              <button onClick={() => setPlusOpen((v) => !v)}
+                className={cn(
+                  'flex h-[42px] w-[42px] items-center justify-center rounded-xl border transition-colors',
+                  plusOpen ? 'border-brand-300 bg-brand-50 text-brand-600' : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600',
+                )}
+                title="إضافة موعد أو تذكير أو مهمة">
+                <Plus className={cn('h-5 w-5 transition-transform', plusOpen && 'rotate-45')} />
+              </button>
+              {plusOpen && (
+                <div className="absolute bottom-full mb-2 start-0 z-20 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                  {KINDS.filter((k) => k.key !== 'note').map((k) => (
+                    <button key={k.key}
+                      onClick={() => { setKind(k.key); setPlusOpen(false); inputRef.current?.focus() }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-start text-sm text-gray-700 hover:bg-gray-50">
+                      <span className={cn('flex h-7 w-7 items-center justify-center rounded-lg border', k.color)}>{k.icon}</span>
+                      {k.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {mentionOpen && mentionMatches.length > 0 && (
-              <div className="absolute bottom-full mb-2 start-0 z-20 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+              <div className="absolute bottom-full mb-2 start-14 z-20 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                 <p className="border-b border-gray-100 px-3 py-1.5 text-[11px] font-semibold text-gray-400">منشن — سيصله إشعار</p>
                 {mentionMatches.map((m) => (
                   <button key={m.id} onClick={() => pickMention(m)}
@@ -371,10 +433,10 @@ export function ProjectBoard({
                 if (e.key === 'Enter' && !e.shiftKey && !mentionOpen) { e.preventDefault(); send() }
               }}
               rows={1}
-              placeholder="اكتب رسالة… اكتب @ لمنشن أحد أعضاء الفريق"
+              placeholder={kind === 'note' ? 'اكتب رسالة… (@ لمنشن أحد الفريق)' : `اكتب تفاصيل ${activeKind.label}…`}
               className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15"
             />
-            <Button size="sm" onClick={send} loading={isPending} disabled={!body.trim()} className="h-[42px] px-4">
+            <Button size="sm" onClick={send} loading={isPending} disabled={!body.trim()} className="h-[42px] w-[42px] p-0">
               <Send className="h-4 w-4" />
             </Button>
           </div>

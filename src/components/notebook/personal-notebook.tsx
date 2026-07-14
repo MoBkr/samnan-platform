@@ -9,11 +9,17 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { addPersonalNote, togglePersonalNoteDone, deletePersonalNote } from '@/lib/actions/notes'
 import { ROLE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { PersonalNote, NoteKind, Profile } from '@/types/database'
+
+const ROLE_COLOR: Record<string, string> = {
+  coordinator: 'bg-blue-500',
+  sales_engineer: 'bg-emerald-500',
+  installation: 'bg-purple-500',
+  admin: 'bg-rose-500',
+}
 
 const KINDS: { key: NoteKind; label: string; icon: React.ReactNode; color: string }[] = [
   { key: 'note', label: 'ملاحظة', icon: <MessageSquare className="h-3.5 w-3.5" />, color: 'border-gray-300 bg-gray-50 text-gray-700' },
@@ -127,24 +133,47 @@ export function PersonalNotebook({
 
   return (
     <div className="space-y-4">
-      {/* Admin: whose notebook am I reading */}
+      {/* Admin: pick whose notebook to read — visible, not buried in a dropdown */}
       {isAdmin && users.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rose-100 bg-rose-50/60 px-4 py-3">
-          <Eye className="h-4 w-4 text-rose-500" />
-          <span className="text-sm font-medium text-rose-800">اطلاع الإدارة — قراءة فقط</span>
-          <Select
-            className="h-9 w-auto min-w-[200px]"
-            value={viewingId}
-            onChange={(e) => router.push(e.target.value === currentProfile.id ? '/notebook' : `/notebook?user=${e.target.value}`)}
-          >
-            <option value={currentProfile.id}>مدونتي</option>
-            {users.filter((u) => u.id !== currentProfile.id).map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name} — {ROLE_LABELS[u.role]}</option>
-            ))}
-          </Select>
-          {!isOwnNotebook && (
+        <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Eye className="h-4 w-4 text-rose-500" />
+            <span className="text-sm font-bold text-rose-900">مدونات الموظفين — اطلاع الإدارة (قراءة فقط)</span>
             <span className="text-xs text-rose-600">كل اطلاع يُسجَّل في سجل التدقيق</span>
-          )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => router.push('/notebook')}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                isOwnNotebook ? 'border-brand-300 bg-brand-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300',
+              )}
+            >
+              <NotebookPen className="h-3.5 w-3.5" />
+              مدونتي
+            </button>
+            {users.filter((u) => u.id !== currentProfile.id).map((u) => (
+              <button
+                key={u.id}
+                onClick={() => router.push(`/notebook?user=${u.id}`)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                  viewingId === u.id ? 'border-rose-400 bg-rose-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-rose-300',
+                )}
+              >
+                <span className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white',
+                  viewingId === u.id ? 'bg-white/25' : ROLE_COLOR[u.role] ?? 'bg-gray-400',
+                )}>
+                  {u.full_name.split(' ').slice(0, 2).map((n) => n[0]).join('')}
+                </span>
+                {u.full_name}
+                <span className={cn('text-[10px]', viewingId === u.id ? 'text-rose-100' : 'text-gray-400')}>
+                  {ROLE_LABELS[u.role]}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

@@ -19,7 +19,7 @@ export async function notify(
   if (unique.length === 0) return
 
   const service = createServiceClient()
-  await service.from('app_notifications').insert(
+  const { error } = (await service.from('app_notifications').insert(
     unique.map((id) => ({
       recipient_id: id,
       title: payload.title,
@@ -28,7 +28,10 @@ export async function notify(
       type: payload.type ?? 'info',
       project_id: payload.projectId ?? null,
     })) as never,
-  )
+  )) as unknown as { error: { message?: string } | null }
+
+  // A silent failure here means people just never hear about anything.
+  if (error) console.error('[notify] failed:', error.message, payload)
 }
 
 export async function getMyNotifications(): Promise<{ items: AppNotification[]; unread: number }> {
