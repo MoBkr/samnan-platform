@@ -81,7 +81,12 @@ export async function addProjectNote(data: {
   if (data.kind !== 'note' && !data.dueAt) return { error: 'حدد التاريخ والوقت' }
 
   const service = createServiceClient()
-  const mentions = Array.from(new Set(data.mentions ?? []))
+
+  // Resolve mentions from the client's explicit list AND from the text itself,
+  // so an "@name" typed inline still notifies even if the client missed it.
+  const boardMembers = await getBoardMembers(data.projectId)
+  const inline = boardMembers.filter((m) => data.body.includes(`@${m.full_name}`)).map((m) => m.id)
+  const mentions = Array.from(new Set([...(data.mentions ?? []), ...inline]))
 
   const { error } = (await service.from('project_notes').insert({
     project_id: data.projectId,

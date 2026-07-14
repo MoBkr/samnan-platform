@@ -97,6 +97,9 @@ export function ProjectBoard({
   const [plusOpen, setPlusOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | NoteKind>('all')
+  // People the author explicitly @-mentioned — tracked by id, not by re-parsing
+  // the text, so a mention always notifies even if the name is edited/partial.
+  const [picked, setPicked] = useState<Member[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const feedRef = useRef<HTMLDivElement>(null)
 
@@ -145,18 +148,25 @@ export function ProjectBoard({
     const pos = inputRef.current?.selectionStart ?? body.length
     const before = body.slice(0, pos)
     const at = before.lastIndexOf('@')
-    const next = `${body.slice(0, at)}@${m.full_name} ${body.slice(pos)}`
-    setBody(next)
+    // Drop the half-typed "@query" — the person is now tracked as a chip instead
+    const next = at !== -1 ? `${body.slice(0, at)}${body.slice(pos)}` : body
+    setBody(next.replace(/\s{2,}/g, ' '))
+    setPicked((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]))
     setMentionOpen(false)
     inputRef.current?.focus()
+  }
+
+  function unpick(id: string) {
+    setPicked((prev) => prev.filter((p) => p.id !== id))
   }
 
   function send() {
     if (!body.trim()) return
     if (kind !== 'note' && !dueAt) { toast.error('حدد التاريخ والوقت'); return }
 
-    // Mentions are resolved from the text — what you see is what gets notified.
-    const mentions = members.filter((m) => body.includes(`@${m.full_name}`)).map((m) => m.id)
+    // Explicit chips are the source of truth; also catch any names typed inline.
+    const inline = members.filter((m) => body.includes(`@${m.full_name}`)).map((m) => m.id)
+    const mentions = Array.from(new Set([...picked.map((p) => p.id), ...inline]))
 
     startTransition(async () => {
       try {
@@ -167,7 +177,7 @@ export function ProjectBoard({
         })
         if (r?.error) toast.error(r.error)
         else {
-          setBody(''); setDueAt(''); setKind('note')
+          setBody(''); setDueAt(''); setKind('note'); setPicked([])
           if (mentions.length) toast.success(`تم الإرسال — ونُبّه ${mentions.length} شخص`)
         }
       } catch { toast.error('حدث خطأ غير متوقع') }
@@ -381,6 +391,22 @@ export function ProjectBoard({
                 className="ms-auto rounded-full p-1 hover:bg-white/60" title="إلغاء">
                 <X className="h-3.5 w-3.5" />
               </button>
+            </div>
+          )}
+
+          {/* Who this message will notify */}
+          {picked.length > 0 && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-medium text-gray-400">سيصل إشعار إلى:</span>
+              {picked.map((m) => (
+                <span key={m.id} className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+                  <AtSign className="h-2.5 w-2.5" />
+                  {m.full_name}
+                  <button onClick={() => unpick(m.id)} className="text-brand-400 hover:text-brand-700">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
             </div>
           )}
 

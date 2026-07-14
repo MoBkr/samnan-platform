@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, LogOut, ChevronDown, Home, User } from 'lucide-react'
+import { Menu, LogOut, ChevronDown, Home, User, NotebookPen } from 'lucide-react'
 import { ROLE_LABELS } from '@/lib/constants'
 import { signOut } from '@/lib/actions/auth'
 import { NotificationBell } from '@/components/layout/notification-bell'
@@ -155,6 +155,14 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
                   >
                     <User className="h-4 w-4 text-gray-400" />
                     ملفي الشخصي
+                  </Link>
+                  <Link
+                    href="/notebook"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <NotebookPen className="h-4 w-4 text-gray-400" />
+                    مدونتي
                   </Link>
                   <Link
                     href={dashboardHref}

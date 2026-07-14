@@ -44,8 +44,16 @@ export function NotificationBell() {
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 60000) // poll every 60s
-    return () => clearInterval(t)
+    const t = setInterval(load, 30000) // poll every 30s
+    // Refresh the moment the user comes back to the tab — feels instant
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
   }, [load])
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, Printer, FolderKanban, ShoppingCart, Shield, ClipboardList, X } from 'lucide-react'
+import { Search, Printer, FolderKanban, ShoppingCart, Shield, ClipboardList, X, UserCog } from 'lucide-react'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/utils'
@@ -10,7 +10,18 @@ import { ROLE_LABELS } from '@/lib/constants'
 import type { AuditEntry, AuditBr } from '@/lib/actions/audit'
 import type { Profile } from '@/types/database'
 
-type Scope = 'all' | 'project' | 'br' | 'admin'
+type Scope = 'all' | 'project' | 'br' | 'account' | 'admin'
+
+// Account / personnel actions carry no project or BR, so they'd otherwise land
+// in the "system" bucket. Surface them on their own so an account change (name,
+// phone, password, role, activation…) is easy to find.
+const ACCOUNT_KEYWORDS = [
+  'كلمة المرور', 'كلمة مرور', 'الاسم', 'رقم الجوال', 'الصورة',
+  'مستخدم', 'حساب', 'دور', 'المدونة الشخصية',
+]
+function isAccountAction(action: string) {
+  return ACCOUNT_KEYWORDS.some((k) => action.includes(k))
+}
 
 interface Props {
   logs: AuditEntry[]
@@ -42,6 +53,7 @@ export function AuditLogView({ logs, brs }: Props) {
       const b = brMap.get(bid)
       return { type: 'br', label: b ? `${b.project_name ?? 'طلب شراء'}${b.br_number ? ` — ${b.br_number}` : ''}` : 'طلب شراء', brId: bid }
     }
+    if (isAccountAction(e.action)) return { type: 'account', label: 'الحسابات / الموظفين' }
     return { type: 'admin', label: 'إجراء إداري / نظام' }
   }
 
@@ -105,6 +117,7 @@ export function AuditLogView({ logs, brs }: Props) {
     { v: 'all', label: 'الكل', icon: <ClipboardList className="h-3.5 w-3.5" /> },
     { v: 'project', label: 'المشاريع', icon: <FolderKanban className="h-3.5 w-3.5" /> },
     { v: 'br', label: 'طلبات الشراء', icon: <ShoppingCart className="h-3.5 w-3.5" /> },
+    { v: 'account', label: 'الحسابات / الموظفين', icon: <UserCog className="h-3.5 w-3.5" /> },
     { v: 'admin', label: 'إداري / نظام', icon: <Shield className="h-3.5 w-3.5" /> },
   ]
 
@@ -185,8 +198,9 @@ export function AuditLogView({ logs, brs }: Props) {
                   <span className={cn('shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium max-w-[45%] truncate',
                     ctx.type === 'project' ? 'bg-blue-50 text-blue-700'
                       : ctx.type === 'br' ? 'bg-teal-50 text-teal-700'
+                      : ctx.type === 'account' ? 'bg-rose-50 text-rose-700'
                       : 'bg-gray-100 text-gray-500')}>
-                    {ctx.type === 'project' ? <FolderKanban className="h-3 w-3 shrink-0" /> : ctx.type === 'br' ? <ShoppingCart className="h-3 w-3 shrink-0" /> : <Shield className="h-3 w-3 shrink-0" />}
+                    {ctx.type === 'project' ? <FolderKanban className="h-3 w-3 shrink-0" /> : ctx.type === 'br' ? <ShoppingCart className="h-3 w-3 shrink-0" /> : ctx.type === 'account' ? <UserCog className="h-3 w-3 shrink-0" /> : <Shield className="h-3 w-3 shrink-0" />}
                     <span className="truncate">{ctx.label}</span>
                   </span>
                 </li>
