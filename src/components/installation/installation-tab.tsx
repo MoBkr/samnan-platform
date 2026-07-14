@@ -130,12 +130,16 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
             </span>
           )}
         </div>
-        {canSchedule && (
-          <Button size="sm" onClick={() => setShowScheduleDialog(true)}>
-            <Plus className="h-4 w-4" />
-            جدولة تركيب
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Custody — a side concern, kept quiet behind a small chip */}
+          <ProjectCustody projectId={projectId} entries={custody} canEdit={canEdit} />
+          {canSchedule && (
+            <Button size="sm" onClick={() => setShowScheduleDialog(true)}>
+              <Plus className="h-4 w-4" />
+              جدولة تركيب
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Project technicians (shared pool — assign with booking) */}
@@ -145,9 +149,6 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
         assignments={technicianAssignments}
         canEdit={canEdit}
       />
-
-      {/* العهد المالية — advances & expenses for this project */}
-      <ProjectCustody projectId={projectId} entries={custody} canEdit={canEdit} />
 
       {/* Installations list */}
       {installations.length === 0 ? (
