@@ -6,6 +6,7 @@ import { getProjectAttachments } from '@/lib/actions/attachments'
 import { getProjectMaterials } from '@/lib/actions/materials'
 import { getTechnicians, getProjectTechnicians } from '@/lib/actions/technicians'
 import { getProjectCustody } from '@/lib/actions/custody'
+import { getProjectNotes, getBoardMembers } from '@/lib/actions/notes'
 import { getCurrentProfile } from '@/lib/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import { ProjectDetail } from '@/components/projects/project-detail'
@@ -15,7 +16,7 @@ import type { ActivityLog, Profile } from '@/types/database'
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [project, payments, installations, attachments, material, profile, technicians, technicianAssignments, custody] = await Promise.all([
+  const [project, payments, installations, attachments, material, profile, technicians, technicianAssignments, custody, notes, boardMembers] = await Promise.all([
     getProject(id),
     getProjectPayments(id),
     getProjectInstallations(id),
@@ -25,6 +26,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     getTechnicians(),
     getProjectTechnicians(id),
     getProjectCustody(id),
+    getProjectNotes(id),
+    getBoardMembers(id),
   ])
 
   if (!project) notFound()
@@ -92,6 +95,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       technicians={technicians}
       technicianAssignments={technicianAssignments}
       custody={custody}
+      notes={notes}
+      boardMembers={boardMembers}
     />
   )
 }

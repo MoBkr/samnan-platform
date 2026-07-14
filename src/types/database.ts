@@ -146,6 +146,37 @@ export interface InstallStageData {
 
 export type InstallationStages = Record<string, InstallStageData>
 
+// ── Project board (مدونة المشروع) — a WhatsApp-like group per project, with
+// smart entries: schedule / reminder / to-do, @mentions and due reminders.
+export type NoteKind = 'note' | 'schedule' | 'reminder' | 'todo'
+
+export interface ProjectNote {
+  id: string
+  project_id: string
+  author_id: string | null
+  kind: NoteKind
+  body: string
+  due_at: string | null
+  done: boolean
+  mentions: string[]
+  reminded_at: string | null
+  created_at: string
+  author?: Pick<Profile, 'id' | 'full_name' | 'role'>
+}
+
+// ── Personal notebook (مدونتي) — private to the owner and to admins.
+export interface PersonalNote {
+  id: string
+  owner_id: string
+  kind: NoteKind
+  body: string
+  due_at: string | null
+  done: boolean
+  reminded_at: string | null
+  created_at: string
+  owner?: Pick<Profile, 'id' | 'full_name' | 'role'>
+}
+
 // ── In-app notifications ──
 export interface AppNotification {
   id: string

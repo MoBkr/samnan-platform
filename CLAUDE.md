@@ -21,6 +21,40 @@
 
 > *Clear each item after completing.*
 
+🆕 **Supabase — المدونة (REQUIRED for مدونة المشروع + مدونتي):** Run in SQL Editor:
+   ```sql
+   -- Project board: WhatsApp-like group per project with smart entries
+   create table if not exists public.project_notes (
+     id uuid primary key default gen_random_uuid(),
+     project_id uuid references public.projects(id) not null,
+     author_id uuid references public.profiles(id),
+     kind text not null default 'note' check (kind in ('note','schedule','reminder','todo')),
+     body text not null,
+     due_at timestamptz,
+     done boolean default false,
+     mentions uuid[] default '{}',
+     reminded_at timestamptz,
+     created_at timestamptz default now()
+   );
+   create index if not exists project_notes_project_idx on public.project_notes (project_id);
+   create index if not exists project_notes_due_idx on public.project_notes (due_at) where reminded_at is null;
+   alter table public.project_notes enable row level security;
+
+   -- Personal notebook: private to the owner (admins may read)
+   create table if not exists public.personal_notes (
+     id uuid primary key default gen_random_uuid(),
+     owner_id uuid references public.profiles(id) not null,
+     kind text not null default 'note' check (kind in ('note','schedule','reminder','todo')),
+     body text not null,
+     due_at timestamptz,
+     done boolean default false,
+     reminded_at timestamptz,
+     created_at timestamptz default now()
+   );
+   create index if not exists personal_notes_owner_idx on public.personal_notes (owner_id);
+   alter table public.personal_notes enable row level security;
+   ```
+
 🆕 **Supabase — العهد المالية (REQUIRED for the custody section in التركيبات):** Run in SQL Editor:
    ```sql
    create table if not exists public.custody_entries (

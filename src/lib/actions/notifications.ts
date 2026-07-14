@@ -36,6 +36,16 @@ export async function getMyNotifications(): Promise<{ items: AppNotification[]; 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { items: [], unread: 0 }
 
+  // No cron on this stack — due reminders ride along with the bell's poll.
+  // It's idempotent (claims each note before sending), so concurrent polls
+  // from several users can't double-send.
+  try {
+    const { dispatchDueReminders } = await import('@/lib/actions/notes')
+    await dispatchDueReminders()
+  } catch (e) {
+    console.error('[getMyNotifications] reminders', e)
+  }
+
   const service = createServiceClient()
   const result = (await service
     .from('app_notifications')

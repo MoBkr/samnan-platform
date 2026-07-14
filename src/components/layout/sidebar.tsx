@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   ScrollText,
   HardHat,
+  NotebookPen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/actions/auth'
@@ -64,6 +65,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/purchase-requests',
     icon: <ShoppingCart className="h-5 w-5" />,
     roles: ['coordinator', 'admin'],
+  },
+  {
+    label: 'مدونتي',
+    href: '/notebook',
+    icon: <NotebookPen className="h-5 w-5" />,
+    roles: ['coordinator', 'sales_engineer', 'installation', 'supply', 'admin'],
   },
   {
     label: 'التقارير',

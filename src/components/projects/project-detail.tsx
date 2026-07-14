@@ -20,14 +20,15 @@ import { InstallationTab } from '@/components/installation/installation-tab'
 import { MaterialsTab } from '@/components/projects/materials-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
+import { ProjectBoard } from '@/components/projects/project-board'
 import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
 import { getOrCreateShareToken } from '@/lib/actions/share'
 import { INSTALL_STAGES } from '@/lib/constants'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician, CustodyEntry } from '@/types/database'
+import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician, CustodyEntry, ProjectNote } from '@/types/database'
 
-type Tab = 'payments' | 'installation' | 'materials' | 'attachments' | 'activity'
+type Tab = 'payments' | 'installation' | 'materials' | 'board' | 'attachments' | 'activity'
 type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | 'editInfo' | 'delete' | null
 
 function workloadLabel(count: number) {
@@ -67,12 +68,15 @@ interface ProjectDetailProps {
   technicians: TechnicianWithStatus[]
   technicianAssignments: (TechnicianAssignment & { technician?: Technician })[]
   custody: CustodyEntry[]
+  notes: ProjectNote[]
+  boardMembers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
 }
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'payments', label: 'الدفعات' },
   { id: 'installation', label: 'التركيب' },
   { id: 'materials', label: 'المواد' },
+  { id: 'board', label: 'المدونة' },
   { id: 'attachments', label: 'المرفقات' },
   { id: 'activity', label: 'سجل النشاط' },
 ]
@@ -149,9 +153,13 @@ export function ProjectDetail({
   technicians,
   technicianAssignments,
   custody,
+  notes,
+  boardMembers,
 }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('payments')
   const [dialog, setDialog] = useState<ActionDialog>(null)
+  // Open appointments / tasks / reminders — surfaced on the tab so nobody has to open it to know
+  const openBoardItems = notes.filter((n) => n.kind !== 'note' && !n.done).length
   const [cancelReason, setCancelReason] = useState('')
   const [newAmount, setNewAmount] = useState(project.total_amount?.toString() ?? '')
   const [editInfo, setEditInfo] = useState({
@@ -371,6 +379,9 @@ export function ProjectDetail({
             <p className="text-sm text-gray-500">هذا المشروع بدون تركيب — لا توجد مهام تركيب.</p>
           </div>
         )}
+
+        {/* The project board is for the whole team, installation included */}
+        <ProjectBoard projectId={project.id} notes={notes} members={boardMembers} currentProfile={currentProfile} />
       </div>
     )
   }
@@ -677,6 +688,11 @@ export function ProjectDetail({
                   {attachments.length}
                 </span>
               )}
+              {tab.id === 'board' && openBoardItems > 0 && (
+                <span className="ms-1.5 inline-flex items-center justify-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
+                  {openBoardItems}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -703,6 +719,9 @@ export function ProjectDetail({
             payments={payments}
             canManage={canManage}
           />
+        )}
+        {activeTab === 'board' && (
+          <ProjectBoard projectId={project.id} notes={notes} members={boardMembers} currentProfile={currentProfile} />
         )}
         {activeTab === 'activity' && <ActivityTab activityLog={activityLog} />}
       </div>

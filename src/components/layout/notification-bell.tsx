@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, CheckCheck, Hammer, HardHat, Wallet, Package, FolderKanban, Info } from 'lucide-react'
+import { Bell, CheckCheck, Hammer, HardHat, Wallet, Package, FolderKanban, Info, MessageSquare } from 'lucide-react'
 import { getMyNotifications, markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications'
 import type { AppNotification } from '@/types/database'
 
@@ -12,6 +12,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   payment: <Wallet className="h-4 w-4 text-emerald-600" />,
   materials: <Package className="h-4 w-4 text-amber-600" />,
   project: <FolderKanban className="h-4 w-4 text-brand-600" />,
+  note: <MessageSquare className="h-4 w-4 text-blue-600" />,
   info: <Info className="h-4 w-4 text-gray-500" />,
 }
 
