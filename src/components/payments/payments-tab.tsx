@@ -14,7 +14,7 @@ import { createPayment, recordPayment, deletePayment, editPayment, setSalesConfi
 import { savePaymentAttachment, deleteAttachment, deletePaymentReceipt } from '@/lib/actions/attachments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
-import { PAYMENT_TYPE_LABELS } from '@/lib/constants'
+import { PAYMENT_TYPE_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import type { Payment, Profile, Document } from '@/types/database'
 
 const PAYMENT_TYPES = ['upfront', 'materials', 'installation', 'final', 'custom'] as const
@@ -288,7 +288,9 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
             const overdue = isOverdue(payment.due_date, payment.status)
             const displayStatus = overdue && payment.status === 'pending' ? 'overdue' : payment.status
             const paidPct = payment.amount > 0 ? Math.min(100, Math.round((payment.paid_amount / payment.amount) * 100)) : 0
-            const canEdit = canManage && payment.status !== 'cancelled'
+            // Edit is always available to managers — it's how a mistaken
+            // cancel / partial / paid gets corrected (status is editable inside).
+            const canEdit = canManage
             const canDelete = canManage && payment.status !== 'cancelled'
             const attachCount = attachmentsFor(payment.id).length + (payment.receipt_url ? 1 : 0)
 
@@ -309,6 +311,10 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                           {paymentLabel(payment)}
                         </p>
                       </div>
+                      {/* Secondary title — a free note that shows under the type */}
+                      {payment.type !== 'custom' && payment.name && (
+                        <p className="text-xs font-medium text-brand-600 truncate mt-0.5">{payment.name}</p>
+                      )}
                       <p className="text-2xl font-bold text-gray-900 mt-1 leading-tight">{formatCurrency(payment.amount)}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -442,12 +448,17 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
               </Select>
             </div>
 
-            {addType === 'custom' && (
+            {addType === 'custom' ? (
               <div className="space-y-1.5">
                 <Label>اسم الدفعة</Label>
                 <Input name="name" required placeholder="مثال: دفعة ضمان، دفعة إضافية..." />
               </div>
-            )}
+            ) : addType ? (
+              <div className="space-y-1.5">
+                <Label>عنوان ثانوي <span className="text-gray-400 font-normal">— اختياري، يظهر تحت اسم النوع</span></Label>
+                <Input name="name" placeholder="مثال: الدفعة المقدمة 25%، دفعة تعاقد..." />
+              </div>
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -564,36 +575,97 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
         </DialogFooter>
       </Dialog>
 
-      {/* ── Edit payment dialog ── */}
-      <Dialog open={!!editPaymentId} onClose={() => setEditPaymentId(null)}>
+      {/* ── Edit payment dialog — everything is editable ── */}
+      <Dialog open={!!editPaymentId} onClose={() => setEditPaymentId(null)} className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>تعديل الدفعة — {editingPayment && paymentLabel(editingPayment)}</DialogTitle>
           <DialogClose onClose={() => setEditPaymentId(null)} />
         </DialogHeader>
-        <DialogContent>
+        <DialogContent className="max-h-[65vh] overflow-y-auto">
           {editingPayment && (
             <form id="edit-payment-form" onSubmit={handleEditPayment} className="space-y-4">
-              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600">
-                المبلغ الحالي: <strong className="text-gray-900">{formatCurrency(editingPayment.amount)}</strong>
-                {editingPayment.paid_amount > 0 && (
-                  <span className="ms-2 text-xs text-amber-600">(محصّل: {formatCurrency(editingPayment.paid_amount)})</span>
-                )}
-              </div>
+              {/* Type + secondary title */}
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>نوع الدفعة</Label>
+                  <Select name="type" defaultValue={editingPayment.type}>
+                    {PAYMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>{t === 'custom' ? 'أخرى' : PAYMENT_TYPE_LABELS[t]}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>العنوان الثانوي <span className="text-gray-400 font-normal">— يظهر تحت النوع</span></Label>
+                  <Input name="name" defaultValue={editingPayment.name ?? ''} placeholder="اختياري" />
+                </div>
+              </div>
+
+              {/* Amount + collected + status */}
+              <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3 space-y-3">
+                <p className="text-xs font-semibold text-amber-700">المبلغ والحالة — لتصحيح أي خطأ</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label>المبلغ (ريال)</Label>
+                    <Input name="amount" type="number" min="0.01" step="0.01" required defaultValue={editingPayment.amount} placeholder="0.00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>المحصّل (ريال)</Label>
+                    <Input name="paid_amount" type="number" min="0" step="0.01" defaultValue={editingPayment.paid_amount} placeholder="0.00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>الحالة</Label>
+                    <Select name="status" defaultValue={editingPayment.status}>
+                      {(['pending', 'partial', 'paid', 'overdue', 'cancelled'] as const).map((s) => (
+                        <option key={s} value={s}>{PAYMENT_STATUS_LABELS[s]}</option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-[11px] text-amber-600">
+                  اختيار «مدفوعة» يجعل المحصّل = كامل المبلغ، و«معلّقة» يصفّره. لتحصيل جزئي اختر «مدفوعة جزئياً» واكتب المبلغ المحصّل.
+                </p>
+              </div>
+
+              {/* Order + percentage + due date */}
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label>رقم الدفعة (الترتيب)</Label>
                   <Input name="order_no" type="number" min="1" step="1"
                     defaultValue={editingPayment.order_no ?? (payments.findIndex((p) => p.id === editingPayment.id) + 1)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>المبلغ الجديد (ريال)</Label>
-                  <Input name="amount" type="number" min="0.01" step="0.01" required defaultValue={editingPayment.amount} placeholder="0.00" />
+                  <Label>النسبة (%)</Label>
+                  <Input name="percentage" type="number" min="0" max="100" step="0.1" defaultValue={editingPayment.percentage ?? ''} placeholder="اختياري" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>تاريخ الاستحقاق</Label>
+                  <Input name="due_date" type="date" dir="ltr" defaultValue={editingPayment.due_date ?? ''} />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>تاريخ الاستحقاق</Label>
-                <Input name="due_date" type="date" dir="ltr" defaultValue={editingPayment.due_date ?? ''} />
+
+              {/* Invoice fields */}
+              <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 space-y-3">
+                <p className="text-xs font-semibold text-gray-500">بيانات الفاتورة الضريبية</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>رقم الفاتورة</Label>
+                    <Input name="invoice_number" dir="ltr" defaultValue={editingPayment.invoice_number ?? ''} placeholder="—" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>تاريخ الفاتورة</Label>
+                    <Input name="invoice_date" dir="ltr" defaultValue={editingPayment.invoice_date ?? ''} placeholder="YYYY-MM-DD" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>اسم الشركة / البائع</Label>
+                    <Input name="seller_name" defaultValue={editingPayment.seller_name ?? ''} placeholder="—" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>رقم حساب العميل</Label>
+                    <Input name="customer_account" dir="ltr" defaultValue={editingPayment.customer_account ?? ''} placeholder="—" />
+                  </div>
+                </div>
               </div>
+
               <div className="space-y-1.5">
                 <Label>ملاحظات</Label>
                 <Input name="notes" defaultValue={editingPayment.notes ?? ''} placeholder="اختياري" />

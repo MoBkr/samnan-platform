@@ -71,7 +71,9 @@ export async function createPayment(formData: FormData) {
   const { data, error } = (await service.from('payments').insert({
     project_id: projectId,
     type,
-    name: type === 'custom' ? name : null,
+    // For custom payments `name` is the title; for the others it's an optional
+    // secondary title shown under the type name.
+    name: name || null,
     order_no: orderNoRaw ? parseInt(orderNoRaw, 10) : null,
     invoice_number: invoiceNumber || null,
     invoice_date: invoiceDate || null,
@@ -211,6 +213,9 @@ export async function deletePayment(paymentId: string, projectId: string) {
   return { success: true }
 }
 
+const PAYMENT_TYPES_SET = new Set(['upfront', 'materials', 'installation', 'final', 'custom'])
+const PAYMENT_STATUS_SET = new Set(['pending', 'partial', 'paid', 'overdue', 'cancelled'])
+
 export async function editPayment(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -221,8 +226,22 @@ export async function editPayment(formData: FormData) {
   const amount = parseFloat(formData.get('amount') as string)
   const dueDate = formData.get('due_date') as string
   const notes = formData.get('notes') as string
+  const name = (formData.get('name') as string)?.trim() || null
   const orderNoRaw = formData.get('order_no') as string
   const orderNo = orderNoRaw ? parseInt(orderNoRaw, 10) : null
+  const percentageRaw = formData.get('percentage') as string
+  const percentage = percentageRaw ? parseFloat(percentageRaw) : null
+  const invoiceNumber = (formData.get('invoice_number') as string)?.trim() || null
+  const invoiceDate = (formData.get('invoice_date') as string)?.trim() || null
+  const sellerName = (formData.get('seller_name') as string)?.trim() || null
+  const customerAccount = (formData.get('customer_account') as string)?.trim() || null
+
+  let type = (formData.get('type') as string) || null
+  if (type && !PAYMENT_TYPES_SET.has(type)) type = null
+  let status = (formData.get('status') as string) || null
+  if (status && !PAYMENT_STATUS_SET.has(status)) status = null
+  const paidAmountRaw = formData.get('paid_amount') as string
+  const paidAmountInput = paidAmountRaw !== null && paidAmountRaw !== '' ? parseFloat(paidAmountRaw) : null
 
   if (!paymentId || isNaN(amount) || amount <= 0) return { error: 'يرجى إدخال مبلغ صحيح' }
 
@@ -230,28 +249,58 @@ export async function editPayment(formData: FormData) {
 
   const { data: payment } = (await service
     .from('payments')
-    .select('status, paid_amount, amount, due_date, notes, paid_at, type, order_no')
+    .select('status, paid_amount, amount, due_date, notes, paid_at, type, name, order_no, percentage, invoice_number, invoice_date, seller_name, customer_account')
     .eq('id', paymentId)
     .single()) as unknown as {
-      data: { status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null; paid_at: string | null; type: string; order_no: number | null } | null
+      data: {
+        status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null
+        paid_at: string | null; type: string; name: string | null; order_no: number | null; percentage: number | null
+        invoice_number: string | null; invoice_date: string | null; seller_name: string | null; customer_account: string | null
+      } | null
     }
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
 
-  // Editing allowed at ANY stage (even after full payment). Status is
-  // recomputed against the collected amount so the record stays consistent.
-  const newStatus = payment.paid_amount >= amount ? 'paid' : payment.paid_amount > 0 ? 'partial' : 'pending'
-  const newPaidAt = newStatus === 'paid' ? (payment.paid_at ?? new Date().toISOString()) : null
+  const finalType = type ?? payment.type
+  // A secondary title is allowed on every type now (shown under the type name).
+  const finalName = name
+
+  // Collected amount + status are reconciled so the record never contradicts
+  // itself: choosing a status sets the collected amount to match, and vice
+  // versa. This is what lets a mis-clicked "partial"/"paid" be corrected.
+  let paidAmount = paidAmountInput != null && !isNaN(paidAmountInput) ? paidAmountInput : payment.paid_amount
+  paidAmount = Math.max(0, Math.min(paidAmount, amount))
+
+  let finalStatus: string
+  if (status) {
+    // Explicit status wins; make the collected amount consistent with it.
+    finalStatus = status
+    if (status === 'paid') paidAmount = amount
+    else if (status === 'pending' || status === 'overdue') paidAmount = 0
+    // 'partial' / 'cancelled' keep the entered collected amount
+  } else {
+    // No explicit status → derive it from the collected amount.
+    finalStatus = paidAmount >= amount ? 'paid' : paidAmount > 0 ? 'partial' : 'pending'
+  }
+  const paidAt = finalStatus === 'paid' ? (payment.paid_at ?? new Date().toISOString()) : null
 
   const { error } = (await service
     .from('payments')
     .update({
+      type: finalType,
+      name: finalName,
       amount,
+      paid_amount: paidAmount,
+      percentage,
       due_date: dueDate || null,
       notes: notes || null,
       order_no: orderNo,
-      status: newStatus,
-      paid_at: newPaidAt,
+      invoice_number: invoiceNumber,
+      invoice_date: invoiceDate,
+      seller_name: sellerName,
+      customer_account: customerAccount,
+      status: finalStatus,
+      paid_at: paidAt,
     } as never)
     .eq('id', paymentId)) as unknown as { error: Error | null }
 
@@ -259,20 +308,19 @@ export async function editPayment(formData: FormData) {
 
   // ── Audit log: record old → new for each changed field ──
   const changes: Record<string, { from: string; to: string }> = {}
+  if (payment.type !== finalType) changes['النوع'] = { from: payment.type, to: finalType }
+  if ((payment.name ?? '') !== (finalName ?? '')) changes['العنوان الثانوي'] = { from: payment.name || '—', to: finalName || '—' }
   if ((payment.order_no ?? null) !== orderNo) {
     changes['رقم الدفعة'] = { from: payment.order_no != null ? String(payment.order_no) : '—', to: orderNo != null ? String(orderNo) : '—' }
   }
-  if (payment.amount !== amount) {
-    changes['المبلغ'] = { from: formatCurrency(payment.amount), to: formatCurrency(amount) }
-  }
-  if ((payment.due_date ?? '') !== (dueDate || '')) {
-    changes['تاريخ الاستحقاق'] = { from: payment.due_date || '—', to: dueDate || '—' }
-  }
-  if ((payment.notes ?? '') !== (notes || '')) {
-    changes['ملاحظات'] = { from: payment.notes || '—', to: notes || '—' }
-  }
-  if (payment.status !== newStatus) {
-    changes['الحالة'] = { from: PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status, to: PAYMENT_STATUS_LABELS[newStatus] ?? newStatus }
+  if (payment.amount !== amount) changes['المبلغ'] = { from: formatCurrency(payment.amount), to: formatCurrency(amount) }
+  if (payment.paid_amount !== paidAmount) changes['المحصّل'] = { from: formatCurrency(payment.paid_amount), to: formatCurrency(paidAmount) }
+  if ((payment.percentage ?? null) !== percentage) changes['النسبة'] = { from: payment.percentage != null ? `${payment.percentage}%` : '—', to: percentage != null ? `${percentage}%` : '—' }
+  if ((payment.due_date ?? '') !== (dueDate || '')) changes['تاريخ الاستحقاق'] = { from: payment.due_date || '—', to: dueDate || '—' }
+  if ((payment.invoice_number ?? '') !== (invoiceNumber || '')) changes['رقم الفاتورة'] = { from: payment.invoice_number || '—', to: invoiceNumber || '—' }
+  if ((payment.notes ?? '') !== (notes || '')) changes['ملاحظات'] = { from: payment.notes || '—', to: notes || '—' }
+  if (payment.status !== finalStatus) {
+    changes['الحالة'] = { from: PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status, to: PAYMENT_STATUS_LABELS[finalStatus as keyof typeof PAYMENT_STATUS_LABELS] ?? finalStatus }
   }
 
   await service.from('activity_log').insert({
