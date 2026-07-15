@@ -381,8 +381,8 @@ export function ProjectDetail({
           </div>
         )}
 
-        {/* Project attachments — view-only, no financials (client request) */}
-        <InstallationAttachments attachments={attachments} />
+        {/* Project attachments + contract — view-only, no financials (client request) */}
+        <InstallationAttachments attachments={attachments} contractUrl={project.contract_url} projectName={project.project_name} />
 
         {/* The project board is for the whole team, installation included */}
         <ProjectBoard projectId={project.id} notes={notes} members={boardMembers} currentProfile={currentProfile} />
