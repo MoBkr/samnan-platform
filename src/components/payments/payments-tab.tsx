@@ -23,6 +23,13 @@ function paymentLabel(p: Payment) {
   return p.type === 'custom' ? (p.name || 'دفعة أخرى') : PAYMENT_TYPE_LABELS[p.type]
 }
 
+// LC maturity = pay date + tenor (days)
+function lcMaturity(date: string, days: number): string {
+  const d = new Date(date + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
 interface PaymentsTabProps {
   payments: Payment[]
   projectId: string
@@ -37,6 +44,8 @@ interface PaymentsTabProps {
 export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [], canConfirmSales = false, hasInstallation = true }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addType, setAddType] = useState('')
+  const [addLc, setAddLc] = useState(false)
+  const [editLc, setEditLc] = useState(false)
   const [inv, setInv] = useState({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [recordPaymentId, setRecordPaymentId] = useState<string | null>(null)
@@ -67,6 +76,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
 
   function openAddDialog() {
     setAddType('')
+    setAddLc(false)
     setInv({ invoice_number: '', invoice_date: '', seller_name: '', customer_account: '' })
     setPrimaryFile(null)
     setOtherFiles([])
@@ -320,7 +330,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                     <div className="flex items-center gap-1.5 shrink-0">
                       <PaymentStatusBadge status={displayStatus} />
                       {canEdit && (
-                        <button onClick={() => setEditPaymentId(payment.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="تعديل">
+                        <button onClick={() => { setEditLc(!!payment.lc_enabled); setEditPaymentId(payment.id) }} className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors" title="تعديل">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -357,6 +367,19 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium mb-2">
                       <Receipt className="h-3.5 w-3.5" />
                       مدفوع بالكامل — {formatCurrency(payment.amount)}
+                    </div>
+                  )}
+
+                  {payment.lc_enabled && (
+                    <div className="mb-2 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700">
+                        <FileText className="h-3.5 w-3.5" /> خطاب اعتماد (LC)
+                      </div>
+                      <p className="text-[11px] text-indigo-600 mt-0.5">
+                        {payment.lc_date ? `تاريخ الدفع: ${formatDateShort(payment.lc_date)}` : 'تاريخ الدفع: —'}
+                        {payment.lc_days != null && ` · المدة: ${payment.lc_days} يوم`}
+                        {payment.lc_date && payment.lc_days != null && ` · الاستحقاق: ${formatDateShort(lcMaturity(payment.lc_date, payment.lc_days))}`}
+                      </p>
                     </div>
                   )}
 
@@ -478,6 +501,31 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
             <div className="space-y-1.5">
               <Label>تاريخ الاستحقاق</Label>
               <Input name="due_date" type="date" dir="ltr" />
+            </div>
+
+            {/* Letter of Credit (LC) */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={addLc} onChange={(e) => setAddLc(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                <input type="hidden" name="lc_enabled" value={addLc ? 'true' : 'false'} />
+                <span className="text-sm font-medium text-gray-700">يوجد خطاب اعتماد (LC)؟</span>
+              </label>
+              {addLc && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>تاريخ الدفع (LC)</Label>
+                    <Input name="lc_date" type="date" dir="ltr" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>المدة (عدد الأيام)</Label>
+                    <Input name="lc_days" type="number" min="0" step="1" dir="ltr" placeholder="مثال: 90" />
+                  </div>
+                  <p className="sm:col-span-2 text-[11px] text-gray-400">
+                    يصل تنبيه للكوردنيتر عند حلول تاريخ استحقاق الخطاب (تاريخ الدفع + عدد الأيام).
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Invoice fields (manual + OCR autofill) */}
@@ -641,6 +689,31 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <Label>تاريخ الاستحقاق</Label>
                   <Input name="due_date" type="date" dir="ltr" defaultValue={editingPayment.due_date ?? ''} />
                 </div>
+              </div>
+
+              {/* Letter of Credit (LC) */}
+              <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editLc} onChange={(e) => setEditLc(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                  <input type="hidden" name="lc_enabled" value={editLc ? 'true' : 'false'} />
+                  <span className="text-sm font-medium text-gray-700">يوجد خطاب اعتماد (LC)؟</span>
+                </label>
+                {editLc && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>تاريخ الدفع (LC)</Label>
+                      <Input name="lc_date" type="date" dir="ltr" defaultValue={editingPayment.lc_date ?? ''} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>المدة (عدد الأيام)</Label>
+                      <Input name="lc_days" type="number" min="0" step="1" dir="ltr" defaultValue={editingPayment.lc_days ?? ''} placeholder="مثال: 90" />
+                    </div>
+                    <p className="sm:col-span-2 text-[11px] text-gray-400">
+                      يصل تنبيه للكوردنيتر عند حلول تاريخ استحقاق الخطاب (تاريخ الدفع + عدد الأيام).
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Invoice fields */}

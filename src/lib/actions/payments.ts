@@ -59,6 +59,10 @@ export async function createPayment(formData: FormData) {
   const invoiceDate = (formData.get('invoice_date') as string)?.trim()
   const sellerName = (formData.get('seller_name') as string)?.trim()
   const customerAccount = (formData.get('customer_account') as string)?.trim()
+  const lcEnabled = formData.get('lc_enabled') === 'on' || formData.get('lc_enabled') === 'true'
+  const lcDate = (formData.get('lc_date') as string)?.trim() || null
+  const lcDaysRaw = formData.get('lc_days') as string
+  const lcDays = lcDaysRaw ? parseInt(lcDaysRaw, 10) : null
 
   if (!projectId || !type || !amount) {
     return { error: 'يرجى ملء جميع الحقول المطلوبة' }
@@ -82,6 +86,9 @@ export async function createPayment(formData: FormData) {
     amount: parseFloat(amount),
     due_date: dueDate || null,
     percentage: percentage ? parseFloat(percentage) : null,
+    lc_enabled: lcEnabled,
+    lc_date: lcEnabled ? lcDate : null,
+    lc_days: lcEnabled ? lcDays : null,
     notes: notes || null,
     status: 'pending',
     paid_amount: 0,
@@ -235,6 +242,10 @@ export async function editPayment(formData: FormData) {
   const invoiceDate = (formData.get('invoice_date') as string)?.trim() || null
   const sellerName = (formData.get('seller_name') as string)?.trim() || null
   const customerAccount = (formData.get('customer_account') as string)?.trim() || null
+  const lcEnabled = formData.get('lc_enabled') === 'on' || formData.get('lc_enabled') === 'true'
+  const lcDate = (formData.get('lc_date') as string)?.trim() || null
+  const lcDaysRaw = formData.get('lc_days') as string
+  const lcDays = lcDaysRaw ? parseInt(lcDaysRaw, 10) : null
 
   let type = (formData.get('type') as string) || null
   if (type && !PAYMENT_TYPES_SET.has(type)) type = null
@@ -249,13 +260,14 @@ export async function editPayment(formData: FormData) {
 
   const { data: payment } = (await service
     .from('payments')
-    .select('status, paid_amount, amount, due_date, notes, paid_at, type, name, order_no, percentage, invoice_number, invoice_date, seller_name, customer_account')
+    .select('status, paid_amount, amount, due_date, notes, paid_at, type, name, order_no, percentage, invoice_number, invoice_date, seller_name, customer_account, lc_enabled, lc_date, lc_days')
     .eq('id', paymentId)
     .single()) as unknown as {
       data: {
         status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null
         paid_at: string | null; type: string; name: string | null; order_no: number | null; percentage: number | null
         invoice_number: string | null; invoice_date: string | null; seller_name: string | null; customer_account: string | null
+        lc_enabled: boolean | null; lc_date: string | null; lc_days: number | null
       } | null
     }
 
@@ -299,6 +311,9 @@ export async function editPayment(formData: FormData) {
       invoice_date: invoiceDate,
       seller_name: sellerName,
       customer_account: customerAccount,
+      lc_enabled: lcEnabled,
+      lc_date: lcEnabled ? lcDate : null,
+      lc_days: lcEnabled ? lcDays : null,
       status: finalStatus,
       paid_at: paidAt,
     } as never)
@@ -319,6 +334,11 @@ export async function editPayment(formData: FormData) {
   if ((payment.due_date ?? '') !== (dueDate || '')) changes['تاريخ الاستحقاق'] = { from: payment.due_date || '—', to: dueDate || '—' }
   if ((payment.invoice_number ?? '') !== (invoiceNumber || '')) changes['رقم الفاتورة'] = { from: payment.invoice_number || '—', to: invoiceNumber || '—' }
   if ((payment.notes ?? '') !== (notes || '')) changes['ملاحظات'] = { from: payment.notes || '—', to: notes || '—' }
+  const lcStr = (en: boolean | null | undefined, d: string | null, days: number | null) =>
+    en ? `نعم${d ? ` — ${d}` : ''}${days != null ? ` — ${days} يوم` : ''}` : 'لا'
+  if (!!payment.lc_enabled !== lcEnabled || (payment.lc_date ?? '') !== (lcEnabled ? (lcDate || '') : '') || (payment.lc_days ?? null) !== (lcEnabled ? lcDays : null)) {
+    changes['خطاب الاعتماد LC'] = { from: lcStr(payment.lc_enabled, payment.lc_date, payment.lc_days), to: lcStr(lcEnabled, lcDate, lcDays) }
+  }
   if (payment.status !== finalStatus) {
     changes['الحالة'] = { from: PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status, to: PAYMENT_STATUS_LABELS[finalStatus as keyof typeof PAYMENT_STATUS_LABELS] ?? finalStatus }
   }
@@ -332,6 +352,90 @@ export async function editPayment(formData: FormData) {
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(date + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+type DuePaymentRow = {
+  id: string; project_id: string; type: string; name: string | null; amount: number
+  due_date: string | null; lc_date: string | null; lc_days: number | null
+  project: { coordinator_id: string | null; sales_engineer_id: string | null; project_name: string } | null
+}
+
+/**
+ * Fires payment reminders whose date has come — the due date, and the LC
+ * maturity date (lc_date + lc_days). Rides the same notification poll as the
+ * note reminders; dedicated *_reminded_at columns keep it idempotent so
+ * concurrent polls can't double-send. Recipients: the project's coordinator
+ * and sales engineer.
+ */
+export async function dispatchDuePaymentReminders() {
+  const service = createServiceClient()
+  const today = new Date().toISOString().split('T')[0]
+  const nowIso = new Date().toISOString()
+
+  const sel = 'id, project_id, type, name, amount, due_date, lc_date, lc_days, project:projects(coordinator_id, sales_engineer_id, project_name)'
+  const nameOf = (p: DuePaymentRow) =>
+    p.name || ({ upfront: 'الدفعة الأولى', materials: 'دفعة المواد', installation: 'دفعة التركيب', final: 'الدفعة النهائية', custom: 'دفعة' } as Record<string, string>)[p.type] || 'دفعة'
+
+  // ── Due-date reminders ──
+  try {
+    const due = (await service
+      .from('payments').select(sel)
+      .lte('due_date', today)
+      .in('status', ['pending', 'partial', 'overdue'])
+      .is('due_reminded_at', null)
+      .limit(100)) as unknown as { data: DuePaymentRow[] | null }
+
+    for (const p of due.data ?? []) {
+      if (!p.due_date) continue
+      const claimed = (await service
+        .from('payments').update({ due_reminded_at: nowIso } as never)
+        .eq('id', p.id).is('due_reminded_at', null).select('id')) as unknown as { data: { id: string }[] | null }
+      if (!claimed.data?.length) continue
+
+      await notify([p.project?.coordinator_id, p.project?.sales_engineer_id], {
+        title: `دفعة مستحقة: ${p.project?.project_name ?? ''}`,
+        body: `${nameOf(p)} — ${formatCurrency(p.amount)} — تاريخ الاستحقاق ${p.due_date}`,
+        link: `/projects/${p.project_id}`, type: 'payment', projectId: p.project_id,
+      })
+    }
+  } catch (e) {
+    console.error('[dispatchDuePaymentReminders:due]', e)
+  }
+
+  // ── LC maturity reminders (lc_date + lc_days) ──
+  try {
+    const lc = (await service
+      .from('payments').select(sel)
+      .eq('lc_enabled', true)
+      .not('lc_date', 'is', null)
+      .in('status', ['pending', 'partial', 'overdue'])
+      .is('lc_reminded_at', null)
+      .limit(100)) as unknown as { data: DuePaymentRow[] | null }
+
+    for (const p of lc.data ?? []) {
+      if (!p.lc_date) continue
+      const maturity = addDays(p.lc_date, p.lc_days ?? 0)
+      if (maturity > today) continue   // not due yet
+      const claimed = (await service
+        .from('payments').update({ lc_reminded_at: nowIso } as never)
+        .eq('id', p.id).is('lc_reminded_at', null).select('id')) as unknown as { data: { id: string }[] | null }
+      if (!claimed.data?.length) continue
+
+      await notify([p.project?.coordinator_id, p.project?.sales_engineer_id], {
+        title: `استحقاق خطاب اعتماد (LC): ${p.project?.project_name ?? ''}`,
+        body: `${nameOf(p)} — ${formatCurrency(p.amount)} — تاريخ الاستحقاق ${maturity}`,
+        link: `/projects/${p.project_id}`, type: 'payment', projectId: p.project_id,
+      })
+    }
+  } catch (e) {
+    console.error('[dispatchDuePaymentReminders:lc]', e)
+  }
 }
 
 // Sales engineer double-check: confirm invoice sent / client paid.

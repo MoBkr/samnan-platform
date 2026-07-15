@@ -48,6 +48,12 @@ export async function getMyNotifications(): Promise<{ items: AppNotification[]; 
   } catch (e) {
     console.error('[getMyNotifications] reminders', e)
   }
+  try {
+    const { dispatchDuePaymentReminders } = await import('@/lib/actions/payments')
+    await dispatchDuePaymentReminders()
+  } catch (e) {
+    console.error('[getMyNotifications] payment reminders', e)
+  }
 
   const service = createServiceClient()
   const result = (await service

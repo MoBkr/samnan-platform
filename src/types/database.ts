@@ -61,6 +61,10 @@ export interface Payment {
   percentage: number | null
   amount: number
   due_date: string | null
+  // Letter of Credit (خطاب اعتماد): optional, with pay date + tenor in days
+  lc_enabled: boolean
+  lc_date: string | null
+  lc_days: number | null
   status: PaymentStatus
   paid_amount: number
   paid_at: string | null

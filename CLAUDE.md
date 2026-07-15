@@ -46,6 +46,17 @@
    ```
    Without this, scheduling/editing the installation's expected finish date fails.
 
+🆕 **Supabase — خطاب الاعتماد LC + تذكيرات الدفعات (REQUIRED for LC option + payment reminders):** Run in SQL Editor:
+   ```sql
+   alter table public.payments
+     add column if not exists lc_enabled boolean default false,
+     add column if not exists lc_date date,
+     add column if not exists lc_days int,
+     add column if not exists due_reminded_at timestamptz,
+     add column if not exists lc_reminded_at timestamptz;
+   ```
+   Without this, saving a payment with LC fails, and due-date / LC-maturity reminders to the coordinator won't fire.
+
 🆕 **Supabase — الملف الشخصي (REQUIRED for ملفي الشخصي):** Run in SQL Editor:
    ```sql
    alter table public.profiles
