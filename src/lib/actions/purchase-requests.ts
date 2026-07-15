@@ -75,11 +75,13 @@ export async function createPurchaseRequest(data: BrInput) {
   } as never)) as unknown as { error: Error | null }
 
   if (error) return { error: 'فشل إنشاء الطلب' }
+  const newProjectId = await resolveProjectId(service, data.project_name)
   await service.from('activity_log').insert({
-    project_id: null, user_id: auth.user.id,
+    project_id: newProjectId, user_id: auth.user.id,
     action: `إنشاء طلب شراء: ${data.project_name.trim()}`, details: { project_name: data.project_name.trim() },
   } as never)
   revalidatePath('/purchase-requests')
+  if (newProjectId) revalidatePath(`/projects/${newProjectId}`)
   return { success: true }
 }
 
@@ -97,11 +99,15 @@ export async function updatePurchaseRequest(id: string, fields: Partial<BrInput>
   const { error } = (await service
     .from('purchase_requests').update(patch as never).eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل تحديث الطلب' }
+  const { data: after } = (await service
+    .from('purchase_requests').select('project_name').eq('id', id).single()) as unknown as { data: { project_name: string | null } | null }
+  const projectId = await resolveProjectId(service, after?.project_name ?? null)
   await service.from('activity_log').insert({
-    project_id: null, user_id: auth.user.id,
+    project_id: projectId, user_id: auth.user.id,
     action: 'تعديل بيانات طلب شراء', details: { br_id: id },
   } as never)
   revalidatePath('/purchase-requests')
+  if (projectId) revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
 
@@ -111,8 +117,8 @@ export async function movePurchaseRequest(id: string, stage: BrStage) {
 
   const service = createServiceClient()
   const { data: cur } = (await service
-    .from('purchase_requests').select('started_at, stage_history').eq('id', id).single()) as unknown as {
-      data: { started_at: string | null; stage_history: Record<string, string> | null } | null
+    .from('purchase_requests').select('started_at, stage_history, project_name').eq('id', id).single()) as unknown as {
+      data: { started_at: string | null; stage_history: Record<string, string> | null; project_name: string | null } | null
     }
 
   const history = { ...(cur?.stage_history ?? {}) }
@@ -129,12 +135,14 @@ export async function movePurchaseRequest(id: string, stage: BrStage) {
     .from('purchase_requests').update(patch as never).eq('id', id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل نقل الطلب' }
 
+  const projectId = await resolveProjectId(service, cur?.project_name ?? null)
   await service.from('activity_log').insert({
-    project_id: null, user_id: auth.user.id,
+    project_id: projectId, user_id: auth.user.id,
     action: `طلب شراء — اكتملت مرحلة وانتقل إلى: ${BR_STAGE_LABELS[stage]}`, details: { br_id: id, stage },
   } as never)
 
   revalidatePath('/purchase-requests')
+  if (projectId) revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
 

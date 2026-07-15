@@ -22,14 +22,15 @@ import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
 import { ProjectBoard } from '@/components/projects/project-board'
 import { InstallationAttachments } from '@/components/installation/installation-attachments'
+import { PurchaseBoard } from '@/components/purchase/purchase-board'
 import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
 import { getOrCreateShareToken } from '@/lib/actions/share'
 import { INSTALL_STAGES } from '@/lib/constants'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician, CustodyEntry, ProjectNote } from '@/types/database'
+import type { Project, Payment, Installation, ActivityLog, Profile, Document, Material, TechnicianWithStatus, TechnicianAssignment, Technician, CustodyEntry, ProjectNote, PurchaseRequest } from '@/types/database'
 
-type Tab = 'payments' | 'installation' | 'materials' | 'board' | 'attachments' | 'activity'
+type Tab = 'payments' | 'installation' | 'materials' | 'purchase' | 'board' | 'attachments' | 'activity'
 type ActionDialog = 'complete' | 'cancel' | 'hold' | 'reactivate' | 'team' | 'editAmount' | 'editInfo' | 'delete' | null
 
 function workloadLabel(count: number) {
@@ -71,12 +72,15 @@ interface ProjectDetailProps {
   custody: CustodyEntry[]
   notes: ProjectNote[]
   boardMembers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
+  purchaseRequests: PurchaseRequest[]
+  brUsers: Pick<Profile, 'id' | 'full_name' | 'role'>[]
 }
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'payments', label: 'الدفعات' },
   { id: 'installation', label: 'التركيب' },
   { id: 'materials', label: 'المواد' },
+  { id: 'purchase', label: 'طلبات الشراء' },
   { id: 'board', label: 'المدونة' },
   { id: 'attachments', label: 'المرفقات' },
   { id: 'activity', label: 'سجل النشاط' },
@@ -156,6 +160,8 @@ export function ProjectDetail({
   custody,
   notes,
   boardMembers,
+  purchaseRequests,
+  brUsers,
 }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('payments')
   const [dialog, setDialog] = useState<ActionDialog>(null)
@@ -675,7 +681,10 @@ export function ProjectDetail({
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-0 overflow-x-auto">
-          {TABS.filter((tab) => tab.id !== 'installation' || project.has_installation).map((tab) => (
+          {TABS
+            .filter((tab) => tab.id !== 'installation' || project.has_installation)
+            .filter((tab) => tab.id !== 'purchase' || canManage)
+            .map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -722,6 +731,15 @@ export function ProjectDetail({
             project={project}
             payments={payments}
             canManage={canManage}
+          />
+        )}
+        {activeTab === 'purchase' && canManage && (
+          <PurchaseBoard
+            requests={purchaseRequests}
+            users={brUsers}
+            projectNames={[project.project_name]}
+            currentProfile={currentProfile}
+            lockedProjectName={project.project_name}
           />
         )}
         {activeTab === 'board' && (

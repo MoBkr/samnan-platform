@@ -28,8 +28,11 @@ interface Props {
   requests: PurchaseRequest[]
   users: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   projectNames: string[]
-  myProjectNames: string[]
+  myProjectNames?: string[]
   currentProfile: Profile
+  // When embedded inside a project: only that project's requests, and new
+  // requests are pinned to it. Same data as the main board — edits sync both.
+  lockedProjectName?: string
 }
 
 type BrForm = {
@@ -45,7 +48,7 @@ const EMPTY: BrForm = {
   extraDocs: [],
 }
 
-export function PurchaseBoard({ requests, users, projectNames, myProjectNames, currentProfile }: Props) {
+export function PurchaseBoard({ requests, users, projectNames, myProjectNames = [], currentProfile, lockedProjectName }: Props) {
   const [isPending, startTransition] = useTransition()
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -63,7 +66,10 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames, c
     r.engineer_id === currentProfile.id ||
     (!!r.project_name && myProjects.has(r.project_name))
 
-  const scoped = requests.filter((r) => scope === 'all' || isMine(r))
+  // Locked to one project (embedded) → only its requests; else honour the scope tab.
+  const scoped = lockedProjectName
+    ? requests.filter((r) => r.project_name === lockedProjectName)
+    : requests.filter((r) => scope === 'all' || isMine(r))
 
   const detail = requests.find((r) => r.id === detailId) || null
   const q = search.trim().toLowerCase()
@@ -78,7 +84,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames, c
   const mineCount = requests.filter(isMine).length
   const overdueCount = scoped.filter((r) => r.stage !== 'completed' && r.due_date && r.due_date < today).length
 
-  function openNew() { setEditingId(null); setForm({ ...EMPTY }); setFormOpen(true) }
+  function openNew() { setEditingId(null); setForm({ ...EMPTY, project_name: lockedProjectName ?? '' }); setFormOpen(true) }
   function openEdit(r: PurchaseRequest) {
     setEditingId(r.id)
     setForm({
@@ -155,7 +161,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames, c
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span><span className="font-bold text-gray-800">{requests.length}</span> طلب</span>
+          <span><span className="font-bold text-gray-800">{scoped.length}</span> طلب</span>
           {overdueCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600">
               <AlertTriangle className="h-3 w-3" /> {overdueCount} متأخر
@@ -182,21 +188,23 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames, c
         )}
       </div>
 
-      {/* Scope: my requests vs. all */}
-      <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
-        <button
-          onClick={() => setScope('mine')}
-          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${scope === 'mine' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          طلباتي <span className="text-xs opacity-70">({mineCount})</span>
-        </button>
-        <button
-          onClick={() => setScope('all')}
-          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${scope === 'all' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-        >
-          كل الطلبات <span className="text-xs opacity-70">({requests.length})</span>
-        </button>
-      </div>
+      {/* Scope: my requests vs. all (hidden when locked to a single project) */}
+      {!lockedProjectName && (
+        <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+          <button
+            onClick={() => setScope('mine')}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${scope === 'mine' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            طلباتي <span className="text-xs opacity-70">({mineCount})</span>
+          </button>
+          <button
+            onClick={() => setScope('all')}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${scope === 'all' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            كل الطلبات <span className="text-xs opacity-70">({requests.length})</span>
+          </button>
+        </div>
+      )}
 
       {/* Stage filter */}
       <div className="flex flex-wrap gap-2">
@@ -302,10 +310,11 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames, c
           <form id="br-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label>اسم المشروع *</Label>
-              <Input list="br-projects" required value={form.project_name}
+              <Input list="br-projects" required value={form.project_name} readOnly={!!lockedProjectName}
                 onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}
+                className={lockedProjectName ? 'bg-gray-50 text-gray-500' : undefined}
                 placeholder="اختر من القائمة أو اكتب يدوياً" />
-              <datalist id="br-projects">{projectNames.map((n) => <option key={n} value={n} />)}</datalist>
+              {!lockedProjectName && <datalist id="br-projects">{projectNames.map((n) => <option key={n} value={n} />)}</datalist>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="رقم BR"><Input dir="ltr" className="text-start" value={form.br_number} onChange={(e) => setForm((f) => ({ ...f, br_number: e.target.value }))} /></Field>

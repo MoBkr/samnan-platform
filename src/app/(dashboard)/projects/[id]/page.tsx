@@ -7,6 +7,7 @@ import { getProjectMaterials } from '@/lib/actions/materials'
 import { getTechnicians, getProjectTechnicians } from '@/lib/actions/technicians'
 import { getProjectCustody } from '@/lib/actions/custody'
 import { getProjectNotes, getBoardMembers } from '@/lib/actions/notes'
+import { getPurchaseRequests } from '@/lib/actions/purchase-requests'
 import { getCurrentProfile } from '@/lib/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import { ProjectDetail } from '@/components/projects/project-detail'
@@ -16,7 +17,7 @@ import type { ActivityLog, Profile } from '@/types/database'
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [project, payments, installations, attachments, material, profile, technicians, technicianAssignments, custody, notes, boardMembers] = await Promise.all([
+  const [project, payments, installations, attachments, material, profile, technicians, technicianAssignments, custody, notes, boardMembers, allPurchaseRequests] = await Promise.all([
     getProject(id),
     getProjectPayments(id),
     getProjectInstallations(id),
@@ -28,6 +29,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     getProjectCustody(id),
     getProjectNotes(id),
     getBoardMembers(id),
+    getPurchaseRequests(),
   ])
 
   if (!project) notFound()
@@ -46,6 +48,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   const salesResult = (await supabase
     .from('profiles').select('id, full_name, role').eq('role', 'sales_engineer').eq('is_active', true)
+  ) as QueryResultMany<Pick<Profile, 'id' | 'full_name' | 'role'>>
+
+  // Purchase requests for THIS project only (same records as the main board)
+  const purchaseRequests = allPurchaseRequests.filter((r) => r.project_name === project.project_name)
+  const brUsersResult = (await supabase
+    .from('profiles').select('id, full_name, role').eq('is_active', true)
   ) as QueryResultMany<Pick<Profile, 'id' | 'full_name' | 'role'>>
 
   const installationResult = (await supabase
@@ -97,6 +105,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       custody={custody}
       notes={notes}
       boardMembers={boardMembers}
+      purchaseRequests={purchaseRequests}
+      brUsers={brUsersResult.data ?? []}
     />
   )
 }
