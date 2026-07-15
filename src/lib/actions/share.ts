@@ -51,7 +51,8 @@ export interface PublicProjectView {
   collection: { total: number; paid: number; pct: number }
   payments: { label: string; status: string }[]
   materials_status: string | null
-  installation: { scheduled_date: string | null; status: string; stages: { label: string; done: boolean }[] } | null
+  materials: { total: number; done: number; pct: number; allDone: boolean; items: { description: string; status: string }[] } | null
+  installation: { scheduled_date: string | null; expected_end_date: string | null; status: string; stages: { label: string; done: boolean }[] } | null
   lifecycle: { label: string; state: 'done' | 'current' | 'todo' }[]
   attachments: { name: string; url: string }[]
 }
@@ -105,10 +106,28 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
     const stages = installation.stages ?? {}
     installationView = {
       scheduled_date: installation.scheduled_date,
+      expected_end_date: installation.expected_end_date ?? null,
       status: installation.status,
       stages: INSTALL_STAGES.filter((s) => !s.optional).map((s) => ({
         label: s.label,
         done: !!stages[s.key]?.done,
+      })),
+    }
+  }
+
+  // Materials status detail for the client (item list + completion)
+  let materialsView: PublicProjectView['materials'] = null
+  const matItems = material?.items ?? []
+  if (matItems.length > 0) {
+    const done = matItems.filter((it) => (it.status || '').trim() === 'مكتمل').length
+    materialsView = {
+      total: matItems.length,
+      done,
+      pct: Math.round((done / matItems.length) * 100),
+      allDone: done === matItems.length,
+      items: matItems.map((it) => ({
+        description: it.description || it.name || '—',
+        status: (it.status || '').trim() || 'لم يطلب',
       })),
     }
   }
@@ -146,6 +165,7 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
       .sort((a, b) => (a.order_no ?? 0) - (b.order_no ?? 0))
       .map((p) => ({ label: p.name || PAYMENT_LABELS[p.type] || 'دفعة', status: p.status })),
     materials_status: material?.status ?? null,
+    materials: materialsView,
     installation: installationView,
     lifecycle: steps,
     attachments,

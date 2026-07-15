@@ -143,15 +143,44 @@ export default async function TrackPage({ params }: { params: Promise<{ token: s
         </div>
 
         {/* Materials */}
-        {data.materials_status && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50"><Package className="h-4 w-4 text-amber-600" /></div>
-              <h2 className="text-sm font-bold text-gray-900">المواد</h2>
+        {(data.materials || data.materials_status) && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50"><Package className="h-4 w-4 text-amber-600" /></div>
+                <h2 className="text-sm font-bold text-gray-900">المواد</h2>
+              </div>
+              {data.materials ? (
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${data.materials.allDone ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                  {data.materials.allDone ? 'مكتملة' : 'قيد المعالجة'} · {data.materials.pct}%
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs font-semibold border border-amber-100">
+                  {MAT_LABELS[data.materials_status!] ?? data.materials_status}
+                </span>
+              )}
             </div>
-            <span className="rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs font-semibold border border-amber-100">
-              {MAT_LABELS[data.materials_status] ?? data.materials_status}
-            </span>
+            {data.materials && (
+              <>
+                <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden my-3">
+                  <div className={`h-full rounded-full ${data.materials.allDone ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${data.materials.pct}%` }} />
+                </div>
+                <p className="text-xs text-gray-400 mb-3">{data.materials.done} من {data.materials.total} أصناف مكتملة</p>
+                <div className="space-y-1.5">
+                  {data.materials.items.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm">
+                      <span className="text-gray-700 truncate">{it.description}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        it.status === 'مكتمل' ? 'bg-emerald-100 text-emerald-700'
+                        : it.status === 'قيد المعالجة' ? 'bg-amber-100 text-amber-700'
+                        : 'bg-gray-100 text-gray-500'}`}>
+                        {it.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 

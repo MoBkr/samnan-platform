@@ -90,6 +90,7 @@ export async function scheduleInstallation(formData: FormData) {
 
   const projectId = formData.get('project_id') as string
   const scheduledDate = formData.get('scheduled_date') as string
+  const expectedEndDate = (formData.get('expected_end_date') as string)?.trim() || null
   const expectedDuration = (formData.get('expected_duration') as string)?.trim() || null
 
   if (!scheduledDate) return { error: 'يرجى تحديد تاريخ التركيب' }
@@ -99,6 +100,7 @@ export async function scheduleInstallation(formData: FormData) {
   const { error } = (await service.from('installations').insert({
     project_id: projectId,
     scheduled_date: scheduledDate,
+    expected_end_date: expectedEndDate,
     expected_duration: expectedDuration,
     status: 'scheduled',
     installation_team_confirmed: false,
@@ -113,7 +115,7 @@ export async function scheduleInstallation(formData: FormData) {
     project_id: projectId,
     user_id: user.id,
     action: 'جدولة التركيب',
-    details: { scheduled_date: scheduledDate, expected_duration: expectedDuration },
+    details: { scheduled_date: scheduledDate, expected_end_date: expectedEndDate, expected_duration: expectedDuration },
   } as never)
 
   const mgr = await projectManager(service, projectId)
@@ -139,6 +141,34 @@ export async function setInstallExpectedDuration(installationId: string, project
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
     action: 'تحديد المدة المتوقعة للتركيب', details: { installation_id: installationId, expected_duration: duration },
+  } as never)
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/installation')
+  return { success: true }
+}
+
+// Edit the schedule dates after they've been set (start + expected finish).
+export async function setInstallDates(
+  installationId: string, projectId: string, scheduledDate: string | null, expectedEndDate: string | null,
+) {
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  if (!scheduledDate) return { error: 'يرجى تحديد تاريخ البدء' }
+  if (expectedEndDate && expectedEndDate < scheduledDate) return { error: 'تاريخ الانتهاء المتوقع قبل تاريخ البدء' }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('installations').update({
+      scheduled_date: scheduledDate,
+      expected_end_date: expectedEndDate || null,
+    } as never)
+    .eq('id', installationId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل حفظ التواريخ' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: auth.user.id,
+    action: 'تعديل مواعيد التركيب',
+    details: { installation_id: installationId, scheduled_date: scheduledDate, expected_end_date: expectedEndDate },
   } as never)
   revalidatePath(`/projects/${projectId}`)
   revalidatePath('/installation')

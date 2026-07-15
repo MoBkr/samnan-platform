@@ -39,6 +39,13 @@
    alter table public.app_notifications enable row level security;
    ```
 
+🆕 **Supabase — تاريخ انتهاء التركيب المتوقع (REQUIRED for install schedule dates):** Run in SQL Editor:
+   ```sql
+   alter table public.installations
+     add column if not exists expected_end_date date;
+   ```
+   Without this, scheduling/editing the installation's expected finish date fails.
+
 🆕 **Supabase — الملف الشخصي (REQUIRED for ملفي الشخصي):** Run in SQL Editor:
    ```sql
    alter table public.profiles

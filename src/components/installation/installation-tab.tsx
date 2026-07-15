@@ -14,7 +14,7 @@ import { InstallationStatusBadge } from '@/components/shared/status-badge'
 import { EmptyState } from '@/components/shared/empty-state'
 import {
   scheduleInstallation, updateInstallationStatus, markClientNotified,
-  setInstallExpectedDuration, addInstallStageFile, removeInstallStageFile, updateInstallStageFlags,
+  setInstallExpectedDuration, setInstallDates, addInstallStageFile, removeInstallStageFile, updateInstallStageFlags,
   addInstallStageSlot, removeInstallStageSlot, setInstallStageRejection,
   setInstallSlotState, setInstallSlotRejection,
 } from '@/lib/actions/installation'
@@ -184,14 +184,20 @@ export function InstallationTab({ installations, projectId, canManage, currentPr
         </DialogHeader>
         <DialogContent>
           <form id="schedule-install-form" onSubmit={handleSchedule} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>تاريخ بدء التركيب</Label>
-              <Input name="scheduled_date" type="date" dir="ltr" required />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>تاريخ البدء</Label>
+                <Input name="scheduled_date" type="date" dir="ltr" required />
+              </div>
+              <div className="space-y-1.5">
+                <Label>الانتهاء المتوقع</Label>
+                <Input name="expected_end_date" type="date" dir="ltr" />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>المدة المتوقعة للتركيب</Label>
               <Input name="expected_duration" placeholder="مثال: أسبوعين / 10 أيام" />
-              <p className="text-xs text-gray-400">يحددها مدير التركيبات — يمكن تعديلها لاحقًا.</p>
+              <p className="text-xs text-gray-400">التواريخ والمدة يمكن تعديلها لاحقًا.</p>
             </div>
           </form>
         </DialogContent>
@@ -235,6 +241,9 @@ function InstallationCard({
   const [selectedStage, setSelectedStage] = useState<string | null>(null)
   const [editingDuration, setEditingDuration] = useState(false)
   const [durationVal, setDurationVal] = useState(installation.expected_duration ?? '')
+  const [editingDates, setEditingDates] = useState(false)
+  const [startVal, setStartVal] = useState(installation.scheduled_date ?? '')
+  const [endVal, setEndVal] = useState(installation.expected_end_date ?? '')
 
   function saveDuration() {
     startTransition(async () => {
@@ -242,6 +251,16 @@ function InstallationCard({
         const result = await setInstallExpectedDuration(installation.id, projectId, durationVal)
         if (result?.error) toast.error(result.error)
         else { toast.success('تم حفظ المدة المتوقعة'); setEditingDuration(false) }
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
+  function saveDates() {
+    startTransition(async () => {
+      try {
+        const result = await setInstallDates(installation.id, projectId, startVal || null, endVal || null)
+        if (result?.error) toast.error(result.error)
+        else { toast.success('تم حفظ التواريخ'); setEditingDates(false) }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -261,14 +280,51 @@ function InstallationCard({
           <div>
             <p className="font-semibold text-gray-900 text-sm">موعد التركيب</p>
             {installation.scheduled_date && (
-              <p className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
+              <p className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 mt-0.5">
                 <Clock className="h-3 w-3" />
-                {formatDateShort(installation.scheduled_date)}
+                <span>البدء: {formatDateShort(installation.scheduled_date)}</span>
+                {installation.expected_end_date && (
+                  <span className="text-gray-400">· الانتهاء المتوقع: {formatDateShort(installation.expected_end_date)}</span>
+                )}
               </p>
             )}
           </div>
         </div>
         <InstallationStatusBadge status={installation.status} />
+      </div>
+
+      {/* Dates — editable */}
+      <div className="mx-5 mb-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5">
+        {editingDates ? (
+          <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-gray-500">تاريخ البدء</label>
+                <Input type="date" dir="ltr" value={startVal} onChange={(e) => setStartVal(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-gray-500">الانتهاء المتوقع</label>
+                <Input type="date" dir="ltr" value={endVal} onChange={(e) => setEndVal(e.target.value)} className="h-8 text-sm" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" loading={isPending} onClick={saveDates}><Check className="h-3.5 w-3.5" /> حفظ</Button>
+              <Button size="sm" variant="outline" onClick={() => { setEditingDates(false); setStartVal(installation.scheduled_date ?? ''); setEndVal(installation.expected_end_date ?? '') }}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1.5 text-gray-600"><Calendar className="h-3.5 w-3.5 text-gray-400" /> البدء: <strong className="text-gray-800">{installation.scheduled_date ? formatDateShort(installation.scheduled_date) : '—'}</strong></span>
+            <span className="text-gray-600">الانتهاء المتوقع: <strong className="text-gray-800">{installation.expected_end_date ? formatDateShort(installation.expected_end_date) : '—'}</strong></span>
+            {canEdit && (
+              <button onClick={() => setEditingDates(true)} className="ms-auto text-gray-400 hover:text-brand-600 transition-colors" title="تعديل التواريخ">
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Expected duration */}

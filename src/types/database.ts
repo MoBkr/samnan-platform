@@ -247,6 +247,7 @@ export interface Installation {
   id: string
   project_id: string
   scheduled_date: string | null
+  expected_end_date: string | null   // expected finish date (editable later)
   expected_duration: string | null   // expected installation time (entered by installation manager)
   installation_team_confirmed: boolean
   client_notified: boolean

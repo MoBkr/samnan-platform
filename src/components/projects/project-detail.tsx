@@ -713,7 +713,7 @@ export function ProjectDetail({
           <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} custody={custody} />
         )}
         {activeTab === 'materials' && (
-          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} />
+          <MaterialsTab material={material} attachments={attachments} projectId={project.id} canManage={canManage} payments={payments} projectName={project.project_name} clientName={project.client_name} />
         )}
         {activeTab === 'attachments' && (
           <AttachmentsTab

@@ -15,6 +15,7 @@ import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/mater
 import { createPayment } from '@/lib/actions/payments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { PrintHeader } from '@/components/shared/print-header'
+import { MaterialsStatusView } from '@/components/projects/materials-status-view'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
 interface MaterialsTabProps {
@@ -23,6 +24,8 @@ interface MaterialsTabProps {
   projectId: string
   canManage: boolean
   payments: Payment[]
+  projectName?: string
+  clientName?: string
 }
 
 function formatDate(dateStr: string) {
@@ -198,8 +201,9 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
   )
 }
 
-export function MaterialsTab({ material, attachments, projectId, canManage, payments }: MaterialsTabProps) {
+export function MaterialsTab({ material, attachments, projectId, canManage, payments, projectName, clientName }: MaterialsTabProps) {
   const [isPending, startTransition] = useTransition()
+  const [view, setView] = useState<'manage' | 'status'>('manage')
 
   const requestDocs = attachments.filter((a) => a.type === 'materials_request')
   const deliveryDocs = attachments.filter((a) => a.type === 'delivery_note')
@@ -613,6 +617,26 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   return (
     <div className="space-y-5">
 
+      {/* ── Sub-tabs: manage vs. client-facing status ── */}
+      <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+        <button
+          onClick={() => setView('manage')}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${view === 'manage' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          إدارة المواد
+        </button>
+        <button
+          onClick={() => setView('status')}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${view === 'status' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          حالة المواد
+        </button>
+      </div>
+
+      {view === 'status' ? (
+        <MaterialsStatusView items={draftItems} projectName={projectName ?? ''} clientName={clientName} />
+      ) : (
+      <>
       {/* ── Materials completion — first thing in the section ── */}
       <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
@@ -1140,6 +1164,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           <Button loading={isPending} onClick={handleCreatePayment}>إنشاء الدفعة</Button>
         </DialogFooter>
       </Dialog>
+      </>
+      )}
     </div>
   )
 }

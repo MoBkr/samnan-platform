@@ -89,8 +89,8 @@ export const INSTALL_STAGES: InstallStageConfig[] = [
   },
   {
     key: 'commissioning',
-    label: 'التشغيل والصيانة',
-    en: 'Commissioning',
+    label: 'الاختبار والتشغيل',
+    en: 'Testing & Commissioning',
     desc: 'اختبارات تشغيل للنظام كامل — ملف واحد شامل.',
     singleFile: true,
   },

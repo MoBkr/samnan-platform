@@ -65,6 +65,7 @@ export function ProjectSummaryView({ project, payments, material, installations,
   const materialsPct = items.length > 0
     ? Math.round((items.filter((it) => it.status === 'مكتمل').length / items.length) * 100)
     : material ? (MAT_PCT[material.status] ?? 0) : 0
+  const materialsAllDone = items.length > 0 && items.every((it) => (it.status || '').trim() === 'مكتمل')
   const installPct = project.has_installation
     ? (reqStages.length > 0 ? Math.round((doneStages / reqStages.length) * 100) : 0)
     : null
@@ -182,7 +183,13 @@ export function ProjectSummaryView({ project, payments, material, installations,
           <div className="rounded-lg border border-gray-100 px-3 py-2.5 mb-2">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 text-gray-600"><Package className="h-3.5 w-3.5 text-amber-500" /> المواد</span>
-              <span className="font-medium text-gray-800">{material ? (MAT_STATUS[material.status] ?? material.status) : 'لا يوجد'}</span>
+              {items.length > 0 ? (
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${materialsAllDone ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {materialsAllDone ? 'مكتملة' : 'قيد المعالجة'} · {materialsPct}%
+                </span>
+              ) : (
+                <span className="font-medium text-gray-800">{material ? (MAT_STATUS[material.status] ?? material.status) : 'لا يوجد'}</span>
+              )}
             </div>
             {items.length > 0 && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
