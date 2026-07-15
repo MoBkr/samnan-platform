@@ -21,6 +21,24 @@
 
 > *Clear each item after completing.*
 
+🔴 **Supabase — app_notifications MISSING (this is why the bell shows nothing).** Verified 2026-07-15 via service-key probe: `project_notes`/`personal_notes`/`custody_entries` exist and hold rows, but `app_notifications` is absent ("Could not find the table in the schema cache"), so every `notify()` insert fails silently. The earlier "DONE — Mohamed confirmed" note for this table was wrong. Run:
+   ```sql
+   create table if not exists public.app_notifications (
+     id           uuid primary key default gen_random_uuid(),
+     recipient_id uuid references public.profiles(id) not null,
+     title        text not null,
+     body         text,
+     link         text,
+     type         text default 'info',
+     project_id   uuid references public.projects(id),
+     is_read      boolean default false,
+     created_at   timestamptz default now()
+   );
+   create index if not exists app_notifications_recipient_idx
+     on public.app_notifications (recipient_id, is_read);
+   alter table public.app_notifications enable row level security;
+   ```
+
 🆕 **Supabase — الملف الشخصي (REQUIRED for ملفي الشخصي):** Run in SQL Editor:
    ```sql
    alter table public.profiles

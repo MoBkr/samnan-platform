@@ -21,6 +21,7 @@ import { MaterialsTab } from '@/components/projects/materials-tab'
 import { ActivityTab } from '@/components/projects/activity-tab'
 import { AttachmentsTab } from '@/components/projects/attachments-tab'
 import { ProjectBoard } from '@/components/projects/project-board'
+import { InstallationAttachments } from '@/components/installation/installation-attachments'
 import { updateProjectStatus, updateProjectTeam, updateProjectAmount, updateProjectInfo, deleteProject } from '@/lib/actions/projects'
 import { getOrCreateShareToken } from '@/lib/actions/share'
 import { INSTALL_STAGES } from '@/lib/constants'
@@ -379,6 +380,9 @@ export function ProjectDetail({
             <p className="text-sm text-gray-500">هذا المشروع بدون تركيب — لا توجد مهام تركيب.</p>
           </div>
         )}
+
+        {/* Project attachments — view-only, no financials (client request) */}
+        <InstallationAttachments attachments={attachments} />
 
         {/* The project board is for the whole team, installation included */}
         <ProjectBoard projectId={project.id} notes={notes} members={boardMembers} currentProfile={currentProfile} />
