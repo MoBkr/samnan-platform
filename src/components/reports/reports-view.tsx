@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateShort, cn } from '@/lib/utils'
 import { ROLE_LABELS, STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import type { Profile } from '@/types/database'
-import type { ProjectReport, PaymentReport, ActivityLogReport } from '@/lib/actions/reports'
+import type { ProjectReport, PaymentReport, ActivityLogReport, AnnualSummary } from '@/lib/actions/reports'
 
-type ReportTab = 'projects' | 'payments' | 'team' | 'activity'
+type ReportTab = 'annual' | 'projects' | 'payments' | 'team' | 'activity'
 
 const TABS: { id: ReportTab; label: string }[] = [
+  { id: 'annual', label: 'الملخص السنوي' },
   { id: 'projects', label: 'المشاريع' },
   { id: 'payments', label: 'الدفعات' },
   { id: 'team', label: 'الفريق' },
@@ -37,10 +38,11 @@ interface ReportsViewProps {
   payments: PaymentReport[]
   team: Profile[]
   activity: ActivityLogReport[]
+  annual: AnnualSummary
 }
 
-export function ReportsView({ projects, payments, team, activity }: ReportsViewProps) {
-  const [activeTab, setActiveTab] = useState<ReportTab>('projects')
+export function ReportsView({ projects, payments, team, activity, annual }: ReportsViewProps) {
+  const [activeTab, setActiveTab] = useState<ReportTab>('annual')
 
   const tabLabel = TABS.find(t => t.id === activeTab)?.label ?? ''
   const printDate = new Date().toLocaleDateString('ar-SA-u-nu-latn', {
@@ -98,6 +100,7 @@ export function ReportsView({ projects, payments, team, activity }: ReportsViewP
       </div>
 
       {/* ─── Report body ─── */}
+      {activeTab === 'annual' && <AnnualSummaryReport annual={annual} />}
       {activeTab === 'projects' && <ProjectsReport projects={projects} />}
       {activeTab === 'payments' && <PaymentsReport payments={payments} />}
       {activeTab === 'team' && <TeamReport team={team} />}
@@ -240,6 +243,107 @@ function TeamReport({ team }: { team: Profile[] }) {
         ])}
         empty="لا يوجد أعضاء فريق"
       />
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════
+   Annual Summary
+══════════════════════════════════════ */
+function AnnualSummaryReport({ annual }: { annual: AnnualSummary }) {
+  const [year, setYear] = useState<number>(annual.years[0] ?? new Date().getFullYear())
+  const s = annual.byYear[year] ?? {
+    year, projectsCreated: 0, projectsCompleted: 0, projectsCancelled: 0,
+    deliveriesConfirmed: 0, installationsCompleted: 0, collected: 0, newContractsValue: 0,
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Year selector */}
+      <div className="no-print flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-gray-600">السنة:</span>
+        {annual.years.map((y) => (
+          <button key={y} onClick={() => setYear(y)}
+            className={cn('rounded-full border px-3.5 py-1 text-sm font-semibold transition-colors',
+              y === year ? 'border-brand-300 bg-brand-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300')}>
+            {y}
+          </button>
+        ))}
+        <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+          نشط الآن: {annual.currentActive}
+        </span>
+      </div>
+      <div className="print-only text-sm text-gray-600 mb-2">الملخص السنوي — {year}</div>
+
+      {/* Project counts */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <YearStat label="مشاريع أُنشئت" value={s.projectsCreated} tone="blue" />
+        <YearStat label="مشاريع اكتملت" value={s.projectsCompleted} tone="green" />
+        <YearStat label="مشاريع أُلغيت" value={s.projectsCancelled} tone="red" />
+        <YearStat label="تركيبات مكتملة" value={s.installationsCompleted} tone="purple" />
+      </div>
+
+      {/* Deliveries + financials */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <YearStat label="عمليات توريد مؤكدة (بمذكرة تسليم)" value={s.deliveriesConfirmed} tone="amber" />
+        <YearStat label="المُحصَّل خلال السنة" value={formatCurrency(s.collected)} tone="green" money />
+        <YearStat label="قيمة العقود الجديدة" value={formatCurrency(s.newContractsValue)} tone="blue" money />
+      </div>
+
+      {/* All years at a glance */}
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-gray-500 text-xs">
+                <th className="px-3 py-2.5 text-start font-semibold">السنة</th>
+                <th className="px-3 py-2.5 text-start font-semibold">أُنشئت</th>
+                <th className="px-3 py-2.5 text-start font-semibold">اكتملت</th>
+                <th className="px-3 py-2.5 text-start font-semibold">أُلغيت</th>
+                <th className="px-3 py-2.5 text-start font-semibold">توريدات مؤكدة</th>
+                <th className="px-3 py-2.5 text-start font-semibold">تركيبات مكتملة</th>
+                <th className="px-3 py-2.5 text-start font-semibold">المُحصَّل</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {annual.years.map((y) => {
+                const r = annual.byYear[y]
+                return (
+                  <tr key={y} className={cn('hover:bg-gray-50/50', y === year && 'bg-brand-50/40')}>
+                    <td className="px-3 py-2.5 font-bold text-gray-800">{y}</td>
+                    <td className="px-3 py-2.5 text-gray-600">{r?.projectsCreated ?? 0}</td>
+                    <td className="px-3 py-2.5 text-gray-600">{r?.projectsCompleted ?? 0}</td>
+                    <td className="px-3 py-2.5 text-gray-600">{r?.projectsCancelled ?? 0}</td>
+                    <td className="px-3 py-2.5 text-gray-600">{r?.deliveriesConfirmed ?? 0}</td>
+                    <td className="px-3 py-2.5 text-gray-600">{r?.installationsCompleted ?? 0}</td>
+                    <td className="px-3 py-2.5 text-gray-700 font-medium">{formatCurrency(r?.collected ?? 0)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-400">
+        ملاحظة: التوريد يُحتسب مؤكداً فقط بعد رفع مذكرة التسليم (Delivery Note). تواريخ الاكتمال/الإلغاء مبنية على آخر تحديث للمشروع.
+      </p>
+    </div>
+  )
+}
+
+function YearStat({ label, value, tone, money }: { label: string; value: number | string; tone: 'blue' | 'green' | 'red' | 'amber' | 'purple'; money?: boolean }) {
+  const cls = {
+    blue: 'border-blue-100 bg-blue-50/60 text-blue-700',
+    green: 'border-emerald-100 bg-emerald-50/60 text-emerald-700',
+    red: 'border-red-100 bg-red-50/60 text-red-700',
+    amber: 'border-amber-100 bg-amber-50/60 text-amber-700',
+    purple: 'border-purple-100 bg-purple-50/60 text-purple-700',
+  }[tone]
+  return (
+    <div className={cn('rounded-2xl border p-4 print:break-inside-avoid', cls)}>
+      <p className={cn('font-extrabold leading-none', money ? 'text-lg' : 'text-3xl')}>{value}</p>
+      <p className="text-xs mt-2 opacity-80">{label}</p>
     </div>
   )
 }

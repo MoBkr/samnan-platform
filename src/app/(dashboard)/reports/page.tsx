@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getProjectsReport, getPaymentsReport, getTeamReport, getActivityLogReport } from '@/lib/actions/reports'
+import { getProjectsReport, getPaymentsReport, getTeamReport, getActivityLogReport, getAnnualSummary } from '@/lib/actions/reports'
 import { ReportsView } from '@/components/reports/reports-view'
 import type { Profile } from '@/types/database'
 import type { QueryResult } from '@/lib/supabase/typed'
@@ -18,11 +18,12 @@ export default async function ReportsPage() {
 
   if (!profile || (profile.role !== 'admin' && profile.role !== 'coordinator')) redirect('/dashboard')
 
-  const [projects, payments, team, activity] = await Promise.all([
+  const [projects, payments, team, activity, annual] = await Promise.all([
     getProjectsReport(),
     getPaymentsReport(),
     getTeamReport(),
     getActivityLogReport(),
+    getAnnualSummary(),
   ])
 
   return (
@@ -31,6 +32,7 @@ export default async function ReportsPage() {
       payments={payments}
       team={team}
       activity={activity}
+      annual={annual}
     />
   )
 }
