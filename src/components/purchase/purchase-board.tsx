@@ -28,6 +28,7 @@ interface Props {
   requests: PurchaseRequest[]
   users: Pick<Profile, 'id' | 'full_name' | 'role'>[]
   projectNames: string[]
+  myProjectNames: string[]
   currentProfile: Profile
 }
 
@@ -44,19 +45,29 @@ const EMPTY: BrForm = {
   extraDocs: [],
 }
 
-export function PurchaseBoard({ requests, users, projectNames }: Props) {
+export function PurchaseBoard({ requests, users, projectNames, myProjectNames, currentProfile }: Props) {
   const [isPending, startTransition] = useTransition()
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<BrForm>({ ...EMPTY })
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [scope, setScope] = useState<'mine' | 'all'>('mine')
   const [filter, setFilter] = useState<BrStage | 'all'>('all')
   const [search, setSearch] = useState('')
   const today = todaySA()
 
+  // "مشاريعي" = requests I created, I'm the engineer on, or on a project I own.
+  const myProjects = new Set(myProjectNames)
+  const isMine = (r: PurchaseRequest) =>
+    r.created_by === currentProfile.id ||
+    r.engineer_id === currentProfile.id ||
+    (!!r.project_name && myProjects.has(r.project_name))
+
+  const scoped = requests.filter((r) => scope === 'all' || isMine(r))
+
   const detail = requests.find((r) => r.id === detailId) || null
   const q = search.trim().toLowerCase()
-  const shown = requests.filter((r) => {
+  const shown = scoped.filter((r) => {
     if (filter !== 'all' && r.stage !== filter) return false
     if (q) {
       const hay = [r.br_number ?? '', r.release_number ?? '', r.project_name ?? '', r.supplier_name ?? ''].join(' ').toLowerCase()
@@ -64,7 +75,8 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
     }
     return true
   })
-  const overdueCount = requests.filter((r) => r.stage !== 'completed' && r.due_date && r.due_date < today).length
+  const mineCount = requests.filter(isMine).length
+  const overdueCount = scoped.filter((r) => r.stage !== 'completed' && r.due_date && r.due_date < today).length
 
   function openNew() { setEditingId(null); setForm({ ...EMPTY }); setFormOpen(true) }
   function openEdit(r: PurchaseRequest) {
@@ -170,11 +182,27 @@ export function PurchaseBoard({ requests, users, projectNames }: Props) {
         )}
       </div>
 
+      {/* Scope: my requests vs. all */}
+      <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+        <button
+          onClick={() => setScope('mine')}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${scope === 'mine' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          طلباتي <span className="text-xs opacity-70">({mineCount})</span>
+        </button>
+        <button
+          onClick={() => setScope('all')}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${scope === 'all' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          كل الطلبات <span className="text-xs opacity-70">({requests.length})</span>
+        </button>
+      </div>
+
       {/* Stage filter */}
       <div className="flex flex-wrap gap-2">
-        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} label="الكل" count={requests.length} />
+        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} label="الكل" count={scoped.length} />
         {BR_STAGES.map((s) => {
-          const c = requests.filter((r) => r.stage === s).length
+          const c = scoped.filter((r) => r.stage === s).length
           return <FilterChip key={s} active={filter === s} onClick={() => setFilter(s)} label={BR_STAGE_LABELS[s]} count={c} />
         })}
       </div>

@@ -13,13 +13,18 @@ export default async function PurchaseRequestsPage() {
   if (profile.role !== 'coordinator' && profile.role !== 'admin') redirect('/dashboard')
 
   const supabase = await createClient()
-  const [requests, usersRes, projectsRes] = await Promise.all([
+  const [requests, usersRes, projectsRes, myProjectsRes] = await Promise.all([
     getPurchaseRequests(),
     supabase.from('profiles').select('id, full_name, role').eq('is_active', true) as unknown as Promise<QueryResultMany<Pick<Profile, 'id' | 'full_name' | 'role'>>>,
     supabase.from('projects').select('project_name').order('created_at', { ascending: false }) as unknown as Promise<QueryResultMany<{ project_name: string }>>,
+    // Projects this user is responsible for → drives the "مشاريعي" filter
+    supabase.from('projects')
+      .select('project_name')
+      .or(`coordinator_id.eq.${profile.id},sales_engineer_id.eq.${profile.id},installation_id.eq.${profile.id}`) as unknown as Promise<QueryResultMany<{ project_name: string }>>,
   ])
 
   const projectNames = Array.from(new Set((projectsRes.data ?? []).map((p) => p.project_name).filter(Boolean)))
+  const myProjectNames = Array.from(new Set((myProjectsRes.data ?? []).map((p) => p.project_name).filter(Boolean)))
 
   return (
     <div className="space-y-6">
@@ -28,6 +33,7 @@ export default async function PurchaseRequestsPage() {
         requests={requests}
         users={usersRes.data ?? []}
         projectNames={projectNames}
+        myProjectNames={myProjectNames}
         currentProfile={profile}
       />
     </div>
