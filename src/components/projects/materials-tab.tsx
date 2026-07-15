@@ -447,6 +447,66 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     window.print()
   }
 
+  // Bilingual delivery note — generated in a clean print window (AR or EN).
+  // Item descriptions stay as entered; only labels/statuses are translated.
+  function printDeliveryNote(lang: 'ar' | 'en') {
+    const en = lang === 'en'
+    const L = en
+      ? { title: 'Materials Delivery Note', project: 'Project', client: 'Client', date: 'Date',
+          no: '#', sap: 'SAP No.', desc: 'Description', qty: 'Qty', status: 'Status',
+          delivered: 'Delivered by', received: 'Received by (Client)', sign: 'Signature', empty: 'No items',
+          brand: 'SAMNAN PETROLEUM SERVICES', sub: 'سمنان للخدمات البترولية' }
+      : { title: 'مذكرة تسليم مواد', project: 'المشروع', client: 'العميل', date: 'التاريخ',
+          no: '#', sap: 'رقم SAP', desc: 'الوصف', qty: 'الكمية', status: 'الحالة',
+          delivered: 'المُسلِّم', received: 'المُستلِم (العميل)', sign: 'التوقيع', empty: 'لا توجد أصناف',
+          brand: 'سمنان للخدمات البترولية', sub: 'SAMNAN PETROLEUM SERVICES' }
+    const statusTxt = (s?: string) => {
+      const v = (s || '').trim()
+      if (!en) return v || '—'
+      return ({ 'مكتمل': 'Completed', 'قيد المعالجة': 'In Process', 'لم يطلب': 'Not Requested' } as Record<string, string>)[v] || (v || '—')
+    }
+    const today = new Intl.DateTimeFormat(en ? 'en-GB' : 'ar-SA', {
+      day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn', timeZone: 'Asia/Riyadh',
+    }).format(new Date())
+    const rows = draftItems.map((it, i) => `<tr>
+      <td>${i + 1}</td><td dir="ltr">${it.sap_no || '—'}</td>
+      <td>${(it.description || it.name || '—').replace(/</g, '&lt;')}</td>
+      <td dir="ltr">${it.quantity ?? '—'}</td><td>${statusTxt(it.status)}</td></tr>`).join('')
+    const html = `<!DOCTYPE html><html dir="${en ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
+      <title>${L.title} — ${projectName ?? ''}</title>
+      <style>
+        body{font-family:${en ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};padding:24px;color:#111}
+        .brand{display:flex;align-items:center;justify-content:center;gap:10px;border-bottom:2px solid #1841A0;padding-bottom:10px;margin-bottom:12px}
+        .brand img{width:46px;height:46px;border-radius:8px;object-fit:cover}
+        .brand b{color:#1841A0;font-size:17px;display:block}
+        .brand .en{color:#1841A0;font-size:9px;font-weight:700;letter-spacing:2px}
+        h2{color:#1841A0;margin:0 0 4px;text-align:center}
+        .meta{color:#555;font-size:12px;margin-bottom:12px;text-align:${en ? 'left' : 'right'}}
+        .meta b{color:#111}
+        table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+        th,td{border:1px solid #ddd;padding:7px 9px;text-align:${en ? 'left' : 'right'};vertical-align:top}
+        th{background:#1841A0;color:#fff}
+        tr:nth-child(even) td{background:#f7f9fc}
+        .sign{display:flex;justify-content:space-between;margin-top:48px;gap:40px}
+        .sign div{flex:1;border-top:1px solid #333;padding-top:6px;font-size:12px;color:#333}
+      </style></head><body>
+      <div class="brand"><img src="${window.location.origin}/samnan.jpg" alt="Samnan"/><div style="text-align:center"><b>${L.brand}</b><span class="en">${L.sub}</span></div></div>
+      <h2>${L.title}</h2>
+      <div class="meta">
+        <div><b>${L.project}:</b> ${projectName ?? ''}</div>
+        ${clientName ? `<div><b>${L.client}:</b> ${clientName}</div>` : ''}
+        <div><b>${L.date}:</b> ${today}</div>
+      </div>
+      <table><thead><tr><th>${L.no}</th><th>${L.sap}</th><th>${L.desc}</th><th>${L.qty}</th><th>${L.status}</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#999">${L.empty}</td></tr>`}</tbody></table>
+      <div class="sign"><div>${L.delivered} — ${L.sign}</div><div>${L.received} — ${L.sign}</div></div>
+      </body></html>`
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.write(html); w.document.close()
+    setTimeout(() => w.print(), 300)
+  }
+
   // Paste multiple rows from Excel: TSV (tab between columns, newline between rows).
   // Column order matches the client's sheet: Legal Study · SAP No · Description · Qty · STO No · Item Status · Note · Attachment
   function handlePasteRows(e: React.ClipboardEvent, startIdx: number) {
@@ -983,16 +1043,24 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   </div>
                   <h4 className="text-sm font-bold text-gray-900">مذكرة تسليم مواد</h4>
                 </div>
-                {hasMaterialsPayment ? (
-                  <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
-                    تم إنشاء الدفعة ✓
-                  </span>
-                ) : canManage ? (
-                  <Button size="sm"
-                    onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
-                    إضافة للدفعات
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => printDeliveryNote('ar')} title="طباعة عربي">
+                    <Printer className="h-3.5 w-3.5" /> عربي
                   </Button>
-                ) : null}
+                  <Button size="sm" variant="outline" onClick={() => printDeliveryNote('en')} title="Print English">
+                    <Printer className="h-3.5 w-3.5" /> EN
+                  </Button>
+                  {hasMaterialsPayment ? (
+                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
+                      تم إنشاء الدفعة ✓
+                    </span>
+                  ) : canManage ? (
+                    <Button size="sm"
+                      onClick={() => { setPaymentAmount(itemsTotal > 0 ? itemsTotal.toString() : ''); setPaymentDialog(true) }}>
+                      إضافة للدفعات
+                    </Button>
+                  ) : null}
+                </div>
               </div>
 
               <ItemsTable items={draftItems} />
