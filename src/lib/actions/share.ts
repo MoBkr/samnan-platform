@@ -49,16 +49,19 @@ export interface PublicProjectView {
   start_date: string | null
   expected_end_date: string | null
   collection: { total: number; paid: number; pct: number }
-  payments: { label: string; status: string }[]
+  payments: { label: string; label_en: string; status: string }[]
   materials_status: string | null
   materials: { total: number; done: number; pct: number; allDone: boolean; items: { description: string; status: string }[] } | null
-  installation: { scheduled_date: string | null; expected_end_date: string | null; status: string; stages: { label: string; done: boolean }[] } | null
-  lifecycle: { label: string; state: 'done' | 'current' | 'todo' }[]
+  installation: { scheduled_date: string | null; expected_end_date: string | null; status: string; stages: { label: string; label_en: string; done: boolean }[] } | null
+  lifecycle: { label: string; label_en: string; state: 'done' | 'current' | 'todo' }[]
   attachments: { name: string; url: string }[]
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
   upfront: 'الدفعة الأولى', materials: 'دفعة المواد', installation: 'دفعة التركيب', final: 'الدفعة النهائية', custom: 'دفعة',
+}
+const PAYMENT_LABELS_EN: Record<string, string> = {
+  upfront: 'Upfront Payment', materials: 'Materials Payment', installation: 'Installation Payment', final: 'Final Payment', custom: 'Payment',
 }
 
 // ── Public read by token — no auth, service client, minimal client-facing data ──
@@ -110,6 +113,7 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
       status: installation.status,
       stages: INSTALL_STAGES.filter((s) => !s.optional).map((s) => ({
         label: s.label,
+        label_en: s.en ?? s.label,
         done: !!stages[s.key]?.done,
       })),
     }
@@ -139,15 +143,15 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
   const installDone = installation?.status === 'completed'
   const isCompleted = project.status === 'completed'
 
-  type Step = { label: string; state: 'done' | 'current' | 'todo' }
+  type Step = { label: string; label_en: string; state: 'done' | 'current' | 'todo' }
   const steps: Step[] = []
-  const push = (label: string, done: boolean) => steps.push({ label, state: done ? 'done' : 'todo' })
-  push('التعاقد', true)
-  push('الدفعة الأولى', hasUpfront)
-  push('تجهيز المواد', matReady)
-  push('توريد المواد', matDelivered)
-  if (project.has_installation) push('التركيب', installDone)
-  push('اكتمال المشروع', isCompleted)
+  const push = (label: string, label_en: string, done: boolean) => steps.push({ label, label_en, state: done ? 'done' : 'todo' })
+  push('التعاقد', 'Contract', true)
+  push('الدفعة الأولى', 'Upfront Payment', hasUpfront)
+  push('تجهيز المواد', 'Materials Preparation', matReady)
+  push('توريد المواد', 'Materials Delivery', matDelivered)
+  if (project.has_installation) push('التركيب', 'Installation', installDone)
+  push('اكتمال المشروع', 'Project Completion', isCompleted)
   // Mark the first non-done as current
   const firstTodo = steps.findIndex((s) => s.state === 'todo')
   if (firstTodo !== -1) steps[firstTodo].state = 'current'
@@ -163,7 +167,11 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
     collection: { total, paid, pct },
     payments: payments
       .sort((a, b) => (a.order_no ?? 0) - (b.order_no ?? 0))
-      .map((p) => ({ label: p.name || PAYMENT_LABELS[p.type] || 'دفعة', status: p.status })),
+      .map((p) => ({
+        label: p.name || PAYMENT_LABELS[p.type] || 'دفعة',
+        label_en: p.name || PAYMENT_LABELS_EN[p.type] || 'Payment',
+        status: p.status,
+      })),
     materials_status: material?.status ?? null,
     materials: materialsView,
     installation: installationView,
