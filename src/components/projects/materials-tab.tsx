@@ -214,7 +214,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const isReady = status === 'ready'
 
   // Only non-cancelled materials payments block the "create payment" button
-  const materialsPayment = payments.find((p) => p.type === 'materials' && p.status !== 'cancelled')
+  // There can be more than one materials payment now — aggregate them.
+  const materialsPayments = payments.filter((p) => p.type === 'materials' && p.status !== 'cancelled')
+  const hasMaterialsPayment = materialsPayments.length > 0
+  const materialsHasCollection = materialsPayments.some((p) => (p.paid_amount ?? 0) > 0)
 
   // Items editor state — draftItems is the single source of truth for display.
   // The whole table is editable inline: add / edit / delete, saved in one go.
@@ -611,8 +614,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   const hasContent = requestDocs.length > 0 || items.length > 0
 
-  // Delivery locked until at least partial payment received
-  const isDeliveryLocked = !materialsPayment || materialsPayment.paid_amount === 0
+  // Delivery locked until at least partial payment received (on any materials payment)
+  const isDeliveryLocked = !materialsHasCollection
 
   return (
     <div className="space-y-5">
@@ -705,7 +708,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           <div>
             <p className="text-sm font-semibold text-amber-800">في انتظار تسديد دفعة المواد</p>
             <p className="text-xs text-amber-600 mt-0.5">
-              {materialsPayment
+              {hasMaterialsPayment
                 ? 'تم إنشاء الدفعة — المواد لن تُسلَّم حتى يسدد العميل ولو جزءاً منها'
                 : 'أضف دفعة المواد للدفعات ثم سجّل استلامها للسماح بالتسليم'}
             </p>
@@ -923,7 +926,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   <span className="text-sm text-gray-400">لم تُحدَّد أسعار للمواد</span>
                 )}
               </div>
-              {materialsPayment ? (
+              {hasMaterialsPayment ? (
                 <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
                   تم إنشاء الدفعة ✓
                 </span>
@@ -980,7 +983,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   </div>
                   <h4 className="text-sm font-bold text-gray-900">مذكرة تسليم مواد</h4>
                 </div>
-                {materialsPayment ? (
+                {hasMaterialsPayment ? (
                   <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 rounded-full px-3 py-1">
                     تم إنشاء الدفعة ✓
                   </span>

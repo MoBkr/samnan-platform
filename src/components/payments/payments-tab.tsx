@@ -68,7 +68,6 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   const usedTypes = new Set(
     payments.filter((p) => p.status !== 'cancelled' && p.type !== 'custom').map((p) => p.type)
   )
-  const paidTypes = new Set(payments.filter((p) => p.status === 'paid').map((p) => p.type))
 
   function attachmentsFor(paymentId: string) {
     return attachments.filter((a) => a.payment_id === paymentId)
@@ -92,11 +91,9 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   function handleAddPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
+    // Multiple payments of the same type are allowed (e.g. two materials
+    // payments). Use the optional secondary title to tell them apart.
     const type = formData.get('type') as string
-    if (type !== 'custom' && usedTypes.has(type as never)) {
-      toast.error('يوجد دفعة من هذا النوع. احذف أو الغِ الدفعة الموجودة أولاً')
-      return
-    }
     formData.set('project_id', projectId)
     startTransition(async () => {
       try {
@@ -459,12 +456,11 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
               <Label>نوع الدفعة</Label>
               <Select name="type" required placeholder="اختر النوع" value={addType} onChange={(e) => setAddType(e.target.value)}>
                 {PAYMENT_TYPES.filter((t) => hasInstallation || t !== 'installation').map((type) => {
-                  const isBlocked = type !== 'custom' && usedTypes.has(type)
-                  const isPaid = paidTypes.has(type)
+                  const existing = usedTypes.has(type)
                   const label = type === 'custom' ? 'أخرى' : PAYMENT_TYPE_LABELS[type]
                   return (
-                    <option key={type} value={type} disabled={isBlocked}>
-                      {label}{isPaid ? ' — مؤكدة الدفع' : isBlocked ? ' — موجودة مسبقاً' : ''}
+                    <option key={type} value={type}>
+                      {label}{type !== 'custom' && existing ? ' — (يوجد دفعة مماثلة)' : ''}
                     </option>
                   )
                 })}
