@@ -12,6 +12,8 @@ const T = {
   ar: {
     platform: 'منصة سمنان', follow: 'متابعة المشروع', live: 'تحديث مباشر',
     lifecycle: 'مراحل المشروع', currentStage: 'المرحلة الحالية',
+    overview: 'ملخص المشروع', projectValue: 'الإجمالي', remaining: 'المتبقي',
+    collectionRate: 'نسبة التحصيل', ofValue: 'من قيمة المشروع',
     payments: 'الدفعات', collected: 'المُحصّل', ofTotal: 'مكتمل',
     materials: 'المواد', completed: 'مكتملة', inProcess: 'قيد المعالجة', itemsDone: 'أصناف مكتملة', of: 'من',
     installation: 'التركيب', attachments: 'المرفقات', view: 'عرض',
@@ -29,6 +31,8 @@ const T = {
   en: {
     platform: 'Samnan Platform', follow: 'Project Tracking', live: 'Live',
     lifecycle: 'Project Stages', currentStage: 'Current stage',
+    overview: 'Project Overview', projectValue: 'Total', remaining: 'Remaining',
+    collectionRate: 'Collection rate', ofValue: 'of project value',
     payments: 'Payments', collected: 'Collected', ofTotal: 'complete',
     materials: 'Materials', completed: 'Completed', inProcess: 'In Process', itemsDone: 'items completed', of: 'of',
     installation: 'Installation', attachments: 'Attachments', view: 'View',
@@ -100,6 +104,22 @@ export function TrackView({ data }: { data: PublicProjectView }) {
               </span>
             )}
           </div>
+        </div>
+
+        {/* Overview — figures + percentages */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-bold text-gray-900 mb-4">{t.overview}</h2>
+          <div className="grid grid-cols-3 gap-2.5 mb-4">
+            <Figure label={t.collected} value={formatCurrency(data.collection.paid)} tone="green" />
+            <Figure label={t.remaining} value={formatCurrency(Math.max(0, data.collection.total - data.collection.paid))} tone="amber" />
+            <Figure label={t.projectValue} value={formatCurrency(data.collection.total)} tone="gray" />
+          </div>
+          <div className={`grid gap-2.5 ${data.installPct !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <Meter label={t.collectionRate} pct={data.collection.pct} />
+            <Meter label={t.materials} pct={data.materialsPct} />
+            {data.installPct !== null && <Meter label={t.installation} pct={data.installPct} />}
+          </div>
+          <p className="text-[11px] text-gray-400 mt-2">{data.collection.pct}% {t.ofValue}</p>
         </div>
 
         {/* Lifecycle timeline */}
@@ -241,6 +261,30 @@ export function TrackView({ data }: { data: PublicProjectView }) {
         )}
 
         <p className="text-center text-xs text-gray-400 py-2">{t.footer}</p>
+      </div>
+    </div>
+  )
+}
+
+function Figure({ label, value, tone }: { label: string; value: string; tone: 'green' | 'amber' | 'gray' }) {
+  const cls = tone === 'green' ? 'bg-emerald-50 text-emerald-700' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-700'
+  return (
+    <div className={`rounded-xl px-2 py-2.5 text-center ${cls}`}>
+      <p className="text-sm font-bold leading-tight" dir="ltr">{value}</p>
+      <p className="text-[11px] mt-0.5 opacity-80">{label}</p>
+    </div>
+  )
+}
+
+function Meter({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-2.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-medium text-gray-600">{label}</span>
+        <span className={`text-[11px] font-bold ${pct >= 100 ? 'text-emerald-600' : 'text-gray-700'}`}>{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
     </div>
   )

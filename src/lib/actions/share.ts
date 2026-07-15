@@ -49,6 +49,8 @@ export interface PublicProjectView {
   start_date: string | null
   expected_end_date: string | null
   collection: { total: number; paid: number; pct: number }
+  materialsPct: number
+  installPct: number | null
   payments: { label: string; label_en: string; status: string }[]
   materials_status: string | null
   materials: { total: number; done: number; pct: number; allDone: boolean; items: { description: string; status: string }[] } | null
@@ -104,9 +106,13 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
   const pct = total > 0 ? Math.round((paid / total) * 100) : 0
 
   // Installation stages (only required ones for the client view)
+  const reqStages = INSTALL_STAGES.filter((s) => !s.optional)
+  let installPct: number | null = null
   let installationView: PublicProjectView['installation'] = null
   if (project.has_installation && installation) {
     const stages = installation.stages ?? {}
+    const doneStages = reqStages.filter((s) => stages[s.key]?.done).length
+    installPct = reqStages.length > 0 ? Math.round((doneStages / reqStages.length) * 100) : 0
     installationView = {
       scheduled_date: installation.scheduled_date,
       expected_end_date: installation.expected_end_date ?? null,
@@ -120,10 +126,13 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
   }
 
   // Materials status detail for the client (item list + completion)
+  const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
   let materialsView: PublicProjectView['materials'] = null
   const matItems = material?.items ?? []
+  let materialsPct = material ? (MAT_PCT[material.status] ?? 0) : 0
   if (matItems.length > 0) {
     const done = matItems.filter((it) => (it.status || '').trim() === 'مكتمل').length
+    materialsPct = Math.round((done / matItems.length) * 100)
     materialsView = {
       total: matItems.length,
       done,
@@ -165,6 +174,8 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
     start_date: project.start_date,
     expected_end_date: project.expected_end_date,
     collection: { total, paid, pct },
+    materialsPct,
+    installPct,
     payments: payments
       .sort((a, b) => (a.order_no ?? 0) - (b.order_no ?? 0))
       .map((p) => ({
