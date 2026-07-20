@@ -672,10 +672,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     })
   }
 
+  // Client decision (2026-07-20): delivery may be confirmed BEFORE any materials
+  // payment — the old payment gate was removed on request ("نسلم قبل ما ندفع").
   const hasContent = requestDocs.length > 0 || items.length > 0
-
-  // Delivery locked until at least partial payment received (on any materials payment)
-  const isDeliveryLocked = !materialsHasCollection
 
   return (
     <div className="space-y-5">
@@ -761,16 +760,16 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         </div>
       )}
 
-      {/* Delivery lock notice — shown only in ready state without payment */}
-      {isReady && isDeliveryLocked && canManage && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <Package className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+      {/* Payment reminder — informational only; delivery is never blocked */}
+      {isReady && canManage && !materialsHasCollection && (
+        <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+          <Package className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-amber-800">في انتظار تسديد دفعة المواد</p>
-            <p className="text-xs text-amber-600 mt-0.5">
+            <p className="text-sm font-semibold text-blue-800">تذكير — دفعة المواد لم تُحصَّل بعد</p>
+            <p className="text-xs text-blue-600 mt-0.5">
               {hasMaterialsPayment
-                ? 'تم إنشاء الدفعة — المواد لن تُسلَّم حتى يسدد العميل ولو جزءاً منها'
-                : 'أضف دفعة المواد للدفعات ثم سجّل استلامها للسماح بالتسليم'}
+                ? 'الدفعة موجودة في تاب الدفعات — يمكن التسليم الآن والتحصيل لاحقاً'
+                : 'يمكنك التسليم الآن، وإضافة دفعة المواد وتحصيلها لاحقاً من تاب الدفعات'}
             </p>
           </div>
         </div>
@@ -1084,24 +1083,19 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             </div>
           )}
 
-          {/* ── Delivery action ── */}
+          {/* ── Delivery action — never blocked by payment (client decision) ── */}
           {canManage && (
             <div className="flex items-center justify-between rounded-xl border bg-white p-4 gap-3"
-              style={{ borderColor: isDeliveryLocked ? '#fde68a' : '#bfdbfe' }}>
+              style={{ borderColor: '#bfdbfe' }}>
               <div>
                 <p className="text-sm font-semibold text-gray-800">تأكيد استلام المواد</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {isDeliveryLocked
-                    ? 'مقفول — يجب تسديد ولو جزء من دفعة المواد أولاً'
-                    : 'بعد التأكيد ارفع وصل الاستلام الموقّع من العميل'}
-                </p>
+                <p className="text-xs text-gray-500 mt-0.5">بعد التأكيد ارفع وصل الاستلام الموقّع من العميل</p>
               </div>
               <Button size="sm" loading={isPending}
-                onClick={isDeliveryLocked ? undefined : handleConfirmDelivery}
-                disabled={isDeliveryLocked}
-                className={`shrink-0 ${isDeliveryLocked ? '' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                onClick={handleConfirmDelivery}
+                className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
                 <Truck className="h-3.5 w-3.5" />
-                {isDeliveryLocked ? 'مقفول' : 'استلمنا المواد'}
+                استلمنا المواد
               </Button>
             </div>
           )}
