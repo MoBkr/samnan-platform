@@ -15,7 +15,6 @@ import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/mater
 import { createPayment } from '@/lib/actions/payments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { PrintHeader } from '@/components/shared/print-header'
-import { PrintPaper } from '@/components/shared/print-paper'
 import { LETTERHEAD_CSS, letterheadOpenHtml, letterheadCloseHtml } from '@/lib/print-letterhead'
 import { MaterialsStatusView } from '@/components/projects/materials-status-view'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
@@ -105,7 +104,7 @@ function DocRow({ doc, onDelete }: { doc: Document; onDelete?: (id: string) => v
 const STATUS_PILL: Record<string, string> = {
   'مكتمل': 'bg-emerald-100 text-emerald-700',
   'قيد المعالجة': 'bg-amber-100 text-amber-700',
-  'لم يطلب': 'bg-gray-200 text-gray-500',
+  'لم يطلب': 'bg-red-100 text-red-700',
 }
 
 // The materials journey, shown as a horizontal stepper
@@ -963,10 +962,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               </div>
             ) : (
               <div id="materials-print">
-                <PrintPaper>
-                  <PrintHeader title="قائمة المواد" subtitle={projectName} />
-                  <ItemsTable items={draftItems} />
-                </PrintPaper>
+                <PrintHeader title="قائمة المواد" subtitle={projectName} />
+                <ItemsTable items={draftItems} />
               </div>
             )}
 

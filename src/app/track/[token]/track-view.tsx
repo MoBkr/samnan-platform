@@ -208,6 +208,7 @@ export function TrackView({ data }: { data: PublicProjectView }) {
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                     it.status === 'مكتمل' ? 'bg-emerald-100 text-emerald-700'
                     : it.status === 'قيد المعالجة' ? 'bg-amber-100 text-amber-700'
+                    : it.status === 'لم يطلب' ? 'bg-red-100 text-red-700'
                     : 'bg-gray-100 text-gray-500'}`}>
                     {t.itemStatus[it.status] ?? it.status}
                   </span>

@@ -63,33 +63,11 @@
   display: none;
 }
 
-/* PrintPaper is print-only scaffolding: on screen the background image hides
-   and the layout table collapses so children render as if unwrapped. */
-.print-paper-bg,
-.print-paper-top,
-.print-paper-bottom {
-  display: none;
-}
-.print-paper,
-.print-paper > thead,
-.print-paper > tbody,
-.print-paper > tfoot,
-.print-paper > thead > tr,
-.print-paper > tbody > tr,
-.print-paper > tfoot > tr,
-.print-paper > thead > tr > td,
-.print-paper > tbody > tr > td,
-.print-paper > tfoot > tr > td,
-.print-paper-cell {
-  display: contents;
-}
 
 @media print {
-  /* Zero page margins: the official paper artwork must bleed to the sheet
-     edges. Content spacing comes from PrintPaper's spacers + cell padding. */
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 12mm 10mm;
   }
 
   /* Hide everything except report content */
@@ -147,46 +125,6 @@
     display: block !important;
   }
 
-  /* ─── Official paper template (rendered by PrintPaper) ─── */
-  /* The company letterhead artwork as a full-page background on every page */
-  .print-paper-bg {
-    display: block !important;
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: -1 !important;
-  }
-  .print-paper {
-    display: table !important;
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-  .print-paper > thead { display: table-header-group !important; }
-  .print-paper > tbody { display: table-row-group !important; }
-  .print-paper > tfoot { display: table-footer-group !important; }
-  .print-paper > thead > tr,
-  .print-paper > tbody > tr,
-  .print-paper > tfoot > tr { display: table-row !important; }
-  .print-paper > thead > tr > td,
-  .print-paper > tbody > tr > td,
-  .print-paper > tfoot > tr > td {
-    display: table-cell !important;
-    border: none !important;
-    padding: 0 !important;
-    background: none !important;
-  }
-  /* The layout row must be allowed to break across pages */
-  .print-paper > tbody > tr { page-break-inside: auto !important; }
-  /* Spacers clear the artwork's header/footer zones, repeating per page */
-  .print-paper-top { display: block !important; height: 30mm !important; }
-  .print-paper-bottom { display: block !important; height: 26mm !important; }
-  .print-paper-cell { display: block !important; padding: 0 10mm !important; }
-  /* White cards would hide the artwork's watermark; on white paper
-     transparent looks identical, so let it show through printed content. */
-  .bg-white {
-    background-color: transparent !important;
-  }
 
   /* Tables */
   table {
@@ -249,27 +187,29 @@
   }
 }
 
-/* ─── Materials list print: wrapping, bordered, fits the official paper ─── */
+/* ─── Materials list print: landscape, wrapping, bordered, fits page ─── */
 @media print {
+  @page materials { size: A4 landscape; margin: 10mm; }
+  body.printing-materials #materials-print { page: materials; }
   body.printing-materials #materials-print .overflow-x-auto { overflow: visible !important; }
-  body.printing-materials #materials-print table:not(.print-paper) {
+  body.printing-materials #materials-print table {
     width: 100% !important; border-collapse: collapse !important;
-    font-size: 8pt !important; table-layout: auto !important;
+    font-size: 8.5pt !important; table-layout: auto !important;
   }
-  body.printing-materials #materials-print table:not(.print-paper) th,
-  body.printing-materials #materials-print table:not(.print-paper) td {
+  body.printing-materials #materials-print th,
+  body.printing-materials #materials-print td {
     border: 1px solid #94a3b8 !important;
     padding: 3px 5px !important;
     white-space: normal !important;
     word-break: break-word;
     vertical-align: top;
   }
-  body.printing-materials #materials-print table:not(.print-paper) th {
+  body.printing-materials #materials-print th {
     background: #1841A0 !important; color: #fff !important;
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
-  body.printing-materials #materials-print table:not(.print-paper) tr { page-break-inside: avoid !important; }
+  body.printing-materials #materials-print tr { page-break-inside: avoid !important; }
   /* Hide the attachments column (last) — not useful on paper */
-  body.printing-materials #materials-print table:not(.print-paper) thead th:last-child,
-  body.printing-materials #materials-print table:not(.print-paper) tbody td:last-child { display: none !important; }
+  body.printing-materials #materials-print thead th:last-child,
+  body.printing-materials #materials-print tbody td:last-child { display: none !important; }
 }

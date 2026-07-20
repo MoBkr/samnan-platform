@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PrintHeader } from '@/components/shared/print-header'
-import { PrintPaper } from '@/components/shared/print-paper'
 import { formatCurrency, formatDateShort, cn } from '@/lib/utils'
 import { ROLE_LABELS, STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import type { Profile } from '@/types/database'
@@ -83,15 +82,15 @@ export function ReportsView({ projects, payments, team, activity, annual }: Repo
         ))}
       </div>
 
-      {/* ─── Report body — printed on the official paper ─── */}
-      <PrintPaper>
-        <PrintHeader title={`تقرير ${tabLabel}`} subtitle={`تاريخ الإصدار: ${printDate}`} />
-        {activeTab === 'annual' && <AnnualSummaryReport annual={annual} />}
-        {activeTab === 'projects' && <ProjectsReport projects={projects} />}
-        {activeTab === 'payments' && <PaymentsReport payments={payments} />}
-        {activeTab === 'team' && <TeamReport team={team} />}
-        {activeTab === 'activity' && <ActivityLogTable activity={activity} />}
-      </PrintPaper>
+      {/* ─── Print letterhead (hidden on screen) ─── */}
+      <PrintHeader title={`تقرير ${tabLabel}`} subtitle={`تاريخ الإصدار: ${printDate}`} />
+
+      {/* ─── Report body ─── */}
+      {activeTab === 'annual' && <AnnualSummaryReport annual={annual} />}
+      {activeTab === 'projects' && <ProjectsReport projects={projects} />}
+      {activeTab === 'payments' && <PaymentsReport payments={payments} />}
+      {activeTab === 'team' && <TeamReport team={team} />}
+      {activeTab === 'activity' && <ActivityLogTable activity={activity} />}
     </div>
   )
 }

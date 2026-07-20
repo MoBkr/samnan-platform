@@ -23,6 +23,7 @@ function statusClass(s?: string) {
   const t = (s || '').trim()
   if (t === 'مكتمل') return 'bg-emerald-100 text-emerald-700'
   if (t === 'قيد المعالجة') return 'bg-amber-100 text-amber-700'
+  if (t === 'لم يطلب') return 'bg-red-100 text-red-700'
   return 'bg-gray-100 text-gray-500'
 }
 
@@ -147,7 +148,7 @@ export function MaterialsStatusView({
           <StatBox label={t.total} value={items.length} tone="gray" />
           <StatBox label={t.done} value={counts.done} tone="green" />
           <StatBox label={t.processing} value={counts.processing} tone="amber" />
-          <StatBox label={t.notReq} value={counts.notReq} tone="gray" />
+          <StatBox label={t.notReq} value={counts.notReq} tone="red" />
         </div>
       </div>
 
@@ -194,8 +195,8 @@ export function MaterialsStatusView({
   )
 }
 
-function StatBox({ label, value, tone }: { label: string; value: number; tone: 'gray' | 'green' | 'amber' }) {
-  const cls = tone === 'green' ? 'bg-emerald-50 text-emerald-700' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-700'
+function StatBox({ label, value, tone }: { label: string; value: number; tone: 'gray' | 'green' | 'amber' | 'red' }) {
+  const cls = tone === 'green' ? 'bg-emerald-50 text-emerald-700' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : tone === 'red' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'
   return (
     <div className={cn('rounded-xl px-2 py-2.5 text-center', cls)}>
       <p className="text-lg font-extrabold leading-none">{value}</p>
