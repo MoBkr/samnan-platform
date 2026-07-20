@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PrintHeader } from '@/components/shared/print-header'
+import { PrintPaper } from '@/components/shared/print-paper'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent } from '@/components/ui/dialog'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import {
@@ -163,7 +164,8 @@ export function ProjectSummaryView({ project, payments, material, installations,
         </div>
       </div>
 
-      <div id="project-summary-print" className="space-y-4">
+      <div id="project-summary-print">
+        <PrintPaper className="space-y-4">
         <PrintHeader title={t.summaryTitle} subtitle={project.project_name} />
         {/* Header */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -319,6 +321,7 @@ export function ProjectSummaryView({ project, payments, material, installations,
             </p>
           )}
         </Section>
+        </PrintPaper>
       </div>
 
       {/* Document viewer popup */}

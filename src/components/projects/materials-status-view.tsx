@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Printer, Package, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { LETTERHEAD_CSS, letterheadHeaderHtml, letterheadFooterHtml } from '@/lib/print-letterhead'
+import { LETTERHEAD_CSS, letterheadOpenHtml, letterheadCloseHtml } from '@/lib/print-letterhead'
 import { cn } from '@/lib/utils'
 import type { MaterialItem } from '@/types/database'
 
@@ -85,7 +85,7 @@ export function MaterialsStatusView({
       <title>${t.title} — ${projectName}</title>
       <style>
         ${LETTERHEAD_CSS}
-        body{font-family:${isEn ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};padding:24px;color:#111}
+        body{font-family:${isEn ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};color:#111}
         h2{color:#1841A0;margin:0 0 4px;text-align:center}
         .meta{color:#555;font-size:12px;margin-bottom:14px;text-align:${isEn ? 'left' : 'right'}}
         .meta b{color:#111}
@@ -95,7 +95,7 @@ export function MaterialsStatusView({
         th{background:#1841A0;color:#fff}
         tr:nth-child(even) td{background:#f7f9fc}
       </style></head><body>
-      ${letterheadHeaderHtml(window.location.origin)}
+      ${letterheadOpenHtml(window.location.origin)}
       <h2>${t.title}</h2>
       <div class="meta">
         <div><b>${t.project}:</b> ${projectName}</div>
@@ -105,7 +105,7 @@ export function MaterialsStatusView({
       </div>
       <table><thead><tr><th>${t.no}</th><th>${t.sap}</th><th>${t.desc}</th><th>${t.qty}</th><th>${t.status}</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#999">${t.empty}</td></tr>`}</tbody></table>
-      ${letterheadFooterHtml(window.location.origin)}
+      ${letterheadCloseHtml()}
       </body></html>`
 
     const w = window.open('', '_blank')

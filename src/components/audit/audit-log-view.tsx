@@ -6,7 +6,7 @@ import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/utils'
-import { LETTERHEAD_CSS, letterheadHeaderHtml, letterheadFooterHtml } from '@/lib/print-letterhead'
+import { LETTERHEAD_CSS, letterheadOpenHtml, letterheadCloseHtml } from '@/lib/print-letterhead'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/lib/constants'
 import type { AuditEntry, AuditBr } from '@/lib/actions/audit'
@@ -94,19 +94,19 @@ export function AuditLogView({ logs, brs }: Props) {
     w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>سجل التدقيق — منصة سمنان</title>
       <style>
         ${LETTERHEAD_CSS}
-        body{font-family:Tahoma,Arial,sans-serif;padding:24px;color:#111}
+        body{font-family:Tahoma,Arial,sans-serif;color:#111}
         h2{color:#1841A0;margin:0 0 4px} .sub{color:#666;font-size:12px;margin-bottom:16px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{border:1px solid #ddd;padding:7px 9px;text-align:right;vertical-align:top}
-        th{background:#1841A0;color:#fff}
-        tr:nth-child(even) td{background:#f7f9fc}
+        .lh-body table{width:100%;border-collapse:collapse;font-size:12px}
+        .lh-body th,.lh-body td{border:1px solid #ddd;padding:7px 9px;text-align:right;vertical-align:top}
+        .lh-body th{background:#1841A0;color:#fff}
+        .lh-body tr:nth-child(even) td{background:#f7f9fc}
       </style></head><body>
-      ${letterheadHeaderHtml(window.location.origin)}
+      ${letterheadOpenHtml(window.location.origin)}
       <div class="sub" style="text-align:center;font-weight:700;color:#1841A0;font-size:15px">سجل التدقيق</div>
       <div class="sub">عدد السجلات: ${filtered.length} · طُبع في ${formatDateTime(new Date().toISOString())} (توقيت السعودية)</div>
       <table><thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>السياق</th></tr></thead>
       <tbody>${rows}</tbody></table>
-      ${letterheadFooterHtml(window.location.origin)}
+      ${letterheadCloseHtml()}
       </body></html>`)
     w.document.close()
     setTimeout(() => w.print(), 300)
