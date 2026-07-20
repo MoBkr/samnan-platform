@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Search, Printer, FolderKanban, ShoppingCart, Shield, ClipboardList, X, UserCog } from 'lucide-react'
 import { Select } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -155,10 +156,8 @@ export function AuditLogView({ logs, brs }: Props) {
             <option value="">كل طلبات الشراء</option>
             {brs.map((b) => <option key={b.id} value={b.id}>{b.project_name}{b.br_number ? ` — ${b.br_number}` : ''}</option>)}
           </Select>
-          <input type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="h-10 rounded-lg border border-gray-200 px-3 text-sm focus:border-brand-500 focus:outline-none" title="من تاريخ" />
-          <input type="date" dir="ltr" value={to} onChange={(e) => setTo(e.target.value)}
-            className="h-10 rounded-lg border border-gray-200 px-3 text-sm focus:border-brand-500 focus:outline-none" title="إلى تاريخ" />
+          <Input type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} title="من تاريخ" />
+          <Input type="date" dir="ltr" value={to} onChange={(e) => setTo(e.target.value)} title="إلى تاريخ" />
         </div>
 
         {hasFilter && (
