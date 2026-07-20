@@ -15,6 +15,7 @@ import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/mater
 import { createPayment } from '@/lib/actions/payments'
 import { uploadFileDirect } from '@/lib/upload-client'
 import { PrintHeader } from '@/components/shared/print-header'
+import { LETTERHEAD_CSS, letterheadHeaderHtml, letterheadFooterHtml } from '@/lib/print-letterhead'
 import { MaterialsStatusView } from '@/components/projects/materials-status-view'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
@@ -475,11 +476,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     const html = `<!DOCTYPE html><html dir="${en ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
       <title>${L.title} — ${projectName ?? ''}</title>
       <style>
+        ${LETTERHEAD_CSS}
         body{font-family:${en ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};padding:24px;color:#111}
-        .brand{display:flex;align-items:center;justify-content:center;gap:10px;border-bottom:2px solid #1841A0;padding-bottom:10px;margin-bottom:12px}
-        .brand img{width:46px;height:46px;border-radius:8px;object-fit:cover}
-        .brand b{color:#1841A0;font-size:17px;display:block}
-        .brand .en{color:#1841A0;font-size:9px;font-weight:700;letter-spacing:2px}
         h2{color:#1841A0;margin:0 0 4px;text-align:center}
         .meta{color:#555;font-size:12px;margin-bottom:12px;text-align:${en ? 'left' : 'right'}}
         .meta b{color:#111}
@@ -490,7 +488,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         .sign{display:flex;justify-content:space-between;margin-top:48px;gap:40px}
         .sign div{flex:1;border-top:1px solid #333;padding-top:6px;font-size:12px;color:#333}
       </style></head><body>
-      <div class="brand"><img src="${window.location.origin}/samnan.jpg" alt="Samnan"/><div style="text-align:center"><b>${L.brand}</b><span class="en">${L.sub}</span></div></div>
+      ${letterheadHeaderHtml(window.location.origin)}
       <h2>${L.title}</h2>
       <div class="meta">
         <div><b>${L.project}:</b> ${projectName ?? ''}</div>
@@ -500,6 +498,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       <table><thead><tr><th>${L.no}</th><th>${L.sap}</th><th>${L.desc}</th><th>${L.qty}</th><th>${L.status}</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#999">${L.empty}</td></tr>`}</tbody></table>
       <div class="sign"><div>${L.delivered} — ${L.sign}</div><div>${L.received} — ${L.sign}</div></div>
+      ${letterheadFooterHtml(window.location.origin)}
       </body></html>`
     const w = window.open('', '_blank')
     if (!w) return

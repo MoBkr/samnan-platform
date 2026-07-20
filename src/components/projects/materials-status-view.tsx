@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Printer, Package, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { LETTERHEAD_CSS, letterheadHeaderHtml, letterheadFooterHtml } from '@/lib/print-letterhead'
 import { cn } from '@/lib/utils'
 import type { MaterialItem } from '@/types/database'
 
@@ -83,11 +84,8 @@ export function MaterialsStatusView({
     const html = `<!DOCTYPE html><html dir="${isEn ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
       <title>${t.title} — ${projectName}</title>
       <style>
+        ${LETTERHEAD_CSS}
         body{font-family:${isEn ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};padding:24px;color:#111}
-        .brand{display:flex;align-items:center;justify-content:center;gap:10px;border-bottom:2px solid #1841A0;padding-bottom:10px;margin-bottom:12px}
-        .brand img{width:46px;height:46px;border-radius:8px;object-fit:cover}
-        .brand b{color:#1841A0;font-size:17px;display:block}
-        .brand .en{color:#1841A0;font-size:9px;font-weight:700;letter-spacing:2px}
         h2{color:#1841A0;margin:0 0 4px;text-align:center}
         .meta{color:#555;font-size:12px;margin-bottom:14px;text-align:${isEn ? 'left' : 'right'}}
         .meta b{color:#111}
@@ -97,7 +95,7 @@ export function MaterialsStatusView({
         th{background:#1841A0;color:#fff}
         tr:nth-child(even) td{background:#f7f9fc}
       </style></head><body>
-      <div class="brand"><img src="${window.location.origin}/samnan.jpg" alt="Samnan"/><div style="text-align:center"><b>${isEn ? 'SAMNAN PETROLEUM SERVICES' : 'سمنان للخدمات البترولية'}</b><span class="en">${isEn ? 'سمنان للخدمات البترولية' : 'SAMNAN PETROLEUM SERVICES'}</span></div></div>
+      ${letterheadHeaderHtml(window.location.origin)}
       <h2>${t.title}</h2>
       <div class="meta">
         <div><b>${t.project}:</b> ${projectName}</div>
@@ -107,6 +105,7 @@ export function MaterialsStatusView({
       </div>
       <table><thead><tr><th>${t.no}</th><th>${t.sap}</th><th>${t.desc}</th><th>${t.qty}</th><th>${t.status}</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#999">${t.empty}</td></tr>`}</tbody></table>
+      ${letterheadFooterHtml(window.location.origin)}
       </body></html>`
 
     const w = window.open('', '_blank')

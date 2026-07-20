@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PrintHeader } from '@/components/shared/print-header'
 import { formatCurrency, formatDateShort, cn } from '@/lib/utils'
 import { ROLE_LABELS, STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import type { Profile } from '@/types/database'
@@ -81,23 +82,8 @@ export function ReportsView({ projects, payments, team, activity, annual }: Repo
         ))}
       </div>
 
-      {/* ─── Print header (hidden on screen) ─── */}
-      <div className="print-only mb-6 pb-5 border-b-2 border-gray-800">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/samnan.jpg" alt="سمنان" width={46} height={46} style={{ borderRadius: 8, objectFit: 'cover' }} />
-            <div>
-              <p className="text-base font-extrabold text-brand-700 leading-tight">سمنان للخدمات البترولية</p>
-              <p className="text-[9px] font-bold tracking-[2px] text-brand-700 mb-1">SAMNAN PETROLEUM SERVICES</p>
-              <h1 className="text-2xl font-bold text-gray-900">تقرير {tabLabel}</h1>
-            </div>
-          </div>
-          <div className="text-left text-sm text-gray-500 mt-1">
-            <p>تاريخ الإصدار: {printDate}</p>
-          </div>
-        </div>
-      </div>
+      {/* ─── Print letterhead (hidden on screen) ─── */}
+      <PrintHeader title={`تقرير ${tabLabel}`} subtitle={`تاريخ الإصدار: ${printDate}`} />
 
       {/* ─── Report body ─── */}
       {activeTab === 'annual' && <AnnualSummaryReport annual={annual} />}
