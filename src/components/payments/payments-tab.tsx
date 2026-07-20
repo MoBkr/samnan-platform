@@ -23,6 +23,21 @@ function paymentLabel(p: Payment) {
   return p.type === 'custom' ? (p.name || 'دفعة أخرى') : PAYMENT_TYPE_LABELS[p.type]
 }
 
+// invoice_date is a free-text column and holds mixed formats from older records
+// (25.01.2026 / 2026.02.01 / 2026-07-08). Normalise to what <input type="date">
+// needs, so switching to a calendar doesn't blank out — and then wipe — a value.
+function toDateInputValue(raw: string | null | undefined): string {
+  const s = (raw ?? '').trim()
+  if (!s) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  const pad = (n: string) => n.padStart(2, '0')
+  let m = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/)   // DD.MM.YYYY
+  if (m) return `${m[3]}-${pad(m[2])}-${pad(m[1])}`
+  m = s.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/)       // YYYY.MM.DD
+  if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`
+  return ''
+}
+
 // LC maturity = pay date + tenor (days)
 function lcMaturity(date: string, days: number): string {
   const d = new Date(date + 'T00:00:00Z')
@@ -535,7 +550,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                 </div>
                 <div className="space-y-1.5">
                   <Label>تاريخ الفاتورة</Label>
-                  <Input name="invoice_date" dir="ltr" placeholder="YYYY-MM-DD" value={inv.invoice_date}
+                  <Input name="invoice_date" type="date" dir="ltr" value={inv.invoice_date}
                     onChange={(e) => setInv((p) => ({ ...p, invoice_date: e.target.value }))} />
                 </div>
                 <div className="space-y-1.5">
@@ -722,7 +737,12 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   </div>
                   <div className="space-y-1.5">
                     <Label>تاريخ الفاتورة</Label>
-                    <Input name="invoice_date" dir="ltr" defaultValue={editingPayment.invoice_date ?? ''} placeholder="YYYY-MM-DD" />
+                    <Input name="invoice_date" type="date" dir="ltr" defaultValue={toDateInputValue(editingPayment.invoice_date)} />
+                    {editingPayment.invoice_date && !toDateInputValue(editingPayment.invoice_date) && (
+                      <p className="text-[11px] text-amber-600">
+                        القيمة المحفوظة «{editingPayment.invoice_date}» بصيغة غير مفهومة — اختر التاريخ من التقويم لتصحيحها.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label>اسم الشركة / البائع</Label>
