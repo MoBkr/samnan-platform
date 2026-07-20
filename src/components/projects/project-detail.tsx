@@ -359,7 +359,8 @@ export function ProjectDetail({
           <span className="text-sm text-gray-600 font-medium">{project.project_name}</span>
         </div>
 
-        {/* Minimal project header */}
+        {/* Project header — the installation manager needs the full picture:
+            client, team, dates and the money collected (client request). */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 mb-2">
             <h1 className="text-xl font-bold text-gray-900">{project.project_name}</h1>
@@ -376,6 +377,54 @@ export function ProjectDetail({
                 {project.location}
               </span>
             )}
+            {project.start_date && (
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                {formatDateShort(project.start_date)}
+                {project.expected_end_date && ` — ${formatDateShort(project.expected_end_date)}`}
+              </span>
+            )}
+          </div>
+
+          {/* Team */}
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            {project.coordinator?.full_name && (
+              <span className="rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-blue-700 font-medium">
+                الكوردنيتر: {project.coordinator.full_name}
+              </span>
+            )}
+            {project.sales_engineer?.full_name && (
+              <span className="rounded-full bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-emerald-700 font-medium">
+                مهندس المبيعات: {project.sales_engineer.full_name}
+              </span>
+            )}
+            {project.customer_account_no && (
+              <span className="rounded-full bg-gray-50 border border-gray-200 px-2.5 py-1 text-gray-600 font-medium" dir="ltr">
+                {project.customer_account_no}
+              </span>
+            )}
+          </div>
+
+          {/* Financial overview — read-only */}
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            <div className="rounded-xl bg-emerald-50 px-3 py-2.5 text-center">
+              <p className="text-sm font-bold text-emerald-700 leading-tight" dir="ltr">{formatCurrency(totalPaid)}</p>
+              <p className="text-[11px] text-emerald-600 mt-0.5">المحصّل</p>
+            </div>
+            <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-center">
+              <p className="text-sm font-bold text-amber-700 leading-tight" dir="ltr">{formatCurrency(remainingValue)}</p>
+              <p className="text-[11px] text-amber-600 mt-0.5">المتبقي</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
+              <p className="text-sm font-bold text-gray-800 leading-tight" dir="ltr">{formatCurrency(projectValue)}</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">قيمة المشروع</p>
+            </div>
+          </div>
+          <div className="mt-2">
+            <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div className={`h-full rounded-full ${collectionPct >= 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${Math.min(100, collectionPct)}%` }} />
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">{collectionPct}% محصَّل من قيمة المشروع</p>
           </div>
         </div>
 
