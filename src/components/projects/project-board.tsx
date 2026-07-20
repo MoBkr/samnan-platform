@@ -201,10 +201,23 @@ export function ProjectBoard({
   }
 
   if (!isMember) {
+    // Only assigned sales/installation people pass the membership filter, so
+    // members with those roles ARE the project's assignees — name them, so
+    // whoever hits this wall knows exactly why and what to ask for.
+    const assignedInstall = members.find((m) => m.role === 'installation')
+    const assignedSales = members.find((m) => m.role === 'sales_engineer')
     return (
       <div className="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
         <MessageSquare className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-        <p className="text-sm text-gray-500">مدونة المشروع متاحة لفريق المشروع فقط.</p>
+        <p className="text-sm font-semibold text-gray-600">مدونة المشروع متاحة لفريق المشروع فقط</p>
+        <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
+          حسابك غير معيّن في فريق هذا المشروع — يكتب هنا الكوردنيتورز والإدارة
+          {assignedSales ? `، ومهندس المبيعات المعيّن (${assignedSales.full_name})` : ''}
+          {assignedInstall ? `، ومدير التركيبات المعيّن (${assignedInstall.full_name})` : ''}.
+        </p>
+        <p className="mt-1 text-xs text-brand-600">
+          اطلب من الكوردنيتر تعيينك في فريق المشروع لتتمكن من الكتابة.
+        </p>
       </div>
     )
   }
