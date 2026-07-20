@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { CalendarDays, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -8,6 +9,23 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 // Date/time fields: clicking anywhere in the field opens the calendar, instead
 // of forcing the user to type day/month/year or hit the tiny native icon.
 const PICKER_TYPES = new Set(['date', 'datetime-local', 'time', 'month', 'week'])
+
+const BASE =
+  'flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50 transition-colors'
+
+// Hide the browser's default indicator but keep it stretched over the whole
+// field, so a click anywhere opens the picker — and our own icon shows instead.
+const PICKER_SKIN = [
+  'cursor-pointer hover:border-brand-300 pl-9',
+  '[&::-webkit-calendar-picker-indicator]:absolute',
+  '[&::-webkit-calendar-picker-indicator]:inset-0',
+  '[&::-webkit-calendar-picker-indicator]:h-full',
+  '[&::-webkit-calendar-picker-indicator]:w-full',
+  '[&::-webkit-calendar-picker-indicator]:cursor-pointer',
+  '[&::-webkit-calendar-picker-indicator]:opacity-0',
+  '[&::-webkit-datetime-edit]:text-gray-800',
+  '[&::-webkit-datetime-edit-fields-wrapper]:p-0',
+].join(' ')
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, error, onClick, ...props }, ref) => {
@@ -22,20 +40,32 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       onClick?.(e)
     }
 
+    const field = (
+      <input
+        type={type}
+        onClick={isPicker ? handleClick : onClick}
+        className={cn(
+          BASE,
+          isPicker && PICKER_SKIN,
+          error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+
     return (
       <div className="w-full">
-        <input
-          type={type}
-          onClick={handleClick}
-          className={cn(
-            'flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50 transition-colors',
-            isPicker && 'cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100',
-            error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
-            className
-          )}
-          ref={ref}
-          {...props}
-        />
+        {isPicker ? (
+          <div className="relative">
+            {/* Our own icon, on theme — the native one is hidden above */}
+            {type === 'time'
+              ? <Clock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-brand-500" />
+              : <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-brand-500" />}
+            {field}
+          </div>
+        ) : field}
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>
     )
