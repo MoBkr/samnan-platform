@@ -167,6 +167,8 @@ export function ProjectDetail({
   const [dialog, setDialog] = useState<ActionDialog>(null)
   // Open appointments / tasks / reminders — surfaced on the tab so nobody has to open it to know
   const openBoardItems = notes.filter((n) => n.kind !== 'note' && !n.done).length
+  // Tabs for the installation-role view (their board was buried at page bottom)
+  const [instTab, setInstTab] = useState<'installation' | 'board' | 'attachments'>('installation')
   const [cancelReason, setCancelReason] = useState('')
   const [newAmount, setNewAmount] = useState(project.total_amount?.toString() ?? '')
   const [editInfo, setEditInfo] = useState({
@@ -377,21 +379,61 @@ export function ProjectDetail({
           </div>
         </div>
 
-        {/* Installation only */}
-        {project.has_installation ? (
-          <InstallationTab installations={installations} projectId={project.id} canManage={false} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} custody={custody} />
-        ) : (
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
-            <Hammer className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-500">هذا المشروع بدون تركيب — لا توجد مهام تركيب.</p>
-          </div>
+        {/* Tabs — the board/attachments were buried below the long installation
+            section, so the team never found them. Now they're one tap away. */}
+        <div className="border-b border-gray-200">
+          <nav className="flex gap-0 overflow-x-auto">
+            {([
+              { id: 'installation', label: 'التركيب' },
+              { id: 'board', label: 'المدونة' },
+              { id: 'attachments', label: 'المرفقات' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setInstTab(tab.id)}
+                className={cn(
+                  'px-5 py-3 text-sm font-medium transition-all border-b-2 whitespace-nowrap',
+                  instTab === tab.id
+                    ? 'border-brand-600 text-brand-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                )}
+              >
+                {tab.label}
+                {tab.id === 'board' && openBoardItems > 0 && (
+                  <span className="ms-1.5 inline-flex items-center justify-center rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
+                    {openBoardItems}
+                  </span>
+                )}
+                {tab.id === 'attachments' && attachments.length > 0 && (
+                  <span className="ms-1.5 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                    {attachments.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {instTab === 'installation' && (
+          project.has_installation ? (
+            <InstallationTab installations={installations} projectId={project.id} canManage={false} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} custody={custody} />
+          ) : (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center">
+              <Hammer className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+              <p className="text-sm text-gray-500">هذا المشروع بدون تركيب — لا توجد مهام تركيب.</p>
+            </div>
+          )
         )}
 
-        {/* Project attachments + contract — view-only, no financials (client request) */}
-        <InstallationAttachments attachments={attachments} contractUrl={project.contract_url} projectName={project.project_name} />
+        {/* Board — for the whole team, installation included */}
+        {instTab === 'board' && (
+          <ProjectBoard projectId={project.id} notes={notes} members={boardMembers} currentProfile={currentProfile} />
+        )}
 
-        {/* The project board is for the whole team, installation included */}
-        <ProjectBoard projectId={project.id} notes={notes} members={boardMembers} currentProfile={currentProfile} />
+        {/* Attachments + contract — view-only, no financials (client request) */}
+        {instTab === 'attachments' && (
+          <InstallationAttachments attachments={attachments} contractUrl={project.contract_url} projectName={project.project_name} />
+        )}
       </div>
     )
   }
