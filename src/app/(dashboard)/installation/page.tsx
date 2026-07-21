@@ -12,17 +12,13 @@ export default async function InstallationPage() {
   }
 
   const isInstallRole = profile.role === 'installation'
-  const [allInstallations, projects] = await Promise.all([
+  const [installations, projects] = await Promise.all([
     getAllInstallations(),
     isInstallRole ? getInstallationProjects() : Promise.resolve({ mine: [], colleagues: [] }),
   ])
 
-  // Installation managers see only THEIR schedule; colleagues' projects stay
-  // detail-free (they appear in the read-only "مشاريع الزملاء" tab instead).
-  const installations = isInstallRole
-    ? allInstallations.filter((i) => i.project?.installation_id === profile.id)
-    : allInstallations
-
+  // Unfiltered on purpose: the dashboard's مشاريعي / كل المشاريع tabs scope
+  // the stats and lists client-side (details of others stay locked anyway).
   return (
     <InstallationDashboard
       profile={profile}

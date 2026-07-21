@@ -1,10 +1,13 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import { Hammer, Calendar, CheckCircle2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { InstallationStatusBadge } from '@/components/shared/status-badge'
 import { InstallationProjects } from '@/components/dashboard/installation-projects'
-import { formatDateShort } from '@/lib/utils'
+import { formatDateShort, cn } from '@/lib/utils'
 import type { Profile, Installation } from '@/types/database'
 import type { MyInstallProject, ColleagueInstallProject } from '@/lib/actions/installation'
 
@@ -15,11 +18,18 @@ interface InstallationDashboardProps {
 }
 
 export function InstallationDashboard({ profile, installations, projects }: InstallationDashboardProps) {
+  const isInstallRole = profile.role === 'installation'
+  // One scope drives EVERYTHING on the page: the stats, the schedule and the
+  // projects list. مشاريعي = only what's assigned to me; كل المشاريع = everyone's.
+  const [scope, setScope] = useState<'mine' | 'all'>('mine')
+
+  const scoped = isInstallRole && scope === 'mine'
+    ? installations.filter((i) => i.project?.installation_id === profile.id)
+    : installations
+
   const today = new Date().toISOString().split('T')[0]
-  // For an installation manager, `installations` is already scoped to THEIR
-  // projects (filtered in the page) — so every stat below is "مشاريعي" only.
-  const open = installations.filter((i) => i.status !== 'completed')
-  const completedCount = installations.length - open.length
+  const open = scoped.filter((i) => i.status !== 'completed')
+  const completedCount = scoped.length - open.length
   const todayInstallations = open.filter((i) => i.scheduled_date === today)
   const upcoming = open.filter((i) => i.scheduled_date && i.scheduled_date > today)
   const pending = open.filter((i) => i.status === 'scheduled')
@@ -42,6 +52,26 @@ export function InstallationDashboard({ profile, installations, projects }: Inst
         </div>
       </div>
 
+      {/* Scope switch — drives the stats, schedule and projects below */}
+      {isInstallRole && (
+        <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+          <button
+            onClick={() => setScope('mine')}
+            className={cn('rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors',
+              scope === 'mine' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+          >
+            مشاريعي
+          </button>
+          <button
+            onClick={() => setScope('all')}
+            className={cn('rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors',
+              scope === 'all' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+          >
+            كل المشاريع
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         {[
@@ -58,9 +88,10 @@ export function InstallationDashboard({ profile, installations, projects }: Inst
         ))}
       </div>
 
-      {/* Projects — mine in full, colleagues' as existing only */}
-      {profile.role === 'installation' && projects && (
-        <InstallationProjects mine={projects.mine} colleagues={projects.colleagues} />
+      {/* Projects — mine in full; on "كل المشاريع" everyone's are listed but
+          opening someone else's is denied */}
+      {isInstallRole && projects && (
+        <InstallationProjects mine={projects.mine} colleagues={projects.colleagues} scope={scope} />
       )}
 
       {/* Today alert */}

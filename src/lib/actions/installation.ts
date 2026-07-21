@@ -97,6 +97,7 @@ export interface MyInstallProject {
   expected_end_date: string | null
 }
 export interface ColleagueInstallProject {
+  id: string
   project_name: string
   status: string
   manager_name: string
@@ -123,7 +124,7 @@ export async function getInstallationProjects(): Promise<{ mine: MyInstallProjec
       .map(({ id, project_name, client_name, status, has_installation, start_date, expected_end_date }) =>
         ({ id, project_name, client_name, status, has_installation, start_date, expected_end_date })),
     colleagues: rows.filter((p) => p.installation_id !== user.id)
-      .map((p) => ({ project_name: p.project_name, status: p.status, manager_name: p.installation_person?.full_name ?? '—' })),
+      .map((p) => ({ id: p.id, project_name: p.project_name, status: p.status, manager_name: p.installation_person?.full_name ?? '—' })),
   }
 }
 

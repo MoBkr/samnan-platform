@@ -365,8 +365,9 @@ export function ProjectDetail({
               <h1 className="text-lg font-bold text-gray-900">{project.project_name}</h1>
               <ProjectStatusBadge status={project.status} />
             </div>
+            <p className="text-sm font-semibold text-red-600 mb-1">ما عندك صلاحية للدخول لهذا المشروع</p>
             <p className="text-sm text-gray-500">
-              هذا المشروع يتابعه {project.installation_person?.full_name ?? 'مدير تركيبات آخر'} — التفاصيل متاحة لمديره المعيّن فقط.
+              المشروع يتابعه {project.installation_person?.full_name ?? 'مدير تركيبات آخر'} — التفاصيل متاحة لمديره المعيّن فقط.
             </p>
           </div>
         </div>
