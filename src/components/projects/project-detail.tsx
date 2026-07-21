@@ -345,6 +345,34 @@ export function ProjectDetail({
   // Installation team sees ONLY the installation part of the project —
   // no payments, materials, attachments, financials or management actions.
   if (currentProfile.role === 'installation') {
+    // A colleague's project: they may know it exists, nothing more.
+    if (project.installation_id !== currentProfile.id) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Link href="/installation">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-gray-500 hover:text-gray-900">
+                <ArrowRight className="h-4 w-4" />
+                التركيبات
+              </Button>
+            </Link>
+          </div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50">
+              <Hammer className="h-6 w-6 text-gray-400" />
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <h1 className="text-lg font-bold text-gray-900">{project.project_name}</h1>
+              <ProjectStatusBadge status={project.status} />
+            </div>
+            <p className="text-sm text-gray-500">
+              هذا المشروع يتابعه {project.installation_person?.full_name ?? 'مدير تركيبات آخر'} — التفاصيل متاحة لمديره المعيّن فقط.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-4">
         {/* Back */}

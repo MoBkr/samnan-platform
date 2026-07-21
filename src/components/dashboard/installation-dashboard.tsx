@@ -3,15 +3,18 @@ import { Hammer, Calendar, CheckCircle2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { InstallationStatusBadge } from '@/components/shared/status-badge'
+import { InstallationProjects } from '@/components/dashboard/installation-projects'
 import { formatDateShort } from '@/lib/utils'
 import type { Profile, Installation } from '@/types/database'
+import type { MyInstallProject, ColleagueInstallProject } from '@/lib/actions/installation'
 
 interface InstallationDashboardProps {
   profile: Profile
-  installations: (Installation & { project: { id: string; client_name: string; project_name: string } })[]
+  installations: (Installation & { project: { id: string; client_name: string; project_name: string; installation_id?: string | null } })[]
+  projects?: { mine: MyInstallProject[]; colleagues: ColleagueInstallProject[] }
 }
 
-export function InstallationDashboard({ profile, installations }: InstallationDashboardProps) {
+export function InstallationDashboard({ profile, installations, projects }: InstallationDashboardProps) {
   const today = new Date().toISOString().split('T')[0]
   const todayInstallations = installations.filter((i) => i.scheduled_date === today)
   const upcoming = installations.filter((i) => i.scheduled_date && i.scheduled_date > today)
@@ -50,6 +53,11 @@ export function InstallationDashboard({ profile, installations }: InstallationDa
           </div>
         ))}
       </div>
+
+      {/* Projects — mine in full, colleagues' as existing only */}
+      {profile.role === 'installation' && projects && (
+        <InstallationProjects mine={projects.mine} colleagues={projects.colleagues} />
+      )}
 
       {/* Today alert */}
       {todayInstallations.length > 0 && (

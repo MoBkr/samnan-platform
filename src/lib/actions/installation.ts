@@ -77,10 +77,53 @@ export async function getAllInstallations() {
   const supabase = await createClient()
   const result = (await supabase
     .from('installations')
-    .select('*, project:projects(id, client_name, project_name)')
+    .select('*, project:projects(id, client_name, project_name, installation_id)')
     .not('status', 'eq', 'completed')
-    .order('scheduled_date', { ascending: true })) as QueryResultMany<Installation & { project: { id: string; client_name: string; project_name: string } }>
+    .order('scheduled_date', { ascending: true })) as QueryResultMany<Installation & { project: { id: string; client_name: string; project_name: string; installation_id: string | null } }>
   return result.data ?? []
+}
+
+// ── Projects as the installation manager sees them ──
+// Like coordinators: my own projects in full, colleagues' projects visible
+// only as "existing" (name + manager + status — no details, not clickable).
+export interface MyInstallProject {
+  id: string
+  project_name: string
+  client_name: string
+  status: string
+  has_installation: boolean
+  start_date: string | null
+  expected_end_date: string | null
+}
+export interface ColleagueInstallProject {
+  project_name: string
+  status: string
+  manager_name: string
+}
+
+export async function getInstallationProjects(): Promise<{ mine: MyInstallProject[]; colleagues: ColleagueInstallProject[] }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { mine: [], colleagues: [] }
+
+  const service = createServiceClient()
+  const result = (await service
+    .from('projects')
+    .select('id, project_name, client_name, status, has_installation, start_date, expected_end_date, installation_id, installation_person:profiles!installation_id(full_name)')
+    .not('installation_id', 'is', null)
+    .neq('status', 'cancelled')
+    .order('created_at', { ascending: false })) as unknown as {
+      data: (MyInstallProject & { installation_id: string; installation_person: { full_name: string } | null })[] | null
+    }
+
+  const rows = result.data ?? []
+  return {
+    mine: rows.filter((p) => p.installation_id === user.id)
+      .map(({ id, project_name, client_name, status, has_installation, start_date, expected_end_date }) =>
+        ({ id, project_name, client_name, status, has_installation, start_date, expected_end_date })),
+    colleagues: rows.filter((p) => p.installation_id !== user.id)
+      .map((p) => ({ project_name: p.project_name, status: p.status, manager_name: p.installation_person?.full_name ?? '—' })),
+  }
 }
 
 export async function scheduleInstallation(formData: FormData) {
