@@ -16,9 +16,13 @@ interface InstallationDashboardProps {
 
 export function InstallationDashboard({ profile, installations, projects }: InstallationDashboardProps) {
   const today = new Date().toISOString().split('T')[0]
-  const todayInstallations = installations.filter((i) => i.scheduled_date === today)
-  const upcoming = installations.filter((i) => i.scheduled_date && i.scheduled_date > today)
-  const pending = installations.filter((i) => i.status === 'scheduled')
+  // For an installation manager, `installations` is already scoped to THEIR
+  // projects (filtered in the page) — so every stat below is "مشاريعي" only.
+  const open = installations.filter((i) => i.status !== 'completed')
+  const completedCount = installations.length - open.length
+  const todayInstallations = open.filter((i) => i.scheduled_date === today)
+  const upcoming = open.filter((i) => i.scheduled_date && i.scheduled_date > today)
+  const pending = open.filter((i) => i.status === 'scheduled')
 
   return (
     <div className="space-y-6">
@@ -44,7 +48,7 @@ export function InstallationDashboard({ profile, installations, projects }: Inst
           { icon: <Hammer className="h-5 w-5" />, bg: 'bg-emerald-50 text-emerald-700', value: todayInstallations.length, label: 'تركيب اليوم' },
           { icon: <Calendar className="h-5 w-5" />, bg: 'bg-blue-50 text-blue-700', value: upcoming.length, label: 'قادم قريباً' },
           { icon: <Clock className="h-5 w-5" />, bg: 'bg-amber-50 text-amber-700', value: pending.length, label: 'لم يبدأ بعد' },
-          { icon: <CheckCircle2 className="h-5 w-5" />, bg: 'bg-gray-50 text-gray-600', value: installations.filter(i => i.status === 'completed').length, label: 'مكتمل' },
+          { icon: <CheckCircle2 className="h-5 w-5" />, bg: 'bg-gray-50 text-gray-600', value: completedCount, label: 'مكتمل' },
         ].map(({ icon, bg, value, label }) => (
           <div key={label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${bg}`}>{icon}</div>
@@ -92,7 +96,7 @@ export function InstallationDashboard({ profile, installations, projects }: Inst
             )}
           </div>
         </div>
-        {installations.length === 0 ? (
+        {open.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
               <Hammer className="h-6 w-6 text-gray-400" />
@@ -101,7 +105,7 @@ export function InstallationDashboard({ profile, installations, projects }: Inst
           </div>
         ) : (
           <ul className="divide-y divide-gray-50">
-            {installations.map((inst) => (
+            {open.map((inst) => (
               <li key={inst.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 transition-colors">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{inst.project.project_name}</p>

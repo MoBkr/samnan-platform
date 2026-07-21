@@ -75,10 +75,11 @@ export async function getProjectInstallations(projectId: string) {
 
 export async function getAllInstallations() {
   const supabase = await createClient()
+  // Completed rows are included so the dashboard's "مكتمل" counter is real;
+  // the schedule list filters them out client-side.
   const result = (await supabase
     .from('installations')
     .select('*, project:projects(id, client_name, project_name, installation_id)')
-    .not('status', 'eq', 'completed')
     .order('scheduled_date', { ascending: true })) as QueryResultMany<Installation & { project: { id: string; client_name: string; project_name: string; installation_id: string | null } }>
   return result.data ?? []
 }
