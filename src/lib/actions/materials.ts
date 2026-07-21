@@ -86,11 +86,18 @@ export async function updateMaterialsStatus(
     if (error) return { error: 'فشل إنشاء سجل المواد' }
   }
 
+  const STATUS_AR: Record<string, string> = { pending: 'قيد الطلب', ready: 'جاهزة للتوريد', delivered: 'تم الاستلام' }
+  const wasAhead = existing && (
+    (existing.status === 'delivered' && status !== 'delivered') ||
+    (existing.status === 'ready' && status === 'pending')
+  )
   await service.from('activity_log').insert({
     project_id: projectId,
     user_id: user.id,
-    action: `تحديث حالة المواد — ${status}`,
-    details: { status },
+    action: wasAhead
+      ? `تراجع عن حالة المواد — رجعت إلى «${STATUS_AR[status] ?? status}»`
+      : `تحديث حالة المواد إلى «${STATUS_AR[status] ?? status}»`,
+    details: { status, previous: existing?.status ?? null },
   } as never)
 
   // Materials ready → notify installation manager (IRS items now appear)

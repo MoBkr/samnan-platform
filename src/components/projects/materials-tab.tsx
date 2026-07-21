@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
-  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer,
+  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer, ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -643,6 +643,18 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     })
   }
 
+  // Undo a step done by mistake — drops the status back one stage.
+  function handleRevertStatus(to: 'pending' | 'ready', label: string) {
+    if (!confirm(`تراجع: ${label} — هل أنت متأكد؟`)) return
+    startTransition(async () => {
+      try {
+        const result = await updateMaterialsStatus(projectId, to)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم التراجع')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
   function handleDeliveryNoteUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1017,7 +1029,15 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         isReady || isDelivered ? (
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            <p className="text-sm font-semibold text-emerald-800">المواد محدَّدة كجاهزة للتوريد ✓</p>
+            <p className="text-sm font-semibold text-emerald-800 flex-1">المواد محدَّدة كجاهزة للتوريد ✓</p>
+            {/* Undo a mistaken "ready" — only before delivery is confirmed */}
+            {canManage && isReady && !isDelivered && (
+              <Button size="sm" variant="outline" onClick={() => handleRevertStatus('pending', 'إلغاء «جاهزة للتوريد» والرجوع لخطوة طلب المواد')}
+                className="shrink-0 text-amber-700 border-amber-200 hover:bg-amber-50 gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5" />
+                تراجع
+              </Button>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 flex items-center justify-between gap-3">
@@ -1118,12 +1138,20 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           {isDelivered ? (
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
               <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-emerald-800">تم استلام المواد بنجاح</p>
                 {material?.ready_at && (
                   <p className="text-xs text-emerald-600 mt-0.5">بتاريخ: {formatDate(material.ready_at)}</p>
                 )}
               </div>
+              {/* Undo a mistaken delivery confirmation */}
+              {canManage && (
+                <Button size="sm" variant="outline" onClick={() => handleRevertStatus('ready', 'إلغاء تأكيد الاستلام والرجوع لحالة «جاهزة للتوريد»')}
+                  className="shrink-0 text-amber-700 border-amber-200 hover:bg-amber-50 gap-1.5">
+                  <ArrowRight className="h-3.5 w-3.5" />
+                  تراجع عن الاستلام
+                </Button>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/40 px-5 py-4">
