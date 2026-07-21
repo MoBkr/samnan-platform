@@ -20,13 +20,11 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
     "next": "^15.3.1",
-    "pdfjs-dist": "^6.1.200",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.55.0",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
-    "tesseract.js": "^5.1.1",
     "xlsx": "^0.18.5",
     "zod": "^3.24.4"
   },
