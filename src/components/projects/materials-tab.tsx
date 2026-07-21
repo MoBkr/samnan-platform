@@ -17,6 +17,7 @@ import { uploadFileDirect } from '@/lib/upload-client'
 import { PrintHeader } from '@/components/shared/print-header'
 import { LETTERHEAD_CSS, letterheadOpenHtml, letterheadCloseHtml } from '@/lib/print-letterhead'
 import { MaterialsStatusView } from '@/components/projects/materials-status-view'
+import { parseWorkbook, applyMapping, FIELD_LABELS, type SheetParse, type ColumnField } from '@/lib/excel-materials'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
 interface MaterialsTabProps {
@@ -273,6 +274,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   const [rowUploading, setRowUploading] = useState<number | null>(null)
   const [importingExcel, setImportingExcel] = useState(false)
+  // Excel import review — nothing enters the table until the user confirms here
+  const [excelPreview, setExcelPreview] = useState<null | {
+    fileName: string
+    primary: SheetParse
+    extraItems: MaterialItem[]
+    extraSummary: string[]
+    includeUnparsed: boolean
+  }>(null)
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const excelInputRef = useRef<HTMLInputElement>(null)
 
@@ -380,62 +389,57 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         savedFile = !('error' in rec)
       }
 
-      // 2) Best-effort extraction to also fill the editable table (never blocks).
-      let imported = 0
+      // 2) Parse EVERY sheet (merges filled, nothing silently dropped) and open
+      //    the review dialog — nothing enters the table before the user confirms.
       try {
         const XLSX = await import('xlsx')
         const buf = await file.arrayBuffer()
-        const wb = XLSX.read(buf, { type: 'array' })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const grid = (XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: false, defval: '' }) ?? [])
-          .map((r) => (r ?? []).map((c) => String(c ?? '')))
-        const items: MaterialItem[] = []
-
-        // (a) Header-based mapping (maps by column name, any order)
-        const isHeaderCell = (v: string) => /sap|sto|desc|qty|quant|status|note|الوصف|الصنف|الكمية|كمية|الحالة|ملاحظ|بيان/i.test(v)
-        const headerIdx = grid.findIndex((r) => r.some(isHeaderCell))
-        const headers = headerIdx >= 0 ? grid[headerIdx].map((h) => h.trim()) : []
-        const find = (re: RegExp) => headers.findIndex((h) => re.test(h))
-        const iSap = find(/sap|ساب/i), iDesc = find(/desc|الوصف|الصنف|بيان/i), iQty = find(/qty|quant|الكمية|كمية|العدد/i),
-          iSto = find(/sto/i), iStatus = find(/status|الحالة|^حالة/i), iNote = find(/note|ملاحظ/i)
-        if (headerIdx >= 0 && (iSap >= 0 || iDesc >= 0)) {
-          for (const row of grid.slice(headerIdx + 1)) {
-            const cell = (i: number) => (i >= 0 ? (row[i] ?? '').trim() : '')
-            const description = cell(iDesc), sap = cell(iSap)
-            if (!description && !sap) continue
-            const qty = parseFloat(cell(iQty).replace(/[^\d.]/g, ''))
-            items.push({ sap_no: sap || undefined, description, quantity: isNaN(qty) ? undefined : qty, sto_no: cell(iSto) || undefined, status: normalizeStatus(cell(iStatus)) || 'قيد المعالجة', notes: cell(iNote) || undefined, attachments: [] })
-          }
+        const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
+        if (parsed.primary) {
+          setExcelPreview({ fileName: file.name, ...parsed, primary: parsed.primary, includeUnparsed: true })
+        } else if (savedFile) {
+          toast.success('تم رفع الملف وحفظه في «ملفات الطلب» — لم يُعثر على بيانات قابلة للاستخلاص')
         }
-
-        // (b) Fallback: anchor on the SAP column (5–8 digit) and map positionally
-        if (items.length === 0) {
-          let base = -1, firstData = -1
-          for (let ri = 0; ri < grid.length; ri++) {
-            const idx = grid[ri].findIndex((c) => /^\d{5,8}$/.test(c.trim()))
-            if (idx >= 0) { base = idx; firstData = ri; break }
-          }
-          if (base >= 0) {
-            for (let ri = firstData; ri < grid.length; ri++) {
-              const c = grid[ri]
-              const sap = (c[base] ?? '').trim(), description = (c[base + 1] ?? '').trim()
-              if (!sap && !description) continue
-              const qty = parseFloat((c[base + 2] ?? '').replace(/[^\d.]/g, ''))
-              items.push({ sap_no: sap || undefined, description, quantity: isNaN(qty) ? undefined : qty, sto_no: (c[base + 3] ?? '').trim() || undefined, status: normalizeStatus((c[base + 4] ?? '').trim()) || 'قيد المعالجة', notes: (c[base + 5] ?? '').trim() || undefined, attachments: [] })
-            }
-          }
-        }
-
-        if (items.length) { setDraftItems((prev) => [...prev, ...items]); setEditingItems(true); imported = items.length }
-      } catch { /* extraction is best-effort — the file is already saved */ }
-
-      if (savedFile && imported) toast.success(`تم رفع الملف واستيراد ${imported} صنف`)
-      else if (savedFile) toast.success('تم رفع الملف وحفظه في «ملفات الطلب» (بدون استخلاص تلقائي)')
-      else if (imported) toast.success(`تم استيراد ${imported} صنف`)
-      else toast.error('تعذّر رفع الملف')
+      } catch {
+        if (savedFile) toast.success('تم رفع الملف وحفظه في «ملفات الطلب» (تعذّر الاستخلاص التلقائي)')
+        else toast.error('تعذّر قراءة الملف')
+      }
+      if (!savedFile) toast.error('تعذّر حفظ الملف — راجع الاتصال وحاول مجدداً')
     } finally {
       setImportingExcel(false)
     }
+  }
+
+  // Confirm from the review dialog → append to the editable table
+  function confirmExcelImport() {
+    if (!excelPreview) return
+    const { items, unparsed } = applyMapping(
+      excelPreview.primary.grid, excelPreview.primary.headerRow, excelPreview.primary.mapping, normalizeStatus,
+    )
+    const extra: MaterialItem[] = excelPreview.includeUnparsed
+      ? unparsed.map((u) => ({ description: u.text, status: 'قيد المعالجة', attachments: [] }))
+      : []
+    const all = [...items, ...extra, ...excelPreview.extraItems]
+    if (all.length === 0) { toast.error('لا توجد أصناف للاستيراد بالإعدادات الحالية'); return }
+    setDraftItems((prev) => [...prev, ...all])
+    setEditingItems(true)
+    setExcelPreview(null)
+    toast.success(`تم استيراد ${all.length} صنف — راجع الجدول ثم احفظ`)
+  }
+
+  // Download a ready-made template matching the platform's columns
+  async function downloadExcelTemplate() {
+    const XLSX = await import('xlsx')
+    const rows = [
+      ['SAP No', 'Description', 'Qty', 'STO No', 'Item Status', 'Note'],
+      ['123456', 'PVC Pipe 4 inch', 20, '', 'قيد المعالجة', ''],
+      ['234567', 'Cable 6mm', 150, '', 'مكتمل', 'مثال — احذف هذا الصف'],
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    ws['!cols'] = [{ wch: 12 }, { wch: 40 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 24 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Materials')
+    XLSX.writeFile(wb, 'قالب-مواد-سمنان.xlsx')
   }
 
   function printMaterials() {
@@ -929,6 +933,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     رفع ملف Excel
                   </Button>
                   <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelFile} />
+                  <Button type="button" size="sm" variant="outline" onClick={downloadExcelTemplate}
+                    className="gap-1.5 text-gray-500 hover:text-gray-700" title="قالب جاهز بالأعمدة الصحيحة — املأه وارفعه يُقرأ 100%">
+                    <FileText className="h-3.5 w-3.5" />
+                    تحميل قالب Excel
+                  </Button>
                   {sapDupCount > 0 && (
                     <Button type="button" size="sm" variant="outline" onClick={dedupeBySap}
                       className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50">
@@ -1159,6 +1168,126 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           </div>
         </div>
       )}
+
+      {/* ── Excel import review dialog — nothing is imported before confirm ── */}
+      <Dialog open={!!excelPreview} onClose={() => setExcelPreview(null)} className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>مراجعة الاستيراد — {excelPreview?.fileName}</DialogTitle>
+          <DialogClose onClose={() => setExcelPreview(null)} />
+        </DialogHeader>
+        <DialogContent className="max-h-[65vh] overflow-y-auto">
+          {excelPreview && (() => {
+            const { grid, headerRow, mapping } = excelPreview.primary
+            const { items, unparsed } = applyMapping(grid, headerRow, mapping, normalizeStatus)
+            const dataRows = grid.slice(headerRow + 1)
+            const previewRows = dataRows.slice(0, 8)
+            const width = mapping.length
+            const totalToImport = items.length
+              + (excelPreview.includeUnparsed ? unparsed.length : 0)
+              + excelPreview.extraItems.length
+            const setCol = (ci: number, f: ColumnField) => {
+              setExcelPreview((p) => {
+                if (!p) return p
+                // Each field can live in one column only — clear its old position
+                const m = [...p.primary.mapping]
+                if (f !== 'skip') {
+                  const prev = m.indexOf(f)
+                  if (prev >= 0) m[prev] = 'skip'
+                }
+                m[ci] = f
+                return { ...p, primary: { ...p.primary, mapping: m } }
+              })
+            }
+            return (
+              <div className="space-y-4">
+                <p className="text-xs text-gray-500">
+                  راجع ربط الأعمدة — غيّر أي عمود اتفهم غلط من القائمة فوقه. لا يدخل أي صنف قبل الضغط على «استيراد».
+                </p>
+
+                {/* Column mapping + data preview */}
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        {Array.from({ length: width }, (_, ci) => (
+                          <th key={ci} className="p-1.5 min-w-[110px]">
+                            <select
+                              value={mapping[ci]}
+                              onChange={(e) => setCol(ci, e.target.value as ColumnField)}
+                              className={`w-full rounded-lg border px-1.5 py-1 text-xs font-semibold ${mapping[ci] === 'skip' ? 'border-gray-200 text-gray-400 bg-white' : 'border-brand-300 text-brand-700 bg-brand-50'}`}
+                            >
+                              {(Object.keys(FIELD_LABELS) as ColumnField[]).map((f) => (
+                                <option key={f} value={f}>{FIELD_LABELS[f]}</option>
+                              ))}
+                            </select>
+                          </th>
+                        ))}
+                      </tr>
+                      {headerRow >= 0 && (
+                        <tr className="bg-gray-100/60 text-gray-500">
+                          {Array.from({ length: width }, (_, ci) => (
+                            <th key={ci} className="px-2 py-1 text-start font-medium truncate max-w-[140px]">{grid[headerRow]?.[ci] ?? ''}</th>
+                          ))}
+                        </tr>
+                      )}
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {previewRows.map((row, ri) => (
+                        <tr key={ri}>
+                          {Array.from({ length: width }, (_, ci) => (
+                            <td key={ci} className={`px-2 py-1.5 truncate max-w-[140px] ${mapping[ci] === 'skip' ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {row[ci] ?? ''}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {dataRows.length > previewRows.length && (
+                  <p className="text-[11px] text-gray-400">+ {dataRows.length - previewRows.length} صفوف أخرى بنفس الربط</p>
+                )}
+
+                {/* Unparsed rows — visible, never silently dropped */}
+                {unparsed.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                    <p className="text-xs font-bold text-amber-800">⚠️ {unparsed.length} صف بدون وصف أو رقم SAP بالربط الحالي:</p>
+                    <ul className="space-y-1 max-h-24 overflow-y-auto">
+                      {unparsed.slice(0, 6).map((u) => (
+                        <li key={u.row} className="text-[11px] text-amber-700 truncate">صف {u.row}: {u.text}</li>
+                      ))}
+                      {unparsed.length > 6 && <li className="text-[11px] text-amber-600">+ {unparsed.length - 6} أخرى…</li>}
+                    </ul>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-amber-800">
+                      <input type="checkbox" checked={excelPreview.includeUnparsed}
+                        onChange={(e) => setExcelPreview((p) => p ? { ...p, includeUnparsed: e.target.checked } : p)}
+                        className="h-4 w-4 rounded border-amber-300 text-amber-600" />
+                      أضفها كأصناف نصية (الوصف = محتوى الصف) بدل تجاهلها
+                    </label>
+                  </div>
+                )}
+
+                {excelPreview.extraSummary.length > 0 && (
+                  <p className="text-xs text-gray-500">
+                    أوراق إضافية في الملف: {excelPreview.extraSummary.join(' · ')} — ستُستورد تلقائياً.
+                  </p>
+                )}
+
+                <div className="rounded-xl bg-brand-50 border border-brand-100 px-4 py-2.5 text-sm font-bold text-brand-700">
+                  سيُستورد {totalToImport} صنف
+                </div>
+              </div>
+            )
+          })()}
+        </DialogContent>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setExcelPreview(null)}>إلغاء</Button>
+          <Button onClick={confirmExcelImport}>
+            <CheckCircle2 className="h-4 w-4" />
+            استيراد
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* ── Mark Ready dialog ── */}
       <Dialog open={readyDialog} onClose={() => setReadyDialog(false)}>
