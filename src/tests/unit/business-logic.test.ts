@@ -52,6 +52,7 @@ const makePayment = (overrides: Partial<Payment> = {}): Payment => ({
   lc_enabled: false,
   lc_date: null,
   lc_days: null,
+  billing_status: null,
   status: 'pending',
   paid_amount: 0,
   paid_at: null,

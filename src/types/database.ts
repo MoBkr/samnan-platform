@@ -65,6 +65,8 @@ export interface Payment {
   lc_enabled: boolean
   lc_date: string | null
   lc_days: number | null
+  // Invoicing/collection state: collected | invoiced | both (تم التحصيل / تم الفوترة / كلاهما)
+  billing_status: string | null
   status: PaymentStatus
   paid_amount: number
   paid_at: string | null

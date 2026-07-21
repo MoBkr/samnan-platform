@@ -38,6 +38,18 @@ function toDateInputValue(raw: string | null | undefined): string {
   return ''
 }
 
+// Invoicing/collection state — picked while recording a payment
+const BILLING_LABELS: Record<string, string> = {
+  collected: 'تم التحصيل',
+  invoiced: 'تم الفوترة',
+  both: 'تم التحصيل والفوترة',
+}
+const BILLING_CHIP: Record<string, string> = {
+  collected: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  invoiced: 'bg-blue-50 text-blue-700 border-blue-100',
+  both: 'bg-purple-50 text-purple-700 border-purple-100',
+}
+
 // LC maturity = pay date + tenor (days)
 function lcMaturity(date: string, days: number): string {
   const d = new Date(date + 'T00:00:00Z')
@@ -400,6 +412,12 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                       <Receipt className="h-3.5 w-3.5" />
                       مدفوع بالكامل — {formatCurrency(payment.amount)}
                     </div>
+                  )}
+
+                  {payment.billing_status && BILLING_LABELS[payment.billing_status] && (
+                    <span className={`inline-block mb-2 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${BILLING_CHIP[payment.billing_status] ?? 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+                      {BILLING_LABELS[payment.billing_status]}
+                    </span>
                   )}
 
                   {payment.lc_enabled && (
@@ -775,9 +793,20 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label>ملاحظات</Label>
-                <Input name="notes" defaultValue={editingPayment.notes ?? ''} placeholder="اختياري" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>حالة الفوترة والتحصيل</Label>
+                  <Select name="billing_status" defaultValue={editingPayment.billing_status ?? ''}>
+                    <option value="">— بدون —</option>
+                    <option value="collected">تم التحصيل</option>
+                    <option value="invoiced">تم الفوترة</option>
+                    <option value="both">تم التحصيل والفوترة</option>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>ملاحظات</Label>
+                  <Input name="notes" defaultValue={editingPayment.notes ?? ''} placeholder="اختياري" />
+                </div>
               </div>
             </form>
           )}
@@ -809,6 +838,16 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                 <Label>المبلغ المحصّل الآن (ريال)</Label>
                 <Input name="paid_amount" type="number" min="0.01" step="0.01" required placeholder="0.00"
                   value={recordAmount} onChange={(e) => setRecordAmount(e.target.value)} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>حالة الفوترة والتحصيل</Label>
+                <Select name="billing_status" defaultValue={selectedPayment.billing_status ?? ''}>
+                  <option value="">— اختر —</option>
+                  <option value="collected">تم التحصيل</option>
+                  <option value="invoiced">تم الفوترة</option>
+                  <option value="both">تم التحصيل والفوترة</option>
+                </Select>
               </div>
 
               {/* Overpayment: allowed, but knowingly — warn + require a note */}

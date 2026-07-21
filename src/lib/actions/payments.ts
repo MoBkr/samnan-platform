@@ -119,6 +119,8 @@ export async function recordPayment(formData: FormData) {
   const receiptUrl = formData.get('receipt_url') as string
   const projectId = formData.get('project_id') as string
   const overpayNote = (formData.get('overpay_note') as string)?.trim() || ''
+  let billingStatus = (formData.get('billing_status') as string) || null
+  if (billingStatus && !['collected', 'invoiced', 'both'].includes(billingStatus)) billingStatus = null
 
   if (!paymentId || isNaN(paidAmount) || paidAmount <= 0) {
     return { error: 'يرجى إدخال مبلغ صحيح' }
@@ -159,6 +161,7 @@ export async function recordPayment(formData: FormData) {
       status: newStatus,
       paid_at: newStatus === 'paid' ? new Date().toISOString() : null,
       receipt_url: receiptUrl || null,
+      ...(billingStatus ? { billing_status: billingStatus } : {}),
     } as never)
     .eq('id', paymentId)) as unknown as { error: Error | null }
 
@@ -172,6 +175,7 @@ export async function recordPayment(formData: FormData) {
       : newStatus === 'paid' ? 'تم سداد الدفعة بالكامل' : 'تم سداد جزء من الدفعة',
     details: {
       payment_id: paymentId, paid_amount: paidAmount, new_status: newStatus,
+      ...(billingStatus ? { billing_status: billingStatus } : {}),
       ...(isOverpay ? { old_amount: payment.amount, new_amount: newAmount, overpay_note: overpayNote } : {}),
     },
   } as never)
@@ -266,6 +270,8 @@ export async function editPayment(formData: FormData) {
   if (type && !PAYMENT_TYPES_SET.has(type)) type = null
   let status = (formData.get('status') as string) || null
   if (status && !PAYMENT_STATUS_SET.has(status)) status = null
+  let billingStatus = (formData.get('billing_status') as string) || null
+  if (billingStatus && !['collected', 'invoiced', 'both'].includes(billingStatus)) billingStatus = null
   const paidAmountRaw = formData.get('paid_amount') as string
   const paidAmountInput = paidAmountRaw !== null && paidAmountRaw !== '' ? parseFloat(paidAmountRaw) : null
 
@@ -275,14 +281,14 @@ export async function editPayment(formData: FormData) {
 
   const { data: payment } = (await service
     .from('payments')
-    .select('status, paid_amount, amount, due_date, notes, paid_at, type, name, order_no, percentage, invoice_number, invoice_date, seller_name, customer_account, lc_enabled, lc_date, lc_days')
+    .select('status, paid_amount, amount, due_date, notes, paid_at, type, name, order_no, percentage, invoice_number, invoice_date, seller_name, customer_account, lc_enabled, lc_date, lc_days, billing_status')
     .eq('id', paymentId)
     .single()) as unknown as {
       data: {
         status: string; paid_amount: number; amount: number; due_date: string | null; notes: string | null
         paid_at: string | null; type: string; name: string | null; order_no: number | null; percentage: number | null
         invoice_number: string | null; invoice_date: string | null; seller_name: string | null; customer_account: string | null
-        lc_enabled: boolean | null; lc_date: string | null; lc_days: number | null
+        lc_enabled: boolean | null; lc_date: string | null; lc_days: number | null; billing_status: string | null
       } | null
     }
 
@@ -329,6 +335,7 @@ export async function editPayment(formData: FormData) {
       lc_enabled: lcEnabled,
       lc_date: lcEnabled ? lcDate : null,
       lc_days: lcEnabled ? lcDays : null,
+      billing_status: billingStatus,
       status: finalStatus,
       paid_at: paidAt,
     } as never)
@@ -349,6 +356,13 @@ export async function editPayment(formData: FormData) {
   if ((payment.due_date ?? '') !== (dueDate || '')) changes['تاريخ الاستحقاق'] = { from: payment.due_date || '—', to: dueDate || '—' }
   if ((payment.invoice_number ?? '') !== (invoiceNumber || '')) changes['رقم الفاتورة'] = { from: payment.invoice_number || '—', to: invoiceNumber || '—' }
   if ((payment.notes ?? '') !== (notes || '')) changes['ملاحظات'] = { from: payment.notes || '—', to: notes || '—' }
+  const BILLING_AR: Record<string, string> = { collected: 'تم التحصيل', invoiced: 'تم الفوترة', both: 'تم التحصيل والفوترة' }
+  if ((payment.billing_status ?? '') !== (billingStatus ?? '')) {
+    changes['حالة الفوترة'] = {
+      from: payment.billing_status ? (BILLING_AR[payment.billing_status] ?? payment.billing_status) : '—',
+      to: billingStatus ? (BILLING_AR[billingStatus] ?? billingStatus) : '—',
+    }
+  }
   const lcStr = (en: boolean | null | undefined, d: string | null, days: number | null) =>
     en ? `نعم${d ? ` — ${d}` : ''}${days != null ? ` — ${days} يوم` : ''}` : 'لا'
   if (!!payment.lc_enabled !== lcEnabled || (payment.lc_date ?? '') !== (lcEnabled ? (lcDate || '') : '') || (payment.lc_days ?? null) !== (lcEnabled ? lcDays : null)) {

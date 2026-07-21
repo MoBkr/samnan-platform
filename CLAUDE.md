@@ -46,6 +46,13 @@
    ```
    Without this, scheduling/editing the installation's expected finish date fails.
 
+🆕 **Supabase — حالة الفوترة والتحصيل (REQUIRED for the billing-status option on payments):** Run in SQL Editor:
+   ```sql
+   alter table public.payments
+     add column if not exists billing_status text;
+   ```
+   Without this, recording a payment with تم التحصيل/تم الفوترة fails.
+
 🆕 **Supabase — خطاب الاعتماد LC + تذكيرات الدفعات (REQUIRED for LC option + payment reminders):** Run in SQL Editor:
    ```sql
    alter table public.payments
