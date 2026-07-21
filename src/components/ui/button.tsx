@@ -3,22 +3,28 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:pointer-events-none disabled:opacity-50',
+  // Premium base: smooth 200ms transitions, gentle press scale, clear focus ring
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none',
   {
     variants: {
       variant: {
-        default: 'bg-brand-600 text-white shadow hover:bg-brand-700',
-        destructive: 'bg-red-600 text-white shadow hover:bg-red-700',
-        outline: 'border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50',
-        secondary: 'bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200',
-        ghost: 'text-gray-700 hover:bg-gray-100',
+        default:
+          'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-brand-btn hover:from-brand-600 hover:to-brand-700 hover:shadow-glow hover:-translate-y-px',
+        destructive:
+          'bg-gradient-to-b from-red-500 to-red-600 text-white shadow hover:from-red-600 hover:to-red-700 hover:-translate-y-px',
+        outline:
+          'border border-gray-200 bg-white text-gray-700 shadow-sm hover:border-brand-200 hover:bg-brand-50/40 hover:text-brand-700 hover:-translate-y-px hover:shadow',
+        secondary:
+          'bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200/80 hover:-translate-y-px',
+        ghost: 'text-gray-600 hover:bg-gray-100/80 hover:text-gray-900',
         link: 'text-brand-600 underline-offset-4 hover:underline',
-        success: 'bg-green-600 text-white shadow hover:bg-green-700',
+        success:
+          'bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow hover:from-emerald-600 hover:to-emerald-700 hover:-translate-y-px',
       },
       size: {
         default: 'h-10 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-11 rounded-lg px-8',
+        sm: 'h-8 rounded-lg px-3 text-xs',
+        lg: 'h-11 rounded-xl px-8',
         icon: 'h-10 w-10',
       },
     },

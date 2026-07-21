@@ -11,7 +11,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 const PICKER_TYPES = new Set(['date', 'datetime-local', 'time', 'month', 'week'])
 
 const BASE =
-  'flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50 transition-colors'
+  'flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 transition-all duration-200 ease-out hover:border-gray-300 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10 focus:shadow disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50'
 
 // Hide the browser's default indicator but keep it stretched over the whole
 // field, so a click anywhere opens the picker — and our own icon shows instead.

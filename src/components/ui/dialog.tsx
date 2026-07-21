@@ -26,14 +26,14 @@ function Dialog({ open, onClose, children, className }: DialogProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-brand-900/30 backdrop-blur-[6px] animate-fade-in"
         onClick={onClose}
       />
       <div
         className={cn(
-          'relative z-10 my-4 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl',
+          'relative z-10 my-4 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/60 bg-white p-6 shadow-xl animate-scale-in',
           className
         )}
       >

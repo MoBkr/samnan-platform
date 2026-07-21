@@ -117,7 +117,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
   const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(profile.role))
 
   return (
-    <div className="flex h-full w-64 flex-col bg-sidebar">
+    <div className="flex h-full w-64 flex-col bg-gradient-to-b from-brand-700 via-brand-800 to-brand-900 shadow-xl">
       {/* Logo Header */}
       <div className="flex items-center justify-between p-5 border-b border-white/5">
         <div className="flex items-center gap-3">
@@ -185,19 +185,20 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                      'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-out',
                       isActive
-                        ? 'bg-brand-600 text-white shadow-sm shadow-brand-900/30'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        ? 'bg-gradient-to-l from-white/15 to-white/5 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_4px_12px_-4px_rgb(0_0_0/0.4)] ring-1 ring-white/10'
+                        : 'text-slate-400 hover:bg-white/[0.06] hover:text-white hover:-translate-x-0.5'
                     )}
                   >
-                    <span className={cn('transition-transform', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')}>
+                    {/* Active indicator bar (RTL: on the right edge) */}
+                    {isActive && (
+                      <span className="absolute -start-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-gradient-to-b from-blue-300 to-brand-400 shadow-[0_0_8px_rgb(147_197_253/0.8)]" />
+                    )}
+                    <span className={cn('transition-all duration-200', isActive ? 'text-blue-200 scale-110' : 'text-slate-500 group-hover:text-white group-hover:scale-105')}>
                       {item.icon}
                     </span>
                     {item.label}
-                    {isActive && (
-                      <span className="ms-auto h-1.5 w-1.5 rounded-full bg-blue-300" />
-                    )}
                   </Link>
                 </li>
               )

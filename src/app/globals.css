@@ -6,9 +6,20 @@
 
 @layer base {
   :root {
+    /* ── Design tokens ── */
     --brand: #1841A0;
     --brand-dark: #122E78;
     --brand-light: #EEF2FF;
+    --accent: #3B5FD4;
+    --success: #059669;
+    --warning: #D97706;
+    --error: #DC2626;
+    --surface: #FFFFFF;
+    --surface-muted: #F7F9FC;
+    --app-bg-1: #F6F8FC;
+    --app-bg-2: #EEF2F9;
+    --ring: rgb(24 65 160 / 0.18);
+    --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   *,
@@ -22,29 +33,58 @@
     font-family: 'Cairo', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     font-family: 'Cairo', sans-serif;
-    background-color: #F5F7FB;
+    /* Soft app canvas — a barely-there brand-tinted gradient */
+    background-color: var(--app-bg-1);
+    background-image:
+      radial-gradient(1200px 500px at 85% -10%, rgb(24 65 160 / 0.05), transparent 60%),
+      radial-gradient(900px 420px at -10% 100%, rgb(59 95 212 / 0.045), transparent 55%),
+      linear-gradient(180deg, var(--app-bg-1), var(--app-bg-2));
+    background-attachment: fixed;
     color: #111827;
     min-height: 100vh;
   }
 
+  ::selection {
+    background: rgb(24 65 160 / 0.14);
+  }
+
   /* Smooth scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: #CBD5E1;
-    border-radius: 3px;
+    border-radius: 99px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #94A3B8;
+    background-clip: padding-box;
+  }
+
+  /* Every card in the app breathes: smooth shadow/transform/border transitions.
+     (Cards are `.rounded-2xl.border` throughout — no markup changes needed.) */
+  .rounded-2xl {
+    transition: box-shadow 0.25s var(--ease-premium), transform 0.25s var(--ease-premium), border-color 0.2s ease-out;
+  }
+
+  /* Consistent focus for anything focusable that lost its own ring */
+  :focus-visible {
+    outline: none;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
   }
 }
 
@@ -55,6 +95,30 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Card hover lift — opt-in premium elevation */
+  .card-lift {
+    transition: box-shadow 0.25s var(--ease-premium), transform 0.25s var(--ease-premium);
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -2px rgb(15 23 42 / 0.05), 0 16px 32px -8px rgb(15 23 42 / 0.12);
+  }
+
+  /* Subtle glass */
+  .glass {
+    background: rgb(255 255 255 / 0.78);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  }
+
+  /* Loading skeleton shimmer */
+  .skeleton {
+    background: linear-gradient(90deg, #EEF1F6 25%, #F7F9FC 50%, #EEF1F6 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s linear infinite;
+    border-radius: 0.75rem;
   }
 }
 

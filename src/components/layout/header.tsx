@@ -49,7 +49,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
   const dashboardHref = profile ? (DASHBOARD_LINK[profile.role] ?? '/dashboard') : '/dashboard'
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4 lg:px-6">
+    <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/60 px-4 shadow-sm lg:px-6">
       {/* Right side — mobile menu + logo (desktop) */}
       <div className="flex items-center gap-3">
         {/* Hamburger — always visible */}
@@ -126,7 +126,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
 
             {/* Dropdown */}
             {open && (
-              <div className="absolute end-0 top-full mt-2 w-60 rounded-2xl border border-gray-100 bg-white shadow-xl z-50 overflow-hidden">
+              <div className="absolute end-0 top-full mt-2 w-60 rounded-2xl border border-gray-100 bg-white shadow-xl z-50 overflow-hidden animate-scale-in origin-top-left">
                 {/* User card */}
                 <div className="border-b border-gray-50 px-4 py-3.5">
                   <div className="flex items-center gap-3">

@@ -15,11 +15,11 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden">
       {/* Overlay — all screen sizes */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50"
+          className="fixed inset-0 z-40 bg-brand-900/40 backdrop-blur-[3px] animate-fade-in"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -27,9 +27,10 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
       {/* Sidebar — always overlay, never pushes content */}
       <aside
         className={cn(
-          'fixed inset-y-0 start-0 z-50',
-          sidebarOpen ? 'block' : 'hidden'
+          'fixed inset-y-0 start-0 z-50 transition-transform duration-300 will-change-transform',
+          sidebarOpen ? 'translate-x-0' : 'translate-x-full rtl:translate-x-full ltr:-translate-x-full pointer-events-none'
         )}
+        style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
       >
         <Sidebar profile={profile} onClose={() => setSidebarOpen(false)} />
       </aside>
@@ -38,7 +39,9 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header profile={profile} onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {children}
+          <div className="animate-fade-up mx-auto max-w-[1400px]">
+            {children}
+          </div>
         </main>
       </div>
     </div>
