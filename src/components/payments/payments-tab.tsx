@@ -69,6 +69,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   const [isPending, startTransition] = useTransition()
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [recordAmount, setRecordAmount] = useState('')   // live, to warn on overpayment
   const [primaryFile, setPrimaryFile] = useState<File | null>(null)   // المرفق الأساسي للدفعة
   const [otherFiles, setOtherFiles] = useState<File[]>([])            // مرفقات أخرى
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -161,6 +162,25 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   function handleRecordPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = e.currentTarget
+
+    // Overpayment: accepted, but only knowingly — with a note and a confirm.
+    const p = payments.find((x) => x.id === recordPaymentId)
+    if (p) {
+      const entered = parseFloat((form.elements.namedItem('paid_amount') as HTMLInputElement)?.value || '0')
+      const remaining = p.amount - p.paid_amount
+      if (entered > remaining) {
+        const note = (form.elements.namedItem('overpay_note') as HTMLInputElement)?.value?.trim()
+        if (!note) { toast.error('المبلغ أكبر من المتبقي — اكتب ملاحظة توضّح سبب الزيادة أولاً'); return }
+        const newTotal = p.paid_amount + entered
+        const ok = confirm(
+          `تنبيه: المبلغ المُدخل (${formatCurrency(entered)}) أكبر من المتبقي (${formatCurrency(remaining)}).\n\n` +
+          `بالتأكيد سترتفع قيمة الدفعة المتفق عليها من ${formatCurrency(p.amount)} إلى ${formatCurrency(newTotal)}، ` +
+          `وسيؤثر ذلك على إجمالي قيمة المشروع ونسب التحصيل.\n\nهل تريد المتابعة؟`
+        )
+        if (!ok) return
+      }
+    }
+
     startTransition(async () => {
       try {
         let receiptUrl = (form.elements.namedItem('receipt_url') as HTMLInputElement)?.value || ''
@@ -175,7 +195,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
         formData.set('receipt_url', receiptUrl)
         const result = await recordPayment(formData)
         if (result?.error) toast.error(result.error)
-        else { toast.success('تم تسجيل الدفعة بنجاح'); setRecordPaymentId(null); setReceiptFile(null) }
+        else { toast.success('تم تسجيل الدفعة بنجاح'); setRecordPaymentId(null); setReceiptFile(null); setRecordAmount('') }
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -253,7 +273,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
     })
   }
 
-  function handleRecordClose() { setRecordPaymentId(null); setReceiptFile(null) }
+  function handleRecordClose() { setRecordPaymentId(null); setReceiptFile(null); setRecordAmount('') }
 
   const activePayments = payments.filter((p) => p.status !== 'cancelled')
   const totalAmount = activePayments.reduce((s, p) => s + (p.amount ?? 0), 0)
@@ -787,8 +807,32 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
               </div>
               <div className="space-y-1.5">
                 <Label>المبلغ المحصّل الآن (ريال)</Label>
-                <Input name="paid_amount" type="number" min="0.01" max={selectedPayment.amount - selectedPayment.paid_amount} step="0.01" required placeholder="0.00" />
+                <Input name="paid_amount" type="number" min="0.01" step="0.01" required placeholder="0.00"
+                  value={recordAmount} onChange={(e) => setRecordAmount(e.target.value)} />
               </div>
+
+              {/* Overpayment: allowed, but knowingly — warn + require a note */}
+              {(() => {
+                const entered = parseFloat(recordAmount || '0')
+                const remaining = selectedPayment.amount - selectedPayment.paid_amount
+                if (!(entered > remaining)) return null
+                const newTotal = selectedPayment.paid_amount + entered
+                return (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2.5">
+                    <p className="text-sm font-bold text-amber-800">
+                      ⚠️ المبلغ أكبر من المتبقي ({formatCurrency(remaining)})
+                    </p>
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      عند التأكيد سترتفع قيمة الدفعة المتفق عليها من <strong>{formatCurrency(selectedPayment.amount)}</strong> إلى{' '}
+                      <strong>{formatCurrency(newTotal)}</strong> — وسيؤثر ذلك على إجمالي قيمة المشروع ونسب التحصيل.
+                    </p>
+                    <div className="space-y-1.5">
+                      <Label className="text-amber-800">ملاحظة توضّح سبب الزيادة *</Label>
+                      <Input name="overpay_note" required placeholder="مثال: العميل سدّد بنداً إضافياً متفقاً عليه هاتفياً..." className="bg-white" />
+                    </div>
+                  </div>
+                )
+              })()}
               <div className="space-y-1.5">
                 <Label>إيصال الدفع (صورة أو PDF)</Label>
                 <input type="hidden" name="receipt_url" />

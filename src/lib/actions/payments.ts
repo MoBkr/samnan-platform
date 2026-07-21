@@ -118,6 +118,7 @@ export async function recordPayment(formData: FormData) {
   const paidAmount = parseFloat(formData.get('paid_amount') as string)
   const receiptUrl = formData.get('receipt_url') as string
   const projectId = formData.get('project_id') as string
+  const overpayNote = (formData.get('overpay_note') as string)?.trim() || ''
 
   if (!paymentId || isNaN(paidAmount) || paidAmount <= 0) {
     return { error: 'يرجى إدخال مبلغ صحيح' }
@@ -128,24 +129,33 @@ export async function recordPayment(formData: FormData) {
   // Get current payment
   const { data: payment } = (await service
     .from('payments')
-    .select('amount, paid_amount')
+    .select('amount, paid_amount, notes')
     .eq('id', paymentId)
-    .single()) as unknown as { data: { amount: number; paid_amount: number } | null }
+    .single()) as unknown as { data: { amount: number; paid_amount: number; notes: string | null } | null }
 
   if (!payment) return { error: 'الدفعة غير موجودة' }
 
   const remaining = payment.amount - payment.paid_amount
-  if (paidAmount > remaining) {
-    return { error: `المبلغ المُدخل (${paidAmount}) يتجاوز المتبقي (${remaining})` }
+  const newPaidAmount = payment.paid_amount + paidAmount
+  // Client decision: overpayment is accepted — the payment's agreed amount is
+  // raised to match, but only with an explanatory note from the user.
+  const isOverpay = paidAmount > remaining
+  if (isOverpay && !overpayNote) {
+    return { error: 'المبلغ أكبر من المتبقي — اكتب ملاحظة توضّح سبب الزيادة أولاً' }
   }
 
-  const newPaidAmount = payment.paid_amount + paidAmount
-  const newStatus = newPaidAmount >= payment.amount ? 'paid' : 'partial'
+  const newAmount = isOverpay ? newPaidAmount : payment.amount
+  const newStatus = newPaidAmount >= newAmount ? 'paid' : 'partial'
+  const newNotes = isOverpay
+    ? [payment.notes, `دفعة زائدة (+${formatCurrency(newPaidAmount - payment.amount)}): ${overpayNote}`].filter(Boolean).join(' | ')
+    : payment.notes
 
   const { error } = (await service
     .from('payments')
     .update({
+      amount: newAmount,
       paid_amount: newPaidAmount,
+      notes: newNotes,
       status: newStatus,
       paid_at: newStatus === 'paid' ? new Date().toISOString() : null,
       receipt_url: receiptUrl || null,
@@ -157,8 +167,13 @@ export async function recordPayment(formData: FormData) {
   await service.from('activity_log').insert({
     project_id: projectId,
     user_id: user.id,
-    action: newStatus === 'paid' ? 'تم سداد الدفعة بالكامل' : 'تم سداد جزء من الدفعة',
-    details: { payment_id: paymentId, paid_amount: paidAmount, new_status: newStatus },
+    action: isOverpay
+      ? `سداد بمبلغ زائد — ارتفعت قيمة الدفعة من ${formatCurrency(payment.amount)} إلى ${formatCurrency(newAmount)}`
+      : newStatus === 'paid' ? 'تم سداد الدفعة بالكامل' : 'تم سداد جزء من الدفعة',
+    details: {
+      payment_id: paymentId, paid_amount: paidAmount, new_status: newStatus,
+      ...(isOverpay ? { old_amount: payment.amount, new_amount: newAmount, overpay_note: overpayNote } : {}),
+    },
   } as never)
 
   // Notify the project's coordinator + sales engineer
