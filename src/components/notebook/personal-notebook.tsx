@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   NotebookPen, Plus, Trash2, CheckSquare, Square, Calendar, AlarmClock,
-  ListTodo, MessageSquare, ShieldAlert, Eye,
+  ListTodo, MessageSquare, ShieldAlert, Eye, Pencil,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { addPersonalNote, togglePersonalNoteDone, deletePersonalNote } from '@/lib/actions/notes'
+import { addPersonalNote, togglePersonalNoteDone, deletePersonalNote, updatePersonalNote } from '@/lib/actions/notes'
 import { ROLE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { PersonalNote, NoteKind, Profile } from '@/types/database'
@@ -47,6 +47,7 @@ export function PersonalNotebook({
   const [body, setBody] = useState('')
   const [dueAt, setDueAt] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [editing, setEditing] = useState<{ id: string; body: string; dueAt: string } | null>(null)
 
   const isOwnNotebook = viewingId === currentProfile.id
   const isAdmin = currentProfile.role === 'admin'
@@ -86,6 +87,29 @@ export function PersonalNotebook({
     })
   }
 
+  function startEdit(n: PersonalNote) {
+    const local = n.due_at ? new Date(n.due_at) : null
+    const pad = (x: number) => String(x).padStart(2, '0')
+    const dueLocal = local
+      ? `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
+      : ''
+    setEditing({ id: n.id, body: n.body, dueAt: dueLocal })
+  }
+
+  function saveEdit(n: PersonalNote) {
+    if (!editing) return
+    if (!editing.body.trim()) { toast.error('اكتب النص'); return }
+    if (n.kind !== 'note' && !editing.dueAt) { toast.error('حدد التاريخ والوقت'); return }
+    startTransition(async () => {
+      const r = await updatePersonalNote(n.id, {
+        body: editing.body,
+        dueAt: n.kind === 'note' ? undefined : new Date(editing.dueAt).toISOString(),
+      })
+      if (r?.error) toast.error(r.error)
+      else { toast.success('تم التعديل'); setEditing(null) }
+    })
+  }
+
   function NoteRow({ n }: { n: PersonalNote }) {
     const k = KINDS.find((x) => x.key === n.kind)!
     const overdue = !n.done && n.due_at && n.due_at < new Date().toISOString()
@@ -106,26 +130,55 @@ export function PersonalNotebook({
         )}
 
         <div className="min-w-0 flex-1">
-          <p className={cn('whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed', n.done && 'line-through text-gray-400')}>
-            {n.body}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className={cn('inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-bold', k.color)}>
-              {k.icon} {k.label}
-            </span>
-            {n.due_at && (
-              <span className={cn('text-[11px] font-medium', overdue ? 'text-red-600' : 'text-gray-500')}>
-                {fmtDateTime(n.due_at)}{overdue ? ' — متأخر' : ''}
-              </span>
-            )}
-          </div>
+          {editing?.id === n.id ? (
+            <div className="space-y-2">
+              <textarea
+                value={editing.body}
+                onChange={(e) => setEditing((p) => p ? { ...p, body: e.target.value } : p)}
+                rows={2}
+                autoFocus
+                className="w-full resize-none rounded-lg border border-brand-300 px-2.5 py-1.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-brand-500/15"
+              />
+              {n.kind !== 'note' && (
+                <Input type="datetime-local" dir="ltr" value={editing.dueAt}
+                  onChange={(e) => setEditing((p) => p ? { ...p, dueAt: e.target.value } : p)}
+                  className="h-8 w-auto text-xs" />
+              )}
+              <div className="flex items-center gap-2">
+                <Button size="sm" loading={isPending} onClick={() => saveEdit(n)}>حفظ</Button>
+                <Button size="sm" variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className={cn('whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed', n.done && 'line-through text-gray-400')}>
+                {n.body}
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <span className={cn('inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-bold', k.color)}>
+                  {k.icon} {k.label}
+                </span>
+                {n.due_at && (
+                  <span className={cn('text-[11px] font-medium', overdue ? 'text-red-600' : 'text-gray-500')}>
+                    {fmtDateTime(n.due_at)}{overdue ? ' — متأخر' : ''}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {isOwnNotebook && (
-          <button onClick={() => remove(n.id)} disabled={isPending}
-            className="rounded-lg p-1.5 text-gray-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100">
-            <Trash2 className="h-4 w-4" />
-          </button>
+        {isOwnNotebook && editing?.id !== n.id && (
+          <div className="flex items-center gap-1 opacity-0 transition-all group-hover:opacity-100">
+            <button onClick={() => startEdit(n)} disabled={isPending} title="تعديل"
+              className="rounded-lg p-1.5 text-gray-300 hover:bg-brand-50 hover:text-brand-600">
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button onClick={() => remove(n.id)} disabled={isPending} title="حذف"
+              className="rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
     )

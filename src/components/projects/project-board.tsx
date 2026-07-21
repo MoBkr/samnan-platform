@@ -4,11 +4,11 @@ import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   MessageSquare, Send, Trash2, Calendar, Clock, CheckSquare, Square,
-  AtSign, AlarmClock, ListTodo, Users, Plus, X, Search,
+  AtSign, AlarmClock, ListTodo, Users, Plus, X, Search, Pencil,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { addProjectNote, toggleProjectNoteDone, deleteProjectNote } from '@/lib/actions/notes'
+import { addProjectNote, toggleProjectNoteDone, deleteProjectNote, updateProjectNote } from '@/lib/actions/notes'
 import { ROLE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { ProjectNote, NoteKind, Profile } from '@/types/database'
@@ -100,6 +100,8 @@ export function ProjectBoard({
   // People the author explicitly @-mentioned — tracked by id, not by re-parsing
   // the text, so a mention always notifies even if the name is edited/partial.
   const [picked, setPicked] = useState<Member[]>([])
+  // Inline edit — any entry the user owns (or admin): message, task, schedule…
+  const [editing, setEditing] = useState<{ id: string; body: string; dueAt: string } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const feedRef = useRef<HTMLDivElement>(null)
 
@@ -197,6 +199,30 @@ export function ProjectBoard({
       const r = await deleteProjectNote(id, projectId)
       if (r?.error) toast.error(r.error)
       else toast.success('تم الحذف')
+    })
+  }
+
+  function startEdit(n: ProjectNote) {
+    // datetime-local wants local time without zone
+    const local = n.due_at ? new Date(n.due_at) : null
+    const pad = (x: number) => String(x).padStart(2, '0')
+    const dueLocal = local
+      ? `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
+      : ''
+    setEditing({ id: n.id, body: n.body, dueAt: dueLocal })
+  }
+
+  function saveEdit(n: ProjectNote) {
+    if (!editing) return
+    if (!editing.body.trim()) { toast.error('اكتب النص'); return }
+    if (n.kind !== 'note' && !editing.dueAt) { toast.error('حدد التاريخ والوقت'); return }
+    startTransition(async () => {
+      const r = await updateProjectNote(n.id, projectId, {
+        body: editing.body,
+        dueAt: n.kind === 'note' ? undefined : new Date(editing.dueAt).toISOString(),
+      })
+      if (r?.error) toast.error(r.error)
+      else { toast.success('تم التعديل'); setEditing(null) }
     })
   }
 
@@ -361,26 +387,54 @@ export function ProjectBoard({
                         </div>
                       )}
 
-                      <div className={cn('flex items-start gap-2', n.done && 'opacity-60')}>
-                        {n.kind === 'todo' && (
-                          <button onClick={() => toggleDone(n)} disabled={isPending}
-                            className="mt-0.5 shrink-0 text-gray-400 hover:text-emerald-600 transition-colors">
-                            {n.done ? <CheckSquare className="h-4 w-4 text-emerald-600" /> : <Square className="h-4 w-4" />}
-                          </button>
-                        )}
-                        <p className={cn(
-                          'whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed',
-                          n.done && 'line-through',
-                        )}>
-                          <Body text={n.body} members={members} />
-                        </p>
-                      </div>
+                      {editing?.id === n.id ? (
+                        /* Inline edit — text + (for dated kinds) the due time */
+                        <div className="space-y-2 min-w-[240px]">
+                          <textarea
+                            value={editing.body}
+                            onChange={(e) => setEditing((p) => p ? { ...p, body: e.target.value } : p)}
+                            rows={2}
+                            autoFocus
+                            className="w-full resize-none rounded-lg border border-brand-300 px-2.5 py-1.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-brand-500/15"
+                          />
+                          {n.kind !== 'note' && (
+                            <Input type="datetime-local" dir="ltr" value={editing.dueAt}
+                              onChange={(e) => setEditing((p) => p ? { ...p, dueAt: e.target.value } : p)}
+                              className="h-8 w-auto text-xs" />
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" loading={isPending} onClick={() => saveEdit(n)}>حفظ</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditing(null)}>إلغاء</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={cn('flex items-start gap-2', n.done && 'opacity-60')}>
+                          {n.kind === 'todo' && (
+                            <button onClick={() => toggleDone(n)} disabled={isPending}
+                              className="mt-0.5 shrink-0 text-gray-400 hover:text-emerald-600 transition-colors">
+                              {n.done ? <CheckSquare className="h-4 w-4 text-emerald-600" /> : <Square className="h-4 w-4" />}
+                            </button>
+                          )}
+                          <p className={cn(
+                            'whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed',
+                            n.done && 'line-through',
+                          )}>
+                            <Body text={n.body} members={members} />
+                          </p>
+                        </div>
+                      )}
 
-                      {(mine || currentProfile.role === 'admin') && (
-                        <button onClick={() => remove(n.id)} disabled={isPending}
-                          className="absolute -top-2 -start-2 hidden rounded-full border border-gray-200 bg-white p-1 text-gray-300 shadow-sm hover:text-red-500 group-hover:block">
-                          <Trash2 className="h-3 w-3" />
-                        </button>
+                      {(mine || currentProfile.role === 'admin') && editing?.id !== n.id && (
+                        <div className="absolute -top-2 -start-2 hidden group-hover:flex items-center gap-1">
+                          <button onClick={() => startEdit(n)} disabled={isPending} title="تعديل"
+                            className="rounded-full border border-gray-200 bg-white p-1 text-gray-300 shadow-sm hover:text-brand-600">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button onClick={() => remove(n.id)} disabled={isPending} title="حذف"
+                            className="rounded-full border border-gray-200 bg-white p-1 text-gray-300 shadow-sm hover:text-red-500">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

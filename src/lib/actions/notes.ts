@@ -156,6 +156,55 @@ export async function toggleProjectNoteDone(id: string, projectId: string, done:
   return { success: true }
 }
 
+// Only the author or an admin may edit a post — any kind: message, task,
+// schedule or reminder. If the due time changes, the reminder re-arms.
+export async function updateProjectNote(
+  id: string, projectId: string,
+  data: { body: string; dueAt?: string | null },
+) {
+  const profile = await me()
+  if (!profile) return { error: 'غير مصرح' }
+  if (!data.body?.trim()) return { error: 'اكتب النص' }
+
+  const service = createServiceClient()
+  const cur = (await service
+    .from('project_notes').select('author_id, kind, body, due_at').eq('id', id).single()) as QueryResult<{
+      author_id: string | null; kind: NoteKind; body: string; due_at: string | null
+    }>
+  if (!cur.data) return { error: 'غير موجود' }
+  if (cur.data.author_id !== profile.id && profile.role !== 'admin') {
+    return { error: 'يمكن تعديل رسائلك فقط' }
+  }
+  if (cur.data.kind !== 'note' && data.dueAt === null) return { error: 'حدد التاريخ والوقت' }
+
+  const dueChanged = data.dueAt !== undefined && (data.dueAt ?? null) !== (cur.data.due_at ?? null)
+  const { error } = (await service
+    .from('project_notes')
+    .update({
+      body: data.body.trim(),
+      ...(data.dueAt !== undefined ? { due_at: data.dueAt } : {}),
+      // A moved date should fire its reminder again at the new time
+      ...(dueChanged ? { reminded_at: null } : {}),
+    } as never)
+    .eq('id', id)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل التعديل' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: profile.id,
+    action: `تعديل ${KIND_LABEL[cur.data.kind]} في مدونة المشروع`,
+    details: {
+      note_id: id,
+      changes: {
+        'النص': { from: cur.data.body.slice(0, 80), to: data.body.trim().slice(0, 80) },
+        ...(dueChanged ? { 'الموعد': { from: cur.data.due_at ?? '—', to: data.dueAt ?? '—' } } : {}),
+      },
+    },
+  } as never)
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
 // Only the author or an admin may remove a post.
 export async function deleteProjectNote(id: string, projectId: string) {
   const profile = await me()
@@ -242,6 +291,29 @@ export async function togglePersonalNoteDone(id: string, done: boolean) {
     .from('personal_notes').update({ done } as never)
     .eq('id', id).eq('owner_id', profile.id)) as unknown as { error: Error | null }
   if (error) return { error: 'فشل التحديث' }
+  revalidatePath('/notebook')
+  return { success: true }
+}
+
+export async function updatePersonalNote(id: string, data: { body: string; dueAt?: string | null }) {
+  const profile = await me()
+  if (!profile) return { error: 'غير مصرح' }
+  if (!data.body?.trim()) return { error: 'اكتب النص' }
+  const service = createServiceClient()
+  const cur = (await service
+    .from('personal_notes').select('kind, due_at').eq('id', id).eq('owner_id', profile.id).single()) as QueryResult<{ kind: NoteKind; due_at: string | null }>
+  if (!cur.data) return { error: 'غير موجود' }
+  const dueChanged = data.dueAt !== undefined && (data.dueAt ?? null) !== (cur.data.due_at ?? null)
+  // Owner only — enforced at query level, like delete/toggle.
+  const { error } = (await service
+    .from('personal_notes')
+    .update({
+      body: data.body.trim(),
+      ...(data.dueAt !== undefined ? { due_at: data.dueAt } : {}),
+      ...(dueChanged ? { reminded_at: null } : {}),
+    } as never)
+    .eq('id', id).eq('owner_id', profile.id)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل التعديل' }
   revalidatePath('/notebook')
   return { success: true }
 }
