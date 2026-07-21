@@ -17,7 +17,7 @@ import { uploadFileDirect } from '@/lib/upload-client'
 import { PrintHeader } from '@/components/shared/print-header'
 import { LETTERHEAD_CSS, letterheadOpenHtml, letterheadCloseHtml } from '@/lib/print-letterhead'
 import { MaterialsStatusView } from '@/components/projects/materials-status-view'
-import { parseWorkbook, applyMapping, FIELD_LABELS, type SheetParse, type ColumnField } from '@/lib/excel-materials'
+import { parseWorkbook, combineSheets, applyMapping, FIELD_LABELS, type SheetParse, type ColumnField } from '@/lib/excel-materials'
 import type { Material, Document, MaterialItem, Payment } from '@/types/database'
 
 interface MaterialsTabProps {
@@ -274,6 +274,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   const [rowUploading, setRowUploading] = useState<number | null>(null)
   const [importingExcel, setImportingExcel] = useState(false)
+  const [importStatus, setImportStatus] = useState('')   // OCR/PDF progress line
   // Excel import review — nothing enters the table until the user confirms here
   const [excelPreview, setExcelPreview] = useState<null | {
     fileName: string
@@ -378,6 +379,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     e.target.value = ''
     if (!file) return
     setImportingExcel(true)
+    setImportStatus('')
     try {
       // 1) ALWAYS upload & save the original file first — this is the main goal,
       //    and it never depends on parsing succeeding.
@@ -389,24 +391,43 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         savedFile = !('error' in rec)
       }
 
-      // 2) Parse EVERY sheet (merges filled, nothing silently dropped) and open
-      //    the review dialog — nothing enters the table before the user confirms.
+      // 2) Extract — route by type. Excel reads cells; digital PDFs read the
+      //    embedded text; scanned PDFs/photos go through in-browser OCR.
+      //    Everything ends in the same review dialog; nothing imports silently.
       try {
-        const XLSX = await import('xlsx')
-        const buf = await file.arrayBuffer()
-        const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
+        const name = file.name.toLowerCase()
+        const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf')
+        const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/.test(name)
+
+        let parsed: ReturnType<typeof combineSheets>
+        if (isPdf) {
+          const { extractPdf } = await import('@/lib/table-extract')
+          const sheets = await extractPdf(file, setImportStatus)
+          parsed = combineSheets(sheets, normalizeStatus)
+        } else if (isImage) {
+          const { extractImage } = await import('@/lib/table-extract')
+          const sheets = await extractImage(file, setImportStatus)
+          parsed = combineSheets(sheets, normalizeStatus)
+        } else {
+          const XLSX = await import('xlsx')
+          const buf = await file.arrayBuffer()
+          parsed = parseWorkbook(XLSX, buf, normalizeStatus)
+        }
+
         if (parsed.primary) {
           setExcelPreview({ fileName: file.name, ...parsed, primary: parsed.primary, includeUnparsed: true })
         } else if (savedFile) {
           toast.success('تم رفع الملف وحفظه في «ملفات الطلب» — لم يُعثر على بيانات قابلة للاستخلاص')
         }
-      } catch {
+      } catch (err) {
+        console.error('[materials extract]', err)
         if (savedFile) toast.success('تم رفع الملف وحفظه في «ملفات الطلب» (تعذّر الاستخلاص التلقائي)')
         else toast.error('تعذّر قراءة الملف')
       }
       if (!savedFile) toast.error('تعذّر حفظ الملف — راجع الاتصال وحاول مجدداً')
     } finally {
       setImportingExcel(false)
+      setImportStatus('')
     }
   }
 
@@ -930,9 +951,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   <Button type="button" size="sm" variant="outline" onClick={() => excelInputRef.current?.click()}
                     disabled={importingExcel} className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                     {importingExcel ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                    رفع ملف Excel
+                    رفع ملف (Excel / PDF / صورة)
                   </Button>
-                  <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelFile} />
+                  <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv,.pdf,image/*" className="hidden" onChange={handleExcelFile} />
                   <Button type="button" size="sm" variant="outline" onClick={downloadExcelTemplate}
                     className="gap-1.5 text-gray-500 hover:text-gray-700" title="قالب جاهز بالأعمدة الصحيحة — املأه وارفعه يُقرأ 100%">
                     <FileText className="h-3.5 w-3.5" />
@@ -960,6 +981,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                     </Button>
                   )}
                 </div>
+
+                {/* Live progress while a PDF/image is being read (OCR can take a minute) */}
+                {importStatus && (
+                  <p className="flex items-center gap-2 text-xs font-medium text-brand-600">
+                    <Clock className="h-3.5 w-3.5 animate-spin" />
+                    {importStatus}
+                  </p>
+                )}
 
                 <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
                   <Button size="sm" loading={isPending} onClick={handleSaveItems} className="gap-1.5">

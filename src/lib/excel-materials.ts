@@ -108,6 +108,18 @@ function anchorMapping(grid: string[][], width: number): ColumnField[] {
   return mapping
 }
 
+/** Analyse any text grid (from Excel, PDF text, or OCR) into a SheetParse. */
+export function analyzeGrid(grid: string[][], sheetName: string): SheetParse {
+  const cleaned = grid.map((r) => r.map(cleanCell)).filter((r) => r.some(Boolean))
+  const { headerRow, mapping, width } = detectHeader(cleaned)
+  return {
+    sheet: sheetName,
+    grid: cleaned,
+    headerRow,
+    mapping: headerRow >= 0 ? mapping : anchorMapping(cleaned, width),
+  }
+}
+
 export interface MappedResult {
   items: MaterialItem[]
   unparsed: { row: number; text: string }[]   // non-empty rows that produced nothing
@@ -173,9 +185,14 @@ export function parseWorkbook(XLSX: any, buf: ArrayBuffer, normalizeStatus: (s: 
     })
   }
 
+  return combineSheets(sheets, normalizeStatus)
+}
+
+/** Pick the richest sheet as the editable primary; auto-parse the rest.
+    Shared by Excel, PDF and OCR extraction paths. */
+export function combineSheets(sheets: SheetParse[], normalizeStatus: (s: string) => string): WorkbookParse {
   if (sheets.length === 0) return { primary: null, extraItems: [], extraSummary: [] }
 
-  // Primary = the sheet with the most data rows; others auto-parse into extras
   const primary = sheets.reduce((a, b) => (b.grid.length > a.grid.length ? b : a))
   const extraItems: MaterialItem[] = []
   const extraSummary: string[] = []
@@ -184,7 +201,7 @@ export function parseWorkbook(XLSX: any, buf: ArrayBuffer, normalizeStatus: (s: 
     const { items } = applyMapping(s.grid, s.headerRow, s.mapping, normalizeStatus)
     if (items.length) {
       extraItems.push(...items)
-      extraSummary.push(`ورقة «${s.sheet}»: ${items.length} صنف`)
+      extraSummary.push(`«${s.sheet}»: ${items.length} صنف`)
     }
   }
 
