@@ -836,7 +836,9 @@ export function ProjectDetail({
         {activeTab === 'payments' && (
           <PaymentsTab payments={payments} projectId={project.id} canManage={canManage} projectTotal={project.total_amount} attachments={attachments}
             hasInstallation={project.has_installation}
-            canConfirmSales={currentProfile.role === 'sales_engineer' && project.sales_engineer_id === currentProfile.id} />
+            canConfirmSales={currentProfile.role === 'sales_engineer' && project.sales_engineer_id === currentProfile.id}
+            canPrintInvoice={['admin', 'coordinator', 'sales_engineer'].includes(currentProfile.role)}
+            projectName={project.project_name} clientName={project.client_name} />
         )}
         {activeTab === 'installation' && (
           <InstallationTab installations={installations} projectId={project.id} canManage={canManage} currentProfile={currentProfile} material={material} technicians={technicians} technicianAssignments={technicianAssignments} custody={custody} />

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink, Copy, Check, Send, CircleCheck, Circle } from 'lucide-react'
+import { Plus, CreditCard, Receipt, Upload, X, FileText, ImageIcon, Trash2, Edit2, Paperclip, ExternalLink, Copy, Check, Send, CircleCheck, Circle, Printer, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { createPayment, recordPayment, deletePayment, editPayment, setSalesConfirmation } from '@/lib/actions/payments'
 import { savePaymentAttachment, deleteAttachment, deletePaymentReceipt } from '@/lib/actions/attachments'
 import { uploadFileDirect } from '@/lib/upload-client'
+import { LETTERHEAD_CSS, letterheadOpenHtml, letterheadCloseHtml } from '@/lib/print-letterhead'
 import { formatCurrency, formatDateShort, isOverdue } from '@/lib/utils'
 import { PAYMENT_TYPE_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
 import type { Payment, Profile, Document } from '@/types/database'
@@ -66,9 +67,12 @@ interface PaymentsTabProps {
   attachments?: Document[]
   canConfirmSales?: boolean
   hasInstallation?: boolean
+  canPrintInvoice?: boolean
+  projectName?: string
+  clientName?: string
 }
 
-export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [], canConfirmSales = false, hasInstallation = true }: PaymentsTabProps) {
+export function PaymentsTab({ payments, projectId, canManage, projectTotal, attachments = [], canConfirmSales = false, hasInstallation = true, canPrintInvoice = false, projectName, clientName }: PaymentsTabProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [addType, setAddType] = useState('')
   const [addLc, setAddLc] = useState(false)
@@ -82,6 +86,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [recordAmount, setRecordAmount] = useState('')   // live, to warn on overpayment
+  const [invoicePaymentId, setInvoicePaymentId] = useState<string | null>(null)   // language-choice dialog
   const [primaryFile, setPrimaryFile] = useState<File | null>(null)   // المرفق الأساسي للدفعة
   const [otherFiles, setOtherFiles] = useState<File[]>([])            // مرفقات أخرى
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -287,6 +292,85 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
 
   function handleRecordClose() { setRecordPaymentId(null); setReceiptFile(null); setRecordAmount('') }
 
+  // Bilingual invoice for a fully-paid payment — printed on the official
+  // letterhead. Labels translate; entered data stays as typed.
+  function printInvoice(p: Payment, lang: 'ar' | 'en') {
+    const en = lang === 'en'
+    const TYPE_EN: Record<string, string> = {
+      upfront: 'Upfront Payment', materials: 'Materials Payment', installation: 'Installation Payment', final: 'Final Payment', custom: 'Payment',
+    }
+    const typeLabel = en
+      ? (p.type === 'custom' ? (p.name || 'Payment') : TYPE_EN[p.type])
+      : paymentLabel(p)
+    const sub = p.type !== 'custom' && p.name ? p.name : ''
+    const L = en
+      ? { title: 'INVOICE', paid: 'PAID IN FULL', invNo: 'Invoice No.', invDate: 'Invoice Date', project: 'Project',
+          client: 'Client', seller: 'Seller', account: 'Customer Account No.', payType: 'Payment', amount: 'Amount',
+          paidAmount: 'Amount Paid', paidAt: 'Payment Date', billing: 'Billing Status', notes: 'Notes',
+          issued: 'Issued on', sig1: 'Authorized Signature', sig2: 'Received by',
+          billingMap: { collected: 'Collected', invoiced: 'Invoiced', both: 'Collected & Invoiced' } as Record<string, string> }
+      : { title: 'فاتورة', paid: 'مدفوعة بالكامل', invNo: 'رقم الفاتورة', invDate: 'تاريخ الفاتورة', project: 'المشروع',
+          client: 'العميل', seller: 'البائع', account: 'رقم حساب العميل', payType: 'الدفعة', amount: 'المبلغ',
+          paidAmount: 'المبلغ المسدد', paidAt: 'تاريخ السداد', billing: 'حالة الفوترة', notes: 'ملاحظات',
+          issued: 'تاريخ الإصدار', sig1: 'التوقيع المعتمد', sig2: 'المستلم',
+          billingMap: BILLING_LABELS }
+    const today = new Intl.DateTimeFormat(en ? 'en-GB' : 'ar-SA', {
+      day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn', timeZone: 'Asia/Riyadh',
+    }).format(new Date())
+    const esc = (s: string) => s.replace(/</g, '&lt;')
+    const row = (label: string, value: string | null | undefined) =>
+      value ? `<tr><td class="lbl">${label}</td><td dir="auto">${esc(value)}</td></tr>` : ''
+
+    const html = `<!DOCTYPE html><html dir="${en ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
+      <title>${L.title} — ${projectName ?? ''}</title>
+      <style>
+        ${LETTERHEAD_CSS}
+        body{font-family:${en ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};color:#111}
+        h2{color:#1841A0;margin:0;text-align:center;letter-spacing:${en ? '3px' : '0'};font-size:24px}
+        .paidband{margin:10px auto 18px;width:max-content;background:#d1fae5;color:#047857;border:1px solid #a7f3d0;
+          border-radius:99px;padding:5px 18px;font-weight:800;font-size:13px}
+        table.inv{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+        table.inv td{border:1px solid #e2e8f0;padding:9px 12px}
+        table.inv td.lbl{background:#f1f5f9;font-weight:700;color:#334155;width:34%}
+        .totals{margin-top:16px;display:flex;justify-content:${en ? 'flex-end' : 'flex-start'}}
+        .totalbox{background:#1841A0;color:#fff;border-radius:12px;padding:12px 26px;text-align:center}
+        .totalbox .v{font-size:20px;font-weight:800;direction:ltr}
+        .totalbox .t{font-size:11px;opacity:.85;margin-top:2px}
+        .sign{display:flex;justify-content:space-between;margin-top:56px;gap:40px}
+        .sign div{flex:1;border-top:1px solid #333;padding-top:6px;font-size:12px;color:#333;text-align:center}
+        .meta{color:#64748b;font-size:11px;text-align:center;margin-top:6px}
+      </style></head><body>
+      ${letterheadOpenHtml(window.location.origin)}
+      <h2>${L.title}</h2>
+      <div class="paidband">✓ ${L.paid}</div>
+      <table class="inv">
+        ${row(L.invNo, p.invoice_number)}
+        ${row(L.invDate, toDateInputValue(p.invoice_date) || p.invoice_date)}
+        ${row(L.project, projectName)}
+        ${row(L.client, clientName)}
+        ${row(L.seller, p.seller_name)}
+        ${row(L.account, p.customer_account)}
+        ${row(L.payType, sub ? `${typeLabel} — ${sub}` : typeLabel)}
+        ${row(L.paidAt, p.paid_at ? formatDateShort(p.paid_at) : null)}
+        ${row(L.billing, p.billing_status ? (L.billingMap[p.billing_status] ?? p.billing_status) : null)}
+        ${row(L.notes, p.notes)}
+      </table>
+      <div class="totals">
+        <div class="totalbox"><div class="v">${formatCurrency(p.paid_amount)}</div><div class="t">${L.paidAmount}</div></div>
+      </div>
+      <div class="sign"><div>${L.sig1}</div><div>${L.sig2}</div></div>
+      <p class="meta">${L.issued}: ${today}</p>
+      ${letterheadCloseHtml()}
+      </body></html>`
+
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.write(html)
+    w.document.close()
+    setTimeout(() => w.print(), 300)
+    setInvoicePaymentId(null)
+  }
+
   const activePayments = payments.filter((p) => p.status !== 'cancelled')
   const totalAmount = activePayments.reduce((s, p) => s + (p.amount ?? 0), 0)
   const totalPaid = activePayments.reduce((s, p) => s + (p.paid_amount ?? 0), 0)
@@ -489,6 +573,14 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   </button>
                   {canManage && payment.status !== 'paid' && payment.status !== 'cancelled' && (
                     <Button size="sm" variant="outline" onClick={() => setRecordPaymentId(payment.id)}>تسجيل دفعة</Button>
+                  )}
+                  {/* Fully paid → printable invoice (admin / PM engineer / sales) */}
+                  {canPrintInvoice && payment.status === 'paid' && (
+                    <Button size="sm" variant="outline" onClick={() => setInvoicePaymentId(payment.id)}
+                      className="gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                      <Printer className="h-3.5 w-3.5" />
+                      طباعة الفاتورة
+                    </Button>
                   )}
                 </div>
               </div>
@@ -907,6 +999,33 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
             {isPending ? 'جاري الرفع...' : 'تأكيد الاستلام'}
           </Button>
         </DialogFooter>
+      </Dialog>
+
+      {/* ── Invoice language dialog ── */}
+      <Dialog open={!!invoicePaymentId} onClose={() => setInvoicePaymentId(null)} className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>طباعة الفاتورة</DialogTitle>
+          <DialogClose onClose={() => setInvoicePaymentId(null)} />
+        </DialogHeader>
+        <DialogContent>
+          <p className="mb-4 text-sm text-gray-500">اختر لغة الفاتورة — ستُطبع على الورق الرسمي بشعار سمنان.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => { const p = payments.find((x) => x.id === invoicePaymentId); if (p) printInvoice(p, 'ar') }}
+              className="flex flex-col items-center gap-2 rounded-xl border-2 border-gray-200 bg-white p-5 transition-all duration-200 hover:border-brand-400 hover:bg-brand-50/40 hover:-translate-y-0.5 hover:shadow"
+            >
+              <Globe className="h-6 w-6 text-brand-600" />
+              <span className="text-sm font-bold text-gray-800">عربي</span>
+            </button>
+            <button
+              onClick={() => { const p = payments.find((x) => x.id === invoicePaymentId); if (p) printInvoice(p, 'en') }}
+              className="flex flex-col items-center gap-2 rounded-xl border-2 border-gray-200 bg-white p-5 transition-all duration-200 hover:border-brand-400 hover:bg-brand-50/40 hover:-translate-y-0.5 hover:shadow"
+            >
+              <Globe className="h-6 w-6 text-brand-600" />
+              <span className="text-sm font-bold text-gray-800">English</span>
+            </button>
+          </div>
+        </DialogContent>
       </Dialog>
 
       {/* ── Attachments dialog ── */}
