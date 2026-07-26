@@ -39,7 +39,9 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header profile={profile} onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="animate-fade-up mx-auto max-w-[1400px]">
+          {/* Opacity-only entrance: a transform here would become a containing
+              block and trap every fixed-position Dialog under the header. */}
+          <div className="animate-fade-in mx-auto max-w-[1400px]">
             {children}
           </div>
         </main>

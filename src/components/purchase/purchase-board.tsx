@@ -313,22 +313,15 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
               {lockedProjectName ? (
                 <Input value={form.project_name} readOnly className="bg-gray-50 text-gray-500" />
               ) : (
-                <>
-                  {/* Picked from a list — typing the name by hand caused mismatches
-                      that kept the BR from showing inside its project */}
-                  <Select value={form.project_name}
-                    onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}>
-                    <option value="">— بدون مشروع —</option>
-                    {/* Legacy value not in the list (old typo) stays selectable so editing doesn't silently change it */}
-                    {form.project_name && !projectNames.includes(form.project_name) && (
-                      <option value={form.project_name}>{form.project_name} (اسم غير مطابق)</option>
-                    )}
-                    {projectNames.map((n) => <option key={n} value={n}>{n}</option>)}
-                  </Select>
-                  <p className="text-[11px] text-gray-400">
-                    اختر المشروع من القائمة ليظهر الطلب داخله تلقائياً — أو اتركه «بدون مشروع».
-                  </p>
-                </>
+                /* Picked from a searchable panel — typing the name by hand caused
+                   mismatches that kept the BR from showing inside its project */
+                <ProjectPicker
+                  value={form.project_name}
+                  onChange={(v) => setForm((f) => ({ ...f, project_name: v }))}
+                  mine={myProjectNames}
+                  all={projectNames}
+                  initialScope={scope === 'mine' ? 'mine' : 'all'}
+                />
               )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -677,5 +670,122 @@ function RequestCard({ r, today, engineer, onOpen }: {
         <span className="inline-flex items-center gap-0.5 font-semibold text-brand-600 group-hover:gap-1.5 transition-all">التفاصيل <ChevronLeft className="h-3.5 w-3.5" /></span>
       </div>
     </button>
+  )
+}
+
+/* ── Project picker — a button that opens a searchable, scope-aware panel.
+   Chosen over a long <select>: 30+ projects need search + clear scoping. ── */
+function ProjectPicker({
+  value, onChange, mine, all, initialScope,
+}: {
+  value: string
+  onChange: (v: string) => void
+  mine: string[]
+  all: string[]
+  initialScope: 'mine' | 'all'
+}) {
+  const [open, setOpen] = useState(false)
+  // Default to "my projects" only when the user actually has some
+  const [tab, setTab] = useState<'mine' | 'all'>(initialScope === 'mine' && mine.length > 0 ? 'mine' : 'all')
+  const [q, setQ] = useState('')
+
+  const source = tab === 'mine' ? mine : all
+  const filtered = source.filter((n) => !q.trim() || n.includes(q.trim()))
+  const isLegacy = !!value && !all.includes(value)
+
+  function pick(v: string) {
+    onChange(v)
+    setOpen(false)
+    setQ('')
+  }
+
+  return (
+    <div className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'flex h-10 w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 text-sm shadow-sm transition-all duration-200 ease-out hover:border-brand-300',
+          open ? 'border-brand-400 ring-4 ring-brand-500/10' : 'border-gray-200',
+        )}
+      >
+        <span className={cn('truncate', value ? 'font-semibold text-gray-900' : 'text-gray-400')}>
+          {value || 'بدون مشروع — اضغط للاختيار'}
+          {isLegacy && <span className="ms-1.5 text-[10px] font-normal text-amber-600">(اسم غير مطابق)</span>}
+        </span>
+        <span className="flex items-center gap-1.5 shrink-0">
+          {value && (
+            <span
+              onClick={(e) => { e.stopPropagation(); pick('') }}
+              className="rounded-full p-0.5 text-gray-300 hover:bg-gray-100 hover:text-red-500 transition-colors"
+              title="إزالة المشروع"
+            >
+              <X className="h-3.5 w-3.5" />
+            </span>
+          )}
+          <ChevronLeft className={cn('h-4 w-4 text-gray-400 transition-transform duration-200', open && '-rotate-90')} />
+        </span>
+      </button>
+
+      {/* Panel */}
+      {open && (
+        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg animate-scale-in origin-top">
+          {/* Scope tabs */}
+          <div className="flex items-center gap-1 border-b border-gray-100 bg-gray-50/60 p-1.5">
+            <button type="button" onClick={() => setTab('mine')}
+              className={cn('flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                tab === 'mine' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+              مشاريعي ({mine.length})
+            </button>
+            <button type="button" onClick={() => setTab('all')}
+              className={cn('flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                tab === 'all' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+              كل المشاريع ({all.length})
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="relative border-b border-gray-100 p-2">
+            <Search className="pointer-events-none absolute end-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="ابحث باسم المشروع…"
+              autoFocus
+              className="h-8 w-full rounded-lg border border-gray-200 bg-gray-50 pe-8 ps-3 text-xs outline-none transition-colors focus:border-brand-400 focus:bg-white"
+            />
+          </div>
+
+          {/* Options */}
+          <div className="max-h-52 overflow-y-auto p-1.5">
+            <button type="button" onClick={() => pick('')}
+              className={cn('flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
+                !value ? 'bg-brand-50 font-semibold text-brand-700' : 'text-gray-500 hover:bg-gray-50')}>
+              بدون مشروع
+              {!value && <Check className="h-4 w-4" />}
+            </button>
+            {isLegacy && (
+              <button type="button" onClick={() => pick(value)}
+                className="flex w-full items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                {value} <span className="text-[10px] font-normal">(اسم غير مطابق)</span>
+              </button>
+            )}
+            {filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-gray-400">
+                {tab === 'mine' && mine.length === 0 ? 'لا توجد مشاريع معيّنة لك — جرّب «كل المشاريع»' : 'لا توجد نتائج'}
+              </p>
+            ) : filtered.map((n) => (
+              <button key={n} type="button" onClick={() => pick(n)}
+                className={cn('flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
+                  value === n ? 'bg-brand-50 font-semibold text-brand-700' : 'text-gray-700 hover:bg-gray-50')}>
+                <span className="truncate">{n}</span>
+                {value === n && <Check className="h-4 w-4 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
