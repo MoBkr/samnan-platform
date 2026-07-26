@@ -125,7 +125,7 @@ function ProjectsReport({ projects }: { projects: ProjectReport[] }) {
       </div>
 
       <ReportTable
-        headers={['المشروع', 'العميل', 'الحالة', 'المبلغ', 'الكوردنيتر', 'مهندس المبيعات', 'تاريخ البدء']}
+        headers={['المشروع', 'العميل', 'الحالة', 'المبلغ', 'مهندس إدارة المشاريع', 'مهندس المبيعات', 'تاريخ البدء']}
         rows={projects.map(p => [
           <span key="name" className="font-medium text-gray-900">{p.project_name}</span>,
           p.client_name,

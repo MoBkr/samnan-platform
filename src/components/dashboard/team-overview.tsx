@@ -8,7 +8,7 @@ const ROLE_AVATAR: Record<string, string> = {
 }
 
 const GROUPS: { role: string; label: string; key: keyof Project; accent: string }[] = [
-  { role: 'coordinator', label: 'الكوردنيتر', key: 'coordinator_id', accent: 'text-blue-600' },
+  { role: 'coordinator', label: 'مهندس إدارة المشاريع', key: 'coordinator_id', accent: 'text-blue-600' },
   { role: 'sales_engineer', label: 'مهندسو المبيعات', key: 'sales_engineer_id', accent: 'text-emerald-600' },
   { role: 'installation', label: 'فريق التركيبات', key: 'installation_id', accent: 'text-purple-600' },
 ]

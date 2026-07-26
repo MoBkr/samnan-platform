@@ -105,7 +105,7 @@ export const INSTALL_STAGES: InstallStageConfig[] = [
 ]
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  coordinator: 'الكوردنيتر',
+  coordinator: 'مهندس إدارة المشاريع',
   sales_engineer: 'مهندس المبيعات',
   installation: 'التركيبات',
   admin: 'الإدارة',

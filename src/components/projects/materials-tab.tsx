@@ -773,7 +773,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       {!canManage && (
         <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
           <Package className="h-5 w-5 text-gray-400 shrink-0" />
-          <p className="text-sm text-gray-500">هذا القسم للعرض فقط — إدارة المواد متاحة للكوردنيتر والإدارة</p>
+          <p className="text-sm text-gray-500">هذا القسم للعرض فقط — إدارة المواد متاحة لمهندس إدارة المشاريع والإدارة</p>
         </div>
       )}
 

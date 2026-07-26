@@ -18,7 +18,7 @@ async function requireCustodyEditor() {
     .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
   const role = profileResult.data?.role
   if (role !== 'installation' && role !== 'coordinator' && role !== 'admin') {
-    return { error: 'متاح لمدير التركيبات والكوردنيتر والإدارة فقط' as const }
+    return { error: 'متاح لمدير التركيبات ومهندس إدارة المشاريع والإدارة فقط' as const }
   }
   return { user }
 }

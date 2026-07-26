@@ -15,7 +15,7 @@ async function requireManager() {
   const profileResult = (await supabase
     .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
   const role = profileResult.data?.role
-  if (role !== 'coordinator' && role !== 'admin') return { error: 'متاح للكوردنيتر والإدارة فقط' as const }
+  if (role !== 'coordinator' && role !== 'admin') return { error: 'متاح لمهندس إدارة المشاريع والإدارة فقط' as const }
   return { user }
 }
 

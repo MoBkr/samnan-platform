@@ -60,7 +60,7 @@ const TT = {
     matInstall: 'المواد والتركيب', none: 'لا يوجد', items: 'صنف', completed: 'مكتملة', inProcess: 'قيد المعالجة',
     notScheduled: 'لم يُجدول', startOn: 'موعد البدء', expectedDuration: 'المدة المتوقعة', stagesProgress: 'تقدّم المراحل',
     technicians: 'الفنيون', noInstall: 'المشروع بدون تركيب',
-    teamDocs: 'الفريق والمرفقات', coordinator: 'الكوردنيتر', salesEngineer: 'مهندس المبيعات', installManager: 'مدير التركيب',
+    teamDocs: 'الفريق والمرفقات', coordinator: 'مهندس إدارة المشاريع', salesEngineer: 'مهندس المبيعات', installManager: 'مدير التركيب',
     docsCount: 'عدد المستندات', keyDocs: 'أهم المرفقات', lastActivity: 'آخر نشاط',
     viewDoc: 'عرض المستند', openNewTab: 'فتح في تبويب جديد',
   },

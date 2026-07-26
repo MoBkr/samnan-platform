@@ -522,7 +522,7 @@ function ProjectCard({
         <div className="flex flex-wrap gap-1.5 mb-4 flex-1">
           {project.coordinator && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-100 px-2 py-1 text-xs">
-              <span className="font-bold text-blue-500 text-[10px] shrink-0">كوردنيتر</span>
+              <span className="font-bold text-blue-500 text-[10px] shrink-0">مهندس إدارة مشاريع</span>
               <span className="text-blue-700 font-medium">{project.coordinator.full_name}</span>
             </span>
           )}

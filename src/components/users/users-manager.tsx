@@ -208,7 +208,7 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
                       onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                       disabled={isPending}
                     >
-                      <option value="coordinator">الكوردنيتر</option>
+                      <option value="coordinator">مهندس إدارة المشاريع</option>
                       <option value="sales_engineer">مهندس المبيعات</option>
                       <option value="installation">التركيبات</option>
                       <option value="admin">الإدارة</option>
@@ -354,7 +354,7 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
             <div className="space-y-1.5">
               <Label>الدور</Label>
               <Select name="role" required placeholder="اختر الدور">
-                <option value="coordinator">الكوردنيتر</option>
+                <option value="coordinator">مهندس إدارة المشاريع</option>
                 <option value="sales_engineer">مهندس المبيعات</option>
                 <option value="installation">التركيبات</option>
                 <option value="admin">الإدارة</option>

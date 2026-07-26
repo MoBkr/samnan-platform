@@ -255,16 +255,16 @@ export function NewProjectForm({
           {/* Row 1: Coordinator + Sales Engineer */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="coordinator_id">الكوردنيتر</Label>
+              <Label htmlFor="coordinator_id">مهندس إدارة المشاريع</Label>
               {isSalesEngineer ? (
                 <>
                   <input type="hidden" name="coordinator_id" value="" />
-                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">سيتم التعيين من الكوردنيتر أو الإدارة</div>
+                  <div className="flex h-10 items-center rounded-lg border border-gray-100 bg-gray-50 px-3 text-sm text-gray-400 italic">سيتم التعيين من مهندس إدارة المشاريع أو الإدارة</div>
                 </>
               ) : (
                 <>
                   {/* Admin AND coordinators can assign any coordinator (defaults to self) */}
-                  <Select id="coordinator_id" name="coordinator_id" placeholder="اختر الكوردنيتر" defaultValue={selectedCoordinatorId}
+                  <Select id="coordinator_id" name="coordinator_id" placeholder="اختر مهندس إدارة المشاريع" defaultValue={selectedCoordinatorId}
                     onChange={(e) => setSelectedCoordinatorId(e.target.value)}>
                     {coordinators.map((c) => (
                       <option key={c.id} value={c.id}>{c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}</option>
@@ -315,7 +315,7 @@ export function NewProjectForm({
 
           {isSalesEngineer && (
             <p className="text-xs text-gray-400 border-t border-gray-100 pt-3">
-              سيتم تعيين بقية الفريق من قِبل الكوردنيتر أو الإدارة بعد إنشاء المشروع.
+              سيتم تعيين بقية الفريق من قِبل مهندس إدارة المشاريع أو الإدارة بعد إنشاء المشروع.
             </p>
           )}
         </CardContent>

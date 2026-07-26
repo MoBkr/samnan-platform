@@ -17,7 +17,7 @@ export async function getOrCreateShareToken(projectId: string) {
     .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
   const role = profileResult.data?.role
   if (role !== 'coordinator' && role !== 'admin' && role !== 'sales_engineer') {
-    return { error: 'متاح للكوردنيتر والمبيعات والإدارة فقط' }
+    return { error: 'متاح لمهندس إدارة المشاريع والمبيعات والإدارة فقط' }
   }
 
   const service = createServiceClient()

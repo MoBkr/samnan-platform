@@ -571,7 +571,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                     <Input name="lc_days" type="number" min="0" step="1" dir="ltr" placeholder="مثال: 90" />
                   </div>
                   <p className="sm:col-span-2 text-[11px] text-gray-400">
-                    يصل تنبيه للكوردنيتر عند حلول تاريخ استحقاق الخطاب (تاريخ الدفع + عدد الأيام).
+                    يصل تنبيه لمهندس إدارة المشاريع عند حلول تاريخ استحقاق الخطاب (تاريخ الدفع + عدد الأيام).
                   </p>
                 </div>
               )}
@@ -759,7 +759,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                       <Input name="lc_days" type="number" min="0" step="1" dir="ltr" defaultValue={editingPayment.lc_days ?? ''} placeholder="مثال: 90" />
                     </div>
                     <p className="sm:col-span-2 text-[11px] text-gray-400">
-                      يصل تنبيه للكوردنيتر عند حلول تاريخ استحقاق الخطاب (تاريخ الدفع + عدد الأيام).
+                      يصل تنبيه لمهندس إدارة المشاريع عند حلول تاريخ استحقاق الخطاب (تاريخ الدفع + عدد الأيام).
                     </p>
                   </div>
                 )}

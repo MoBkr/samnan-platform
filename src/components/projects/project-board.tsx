@@ -237,12 +237,12 @@ export function ProjectBoard({
         <MessageSquare className="mx-auto h-8 w-8 text-gray-300 mb-2" />
         <p className="text-sm font-semibold text-gray-600">مدونة المشروع متاحة لفريق المشروع فقط</p>
         <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-          حسابك غير معيّن في فريق هذا المشروع — يكتب هنا الكوردنيتورز والإدارة
+          حسابك غير معيّن في فريق هذا المشروع — يكتب هنا مهندسو إدارة المشاريع والإدارة
           {assignedSales ? `، ومهندس المبيعات المعيّن (${assignedSales.full_name})` : ''}
           {assignedInstall ? `، ومدير التركيبات المعيّن (${assignedInstall.full_name})` : ''}.
         </p>
         <p className="mt-1 text-xs text-brand-600">
-          اطلب من الكوردنيتر تعيينك في فريق المشروع لتتمكن من الكتابة.
+          اطلب من مهندس إدارة المشاريع تعيينك في فريق المشروع لتتمكن من الكتابة.
         </p>
       </div>
     )

@@ -293,7 +293,7 @@ export async function deleteProject(projectId: string) {
     .single()) as QueryResult<{ role: string }>
 
   const role = profileResult.data?.role
-  if (role !== 'admin' && role !== 'coordinator') return { error: 'الحذف متاح للكوردنيتر والإدارة فقط' }
+  if (role !== 'admin' && role !== 'coordinator') return { error: 'الحذف متاح لمهندس إدارة المشاريع والإدارة فقط' }
 
   const service = createServiceClient()
 

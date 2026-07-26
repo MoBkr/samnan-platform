@@ -28,7 +28,7 @@ async function me() {
 /**
  * Who belongs to a project's board: the people responsible for it (sales
  * engineer, installation manager, its coordinator) plus every coordinator and
- * every admin — per the client's rule "المسؤولين عن المشروع، والكوردنيتورز كلهم".
+ * every admin — per the client's rule "المسؤولين عن المشروع، ومهندسو إدارة المشاريع كلهم".
  */
 export async function getBoardMembers(projectId: string): Promise<Pick<Profile, 'id' | 'full_name' | 'role'>[]> {
   const service = createServiceClient()

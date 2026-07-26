@@ -419,7 +419,7 @@ export function ProjectDetail({
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {project.coordinator?.full_name && (
               <span className="rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-blue-700 font-medium">
-                الكوردنيتر: {project.coordinator.full_name}
+                مهندس إدارة المشاريع: {project.coordinator.full_name}
               </span>
             )}
             {project.sales_engineer?.full_name && (
@@ -599,7 +599,7 @@ export function ProjectDetail({
               <div className="flex flex-wrap gap-2 mt-3">
                 {project.coordinator && (
                   <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-100 px-2.5 py-1 text-xs">
-                    <span className="font-bold text-blue-500 shrink-0">الكوردنيتر</span>
+                    <span className="font-bold text-blue-500 shrink-0">مهندس إدارة المشاريع</span>
                     <span className="h-1 w-1 rounded-full bg-blue-300 shrink-0" />
                     <span className="text-blue-800 font-medium">{project.coordinator.full_name}</span>
                   </span>
@@ -1063,9 +1063,9 @@ export function ProjectDetail({
           <div className="space-y-5">
             {currentProfile.role === 'admin' && (
               <div className="space-y-1.5">
-                <Label>الكوردنيتر</Label>
-                <Select value={teamCoordinatorId} onChange={(e) => setTeamCoordinatorId(e.target.value)} placeholder="اختر الكوردنيتر">
-                  <option value="">— بدون كوردنيتر —</option>
+                <Label>مهندس إدارة المشاريع</Label>
+                <Select value={teamCoordinatorId} onChange={(e) => setTeamCoordinatorId(e.target.value)} placeholder="اختر مهندس إدارة المشاريع">
+                  <option value="">— بدون مهندس إدارة مشاريع —</option>
                   {coordinators.map((c) => (
                     <option key={c.id} value={c.id}>{c.full_name} — {workloadLabel(coordinatorWorkload[c.id] ?? 0)}</option>
                   ))}
