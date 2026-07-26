@@ -32,7 +32,7 @@ export async function getPurchaseRequests() {
 interface BrInput {
   br_number?: string | null
   release_number?: string | null
-  project_name: string
+  project_name?: string | null
   supplier_name?: string | null
   engineer_id?: string | null
   location?: string | null
@@ -50,14 +50,13 @@ interface BrInput {
 export async function createPurchaseRequest(data: BrInput) {
   const auth = await requireManager()
   if ('error' in auth) return { error: auth.error }
-  if (!data.project_name?.trim()) return { error: 'يرجى إدخال اسم المشروع' }
 
   const stage = data.stage || 'create'
   const service = createServiceClient()
   const { error } = (await service.from('purchase_requests').insert({
     br_number: data.br_number || null,
     release_number: data.release_number || null,
-    project_name: data.project_name.trim(),
+    project_name: data.project_name?.trim() || null,
     supplier_name: data.supplier_name || null,
     engineer_id: data.engineer_id || null,
     location: data.location || null,
@@ -75,10 +74,11 @@ export async function createPurchaseRequest(data: BrInput) {
   } as never)) as unknown as { error: Error | null }
 
   if (error) return { error: 'فشل إنشاء الطلب' }
-  const newProjectId = await resolveProjectId(service, data.project_name)
+  const newProjectId = await resolveProjectId(service, data.project_name ?? null)
   await service.from('activity_log').insert({
     project_id: newProjectId, user_id: auth.user.id,
-    action: `إنشاء طلب شراء: ${data.project_name.trim()}`, details: { project_name: data.project_name.trim() },
+    action: `إنشاء طلب شراء: ${data.project_name?.trim() || 'بدون مشروع'}`,
+    details: { project_name: data.project_name?.trim() || null },
   } as never)
   revalidatePath('/purchase-requests')
   if (newProjectId) revalidatePath(`/projects/${newProjectId}`)

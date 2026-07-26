@@ -99,7 +99,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!form.project_name.trim()) { toast.error('يرجى إدخال اسم المشروع'); return }
+    // Project is optional now — a BR can exist without one ("بدون مشروع")
     const payload = {
       br_number: form.br_number, release_number: form.release_number, project_name: form.project_name,
       supplier_name: form.supplier_name, engineer_id: form.engineer_id || null, location: form.location,
@@ -236,7 +236,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
           <>
             <DialogHeader>
               <div className="min-w-0">
-                <DialogTitle>{detail.project_name}</DialogTitle>
+                <DialogTitle>{detail.project_name || 'طلب شراء — بدون مشروع'}</DialogTitle>
                 <p className="mt-0.5 text-xs text-gray-500">
                   {detail.br_number ? `BR: ${detail.br_number}` : 'بدون رقم BR'}
                   {detail.release_number ? ` · تعميد: ${detail.release_number}` : ''}
@@ -309,12 +309,27 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
         <DialogContent className="max-h-[64vh] overflow-y-auto">
           <form id="br-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label>اسم المشروع *</Label>
-              <Input list="br-projects" required value={form.project_name} readOnly={!!lockedProjectName}
-                onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}
-                className={lockedProjectName ? 'bg-gray-50 text-gray-500' : undefined}
-                placeholder="اختر من القائمة أو اكتب يدوياً" />
-              {!lockedProjectName && <datalist id="br-projects">{projectNames.map((n) => <option key={n} value={n} />)}</datalist>}
+              <Label>المشروع</Label>
+              {lockedProjectName ? (
+                <Input value={form.project_name} readOnly className="bg-gray-50 text-gray-500" />
+              ) : (
+                <>
+                  {/* Picked from a list — typing the name by hand caused mismatches
+                      that kept the BR from showing inside its project */}
+                  <Select value={form.project_name}
+                    onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}>
+                    <option value="">— بدون مشروع —</option>
+                    {/* Legacy value not in the list (old typo) stays selectable so editing doesn't silently change it */}
+                    {form.project_name && !projectNames.includes(form.project_name) && (
+                      <option value={form.project_name}>{form.project_name} (اسم غير مطابق)</option>
+                    )}
+                    {projectNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </Select>
+                  <p className="text-[11px] text-gray-400">
+                    اختر المشروع من القائمة ليظهر الطلب داخله تلقائياً — أو اتركه «بدون مشروع».
+                  </p>
+                </>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="رقم BR"><Input dir="ltr" className="text-start" value={form.br_number} onChange={(e) => setForm((f) => ({ ...f, br_number: e.target.value }))} /></Field>
@@ -624,7 +639,7 @@ function RequestCard({ r, today, engineer, onOpen }: {
     <button onClick={onOpen} className={cn('group block w-full text-start rounded-2xl border bg-white p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5',
       overdue ? 'border-red-200' : 'border-gray-100 hover:border-brand-200')}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{r.project_name}</p>
+        <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{r.project_name || <span className="text-gray-400">بدون مشروع</span>}</p>
         <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold', r.priority === 'important' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500')}>
           {BR_PRIORITY_LABELS[r.priority]}
         </span>
