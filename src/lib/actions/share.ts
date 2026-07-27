@@ -53,7 +53,7 @@ export interface PublicProjectView {
   installPct: number | null
   payments: { label: string; label_en: string; status: string }[]
   materials_status: string | null
-  materials: { total: number; done: number; pct: number; allDone: boolean; items: { description: string; status: string }[] } | null
+  materials: { total: number; pct: number; allDone: boolean; items: { description: string; quantity: number | null; unit: string | null }[] } | null
   installation: { scheduled_date: string | null; expected_end_date: string | null; status: string; stages: { label: string; label_en: string; done: boolean }[] } | null
   lifecycle: { label: string; label_en: string; state: 'done' | 'current' | 'todo' }[]
   attachments: { name: string; url: string }[]
@@ -125,25 +125,23 @@ export async function getPublicProject(token: string): Promise<PublicProjectView
     }
   }
 
-  // Materials status detail for the client (item list + completion)
+  // Materials for the client — completion follows the workflow stage
+  // (per-item statuses were removed with the SAP column layout)
   const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
-  let materialsView: PublicProjectView['materials'] = null
   const matItems = material?.items ?? []
-  let materialsPct = material ? (MAT_PCT[material.status] ?? 0) : 0
-  if (matItems.length > 0) {
-    const done = matItems.filter((it) => (it.status || '').trim() === 'مكتمل').length
-    materialsPct = Math.round((done / matItems.length) * 100)
-    materialsView = {
-      total: matItems.length,
-      done,
-      pct: Math.round((done / matItems.length) * 100),
-      allDone: done === matItems.length,
-      items: matItems.map((it) => ({
-        description: it.description || it.name || '—',
-        status: (it.status || '').trim() || 'لم يطلب',
-      })),
-    }
-  }
+  const materialsPct = material ? (MAT_PCT[material.status] ?? 0) : 0
+  const materialsView: PublicProjectView['materials'] = matItems.length > 0
+    ? {
+        total: matItems.length,
+        pct: materialsPct,
+        allDone: material?.status === 'delivered',
+        items: matItems.map((it) => ({
+          description: it.description || it.name || '—',
+          quantity: it.quantity ?? null,
+          unit: it.unit ?? null,
+        })),
+      }
+    : null
 
   // Simple lifecycle for the client
   const hasUpfront = payments.some((p) => p.type === 'upfront' && p.status === 'paid')

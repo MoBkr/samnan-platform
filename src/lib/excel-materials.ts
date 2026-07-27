@@ -5,10 +5,18 @@
 
 import type { MaterialItem } from '@/types/database'
 
-export type ColumnField = 'sap' | 'desc' | 'qty' | 'sto' | 'status' | 'note' | 'skip'
+// Columns mirror the client's SAP export exactly:
+// Purchasing Document (→sto_no) · Material (→sap_no) · Short Text (→description)
+// · Order Quantity (→quantity) · Order Unit (→unit)
+export type ColumnField = 'sto' | 'sap' | 'desc' | 'qty' | 'unit' | 'skip'
 
 export const FIELD_LABELS: Record<ColumnField, string> = {
-  sap: 'رقم SAP', desc: 'الوصف', qty: 'الكمية', sto: 'رقم STO', status: 'الحالة', note: 'ملاحظة', skip: 'تجاهل',
+  sto: 'Purchasing Document',
+  sap: 'Material',
+  desc: 'Short Text (الوصف)',
+  qty: 'الكمية',
+  unit: 'الوحدة',
+  skip: 'تجاهل',
 }
 
 export interface SheetParse {
@@ -25,15 +33,14 @@ export interface WorkbookParse {
 }
 
 const HEADER_PATTERNS: { field: Exclude<ColumnField, 'skip'>; re: RegExp }[] = [
-  { field: 'sap', re: /sap|ساب|رقم\s*المادة|material\s*code|item\s*code|كود/i },
-  { field: 'desc', re: /desc|وصف|الصنف|بيان|المادة|البند|item|material(?!\s*code)/i },
+  { field: 'sto', re: /purchas|مستند|أمر\s*شراء|sto/i },
+  { field: 'sap', re: /^\s*material\s*$|sap|ساب|رقم\s*المادة|material\s*(code|no)|item\s*code|كود/i },
+  { field: 'desc', re: /desc|short\s*text|وصف|الصنف|بيان|المادة|البند|text|item(?!\s*code)/i },
   { field: 'qty', re: /q'?ty|quant|كمية|الكمية|العدد|عدد/i },
-  { field: 'sto', re: /sto/i },
-  { field: 'status', re: /status|حالة/i },
-  { field: 'note', re: /note|remark|ملاحظ/i },
+  { field: 'unit', re: /unit|وحدة|الوحدة/i },
 ]
 
-// Excel numeric artifacts: "123456.0" → "123456", "1,234" → "1234" (qty only)
+// Excel numeric artifacts: "123456.0" → "123456"
 function cleanCell(v: unknown): string {
   if (v == null) return ''
   let s = String(v).trim()
@@ -41,7 +48,8 @@ function cleanCell(v: unknown): string {
   return s
 }
 
-const looksLikeSap = (s: string) => /^\d{5,8}$/.test(s.trim())
+const looksLikeMaterial = (s: string) => /^\d{5,8}$/.test(s.trim())
+const looksLikeDoc = (s: string) => /^\d{9,11}$/.test(s.trim())
 
 /** Fill merged ranges with the top-left value so merged rows don't lose data. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,7 +89,7 @@ function detectHeader(grid: string[][]): { headerRow: number; mapping: ColumnFie
         }
       }
     }
-    // A real header names at least a description or SAP column + one more
+    // A real header names at least a description or Material column + one more
     if (score > best.score && (used.has('desc') || used.has('sap')) && score >= 2) {
       best = { row: ri, score, mapping }
     }
@@ -89,26 +97,40 @@ function detectHeader(grid: string[][]): { headerRow: number; mapping: ColumnFie
   return { headerRow: best.row, mapping: best.row >= 0 ? best.mapping : [], width }
 }
 
-/** Positional fallback: anchor on the first SAP-looking column. */
+/** Positional fallback anchored on the Material column (5–8 digit codes).
+    Mirrors the SAP export layout: [Purchasing Doc] Material · Short Text ·
+    Order Qty · Order Unit. */
 function anchorMapping(grid: string[][], width: number): ColumnField[] {
   let base = -1
+  let docBefore = false
   for (const row of grid) {
-    const idx = row.findIndex((c) => looksLikeSap(c))
-    if (idx >= 0) { base = idx; break }
+    const idx = row.findIndex((c) => looksLikeMaterial(c))
+    if (idx >= 0) {
+      base = idx
+      docBefore = idx > 0 && row.slice(0, idx).some((c) => looksLikeDoc(c))
+      break
+    }
   }
   const mapping: ColumnField[] = Array.from({ length: width }, () => 'skip')
   if (base < 0) {
-    // No SAP anywhere — assume first non-empty column is the description
+    // No Material code anywhere — assume first non-empty column is the description
     if (width > 0) mapping[0] = 'desc'
     if (width > 1) mapping[1] = 'qty'
     return mapping
   }
-  const seq: ColumnField[] = ['sap', 'desc', 'qty', 'sto', 'status', 'note']
+  if (docBefore) {
+    // Map the doc column (first 9-11 digit cell before base)
+    for (const row of grid) {
+      const di = row.slice(0, base).findIndex((c) => looksLikeDoc(c))
+      if (di >= 0) { mapping[di] = 'sto'; break }
+    }
+  }
+  const seq: ColumnField[] = ['sap', 'desc', 'qty', 'unit']
   seq.forEach((f, i) => { if (base + i < width) mapping[base + i] = f })
   return mapping
 }
 
-/** Analyse any text grid (from Excel, PDF text, or OCR) into a SheetParse. */
+/** Analyse any text grid into a SheetParse. */
 export function analyzeGrid(grid: string[][], sheetName: string): SheetParse {
   const cleaned = grid.map((r) => r.map(cleanCell)).filter((r) => r.some(Boolean))
   const { headerRow, mapping, width } = detectHeader(cleaned)
@@ -128,12 +150,11 @@ export interface MappedResult {
 /** Apply a mapping to a grid — pure, reused live by the preview dialog. */
 export function applyMapping(
   grid: string[][], headerRow: number, mapping: ColumnField[],
-  normalizeStatus: (s: string) => string,
 ): MappedResult {
   const items: MaterialItem[] = []
   const unparsed: { row: number; text: string }[] = []
   const col = (f: ColumnField) => mapping.indexOf(f)
-  const iSap = col('sap'), iDesc = col('desc'), iQty = col('qty'), iSto = col('sto'), iStatus = col('status'), iNote = col('note')
+  const iSto = col('sto'), iSap = col('sap'), iDesc = col('desc'), iQty = col('qty'), iUnit = col('unit')
 
   for (let ri = headerRow + 1; ri < grid.length; ri++) {
     const row = grid[ri]
@@ -149,12 +170,11 @@ export function applyMapping(
     const qtyRaw = cell(iQty).replace(/,/g, '')
     const qty = parseFloat(qtyRaw.replace(/[^\d.]/g, ''))
     items.push({
+      sto_no: cell(iSto) || undefined,
       sap_no: sap || undefined,
       description: description || sap,
       quantity: isNaN(qty) ? undefined : qty,
-      sto_no: cell(iSto) || undefined,
-      status: normalizeStatus(cell(iStatus)) || 'قيد المعالجة',
-      notes: cell(iNote) || undefined,
+      unit: cell(iUnit) || undefined,
       attachments: [],
     })
   }
@@ -163,7 +183,7 @@ export function applyMapping(
 
 /** Parse the whole workbook: every sheet, merges filled, nothing dropped. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function parseWorkbook(XLSX: any, buf: ArrayBuffer, normalizeStatus: (s: string) => string): WorkbookParse {
+export function parseWorkbook(XLSX: any, buf: ArrayBuffer): WorkbookParse {
   const wb = XLSX.read(buf, { type: 'array' })
 
   const sheets: SheetParse[] = []
@@ -185,12 +205,11 @@ export function parseWorkbook(XLSX: any, buf: ArrayBuffer, normalizeStatus: (s: 
     })
   }
 
-  return combineSheets(sheets, normalizeStatus)
+  return combineSheets(sheets)
 }
 
-/** Pick the richest sheet as the editable primary; auto-parse the rest.
-    Shared by Excel, PDF and OCR extraction paths. */
-export function combineSheets(sheets: SheetParse[], normalizeStatus: (s: string) => string): WorkbookParse {
+/** Pick the richest sheet as the editable primary; auto-parse the rest. */
+export function combineSheets(sheets: SheetParse[]): WorkbookParse {
   if (sheets.length === 0) return { primary: null, extraItems: [], extraSummary: [] }
 
   const primary = sheets.reduce((a, b) => (b.grid.length > a.grid.length ? b : a))
@@ -198,7 +217,7 @@ export function combineSheets(sheets: SheetParse[], normalizeStatus: (s: string)
   const extraSummary: string[] = []
   for (const s of sheets) {
     if (s === primary) continue
-    const { items } = applyMapping(s.grid, s.headerRow, s.mapping, normalizeStatus)
+    const { items } = applyMapping(s.grid, s.headerRow, s.mapping)
     if (items.length) {
       extraItems.push(...items)
       extraSummary.push(`«${s.sheet}»: ${items.length} صنف`)

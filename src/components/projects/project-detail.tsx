@@ -227,12 +227,10 @@ export function ProjectDetail({
 
   const isFullyPaid = project.total_amount != null && project.total_amount > 0 && totalPaid >= project.total_amount
 
-  // Materials completion — % of items marked مكتمل, else derived from the record status
+  // Materials completion — derived from the workflow stage (per-item statuses
+  // were removed with the SAP column layout)
   const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
-  const matItems = material?.items ?? []
-  const materialsPct = matItems.length > 0
-    ? Math.round((matItems.filter((it) => it.status === 'مكتمل').length / matItems.length) * 100)
-    : material ? (MAT_PCT[material.status] ?? 0) : 0
+  const materialsPct = material ? (MAT_PCT[material.status] ?? 0) : 0
 
   // Installation completion — shown next to the financial boxes
   const installStagesData = installations[0]?.stages ?? {}

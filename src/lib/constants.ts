@@ -18,12 +18,6 @@ export const BR_PRIORITY_LABELS: Record<BrPriority, string> = {
 }
 
 // Product status options for the manual materials table
-export const MATERIAL_ITEM_STATUSES = [
-  'لم يطلب',
-  'قيد المعالجة',
-  'مكتمل',
-] as const
-
 // ── العهد المالية (custody categories) ──
 export const CUSTODY_CATEGORIES: { value: string; label: string }[] = [
   { value: 'materials', label: 'مواد خاصة للمشروع' },

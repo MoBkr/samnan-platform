@@ -120,15 +120,10 @@ export function ProjectSummaryView({ project, payments, material, installations,
   const activeTechs = technicianAssignments.filter((a) => a.status === 'active')
   const last = activityLog[0] ?? null
 
-  const matStatusCounts = items.reduce<Record<string, number>>((acc, it) => {
-    const s = (it.status || '—').trim() || '—'; acc[s] = (acc[s] ?? 0) + 1; return acc
-  }, {})
-
+  // Stage-based: per-item statuses were removed with the SAP column layout
   const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
-  const materialsPct = items.length > 0
-    ? Math.round((items.filter((it) => it.status === 'مكتمل').length / items.length) * 100)
-    : material ? (MAT_PCT[material.status] ?? 0) : 0
-  const materialsAllDone = items.length > 0 && items.every((it) => (it.status || '').trim() === 'مكتمل')
+  const materialsPct = material ? (MAT_PCT[material.status] ?? 0) : 0
+  const materialsAllDone = material?.status === 'delivered'
   const installPct = project.has_installation
     ? (reqStages.length > 0 ? Math.round((doneStages / reqStages.length) * 100) : 0)
     : null
@@ -251,21 +246,16 @@ export function ProjectSummaryView({ project, payments, material, installations,
           <div className="rounded-lg border border-gray-100 px-3 py-2.5 mb-2">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-1.5 text-gray-600"><Package className="h-3.5 w-3.5 text-amber-500" /> {t.materials}</span>
-              {items.length > 0 ? (
+              {material ? (
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${materialsAllDone ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {materialsAllDone ? t.completed : t.inProcess} · {materialsPct}%
+                  {matStatusLabel(material.status)} · {materialsPct}%
                 </span>
               ) : (
-                <span className="font-medium text-gray-800">{material ? matStatusLabel(material.status) : t.none}</span>
+                <span className="font-medium text-gray-800">{t.none}</span>
               )}
             </div>
             {items.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-gray-500">{items.length} {t.items}:</span>
-                {Object.entries(matStatusCounts).map(([s, n]) => (
-                  <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{s} {n}</span>
-                ))}
-              </div>
+              <p className="mt-1.5 text-xs text-gray-500">{items.length} {t.items}</p>
             )}
           </div>
           {project.has_installation ? (

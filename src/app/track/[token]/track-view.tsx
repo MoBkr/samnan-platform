@@ -15,7 +15,7 @@ const T = {
     overview: 'ملخص المشروع', projectValue: 'الإجمالي', remaining: 'المتبقي',
     collectionRate: 'نسبة التحصيل', ofValue: 'من قيمة المشروع',
     payments: 'الدفعات', collected: 'المُحصّل', ofTotal: 'مكتمل',
-    materials: 'المواد', completed: 'مكتملة', inProcess: 'قيد المعالجة', itemsDone: 'أصناف مكتملة', of: 'من',
+    materials: 'المواد', completed: 'مكتملة', inProcess: 'قيد المعالجة', items: 'صنف',
     installation: 'التركيب', attachments: 'المرفقات', view: 'عرض',
     footer: 'صفحة متابعة — مجموعة سمنان القابضة · للعرض فقط', switch: 'English',
     projStatus: { active: 'قيد التنفيذ', completed: 'مكتمل', on_hold: 'معلّق', cancelled: 'ملغي' } as Record<string, string>,
@@ -26,7 +26,6 @@ const T = {
       overdue: { label: 'متأخرة', cls: 'bg-red-100 text-red-700' },
       cancelled: { label: 'ملغاة', cls: 'bg-gray-100 text-gray-400' },
     } as Record<string, { label: string; cls: string }>,
-    itemStatus: { 'مكتمل': 'مكتمل', 'قيد المعالجة': 'قيد المعالجة', 'لم يطلب': 'لم يطلب' } as Record<string, string>,
   },
   en: {
     platform: 'Samnan Platform', follow: 'Project Tracking', live: 'Live',
@@ -34,7 +33,7 @@ const T = {
     overview: 'Project Overview', projectValue: 'Total', remaining: 'Remaining',
     collectionRate: 'Collection rate', ofValue: 'of project value',
     payments: 'Payments', collected: 'Collected', ofTotal: 'complete',
-    materials: 'Materials', completed: 'Completed', inProcess: 'In Process', itemsDone: 'items completed', of: 'of',
+    materials: 'Materials', completed: 'Completed', inProcess: 'In Process', items: 'items',
     installation: 'Installation', attachments: 'Attachments', view: 'View',
     footer: 'Tracking page — Samnan Holding Group · View only', switch: 'عربي',
     projStatus: { active: 'In Progress', completed: 'Completed', on_hold: 'On Hold', cancelled: 'Cancelled' } as Record<string, string>,
@@ -45,7 +44,6 @@ const T = {
       overdue: { label: 'Overdue', cls: 'bg-red-100 text-red-700' },
       cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-400' },
     } as Record<string, { label: string; cls: string }>,
-    itemStatus: { 'مكتمل': 'Completed', 'قيد المعالجة': 'In Process', 'لم يطلب': 'Not Requested' } as Record<string, string>,
   },
 }
 
@@ -200,18 +198,16 @@ export function TrackView({ data }: { data: PublicProjectView }) {
             <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden my-3">
               <div className={`h-full rounded-full ${data.materials.allDone ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${data.materials.pct}%` }} />
             </div>
-            <p className="text-xs text-gray-400 mb-3">{data.materials.done} {t.of} {data.materials.total} {t.itemsDone}</p>
+            <p className="text-xs text-gray-400 mb-3">{data.materials.total} {t.items}</p>
             <div className="space-y-1.5">
               {data.materials.items.map((it, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm">
                   <span className="text-gray-700 truncate">{it.description}</span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                    it.status === 'مكتمل' ? 'bg-emerald-100 text-emerald-700'
-                    : it.status === 'قيد المعالجة' ? 'bg-amber-100 text-amber-700'
-                    : it.status === 'لم يطلب' ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-500'}`}>
-                    {t.itemStatus[it.status] ?? it.status}
-                  </span>
+                  {it.quantity != null && (
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600" dir="ltr">
+                      {it.quantity}{it.unit ? ` ${it.unit}` : ''}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

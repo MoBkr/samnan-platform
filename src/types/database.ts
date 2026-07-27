@@ -76,17 +76,18 @@ export interface Payment {
 }
 
 export interface MaterialItem {
-  // Procurement columns — SAP No · Description · Qty · STO No · Item Status · Note · Attachment
+  // SAP export columns — Purchasing Document (sto_no) · Material (sap_no) ·
+  // Short Text (description) · Order Quantity · Order Unit (+ مرفقات)
+  sto_no?: string
   sap_no?: string
   description?: string
   quantity?: number
-  sto_no?: string
-  status?: string                       // حالة الصنف: مكتمل / قيد المعالجة / لم يطلب ...
-  notes?: string
+  unit?: string
   attachments?: { url: string; name: string }[]
   // Legacy fields (older records) — kept optional for backward compatibility
+  status?: string
+  notes?: string
   name?: string
-  unit?: string
   unit_price?: number
 }
 

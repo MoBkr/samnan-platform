@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogHeader, DialogTitle, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
-import { MATERIAL_ITEM_STATUSES } from '@/lib/constants'
 import { saveDocumentRecord, deleteAttachment } from '@/lib/actions/attachments'
 import { updateMaterialsStatus, updateMaterialsItems } from '@/lib/actions/materials'
 import { createPayment } from '@/lib/actions/payments'
@@ -66,16 +65,6 @@ function parseClipboardTable(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ''))
 }
 
-// Map common English Excel statuses to the Arabic options used in the dropdown.
-function normalizeStatus(v: string): string {
-  const s = v.trim().toLowerCase()
-  if (!s) return ''
-  if (s === 'completed' || s === 'complete' || s === 'done') return 'مكتمل'
-  if (s === 'in progress' || s === 'inprogress' || s === 'in-progress' || s === 'processing') return 'قيد المعالجة'
-  if (s === 'not requested' || s === 'pending' || s === 'not ordered') return 'لم يطلب'
-  return v.trim()  // keep as-is (already Arabic or custom)
-}
-
 function DocRow({ doc, onDelete }: { doc: Document; onDelete?: (id: string) => void }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
@@ -100,12 +89,6 @@ function DocRow({ doc, onDelete }: { doc: Document; onDelete?: (id: string) => v
       )}
     </div>
   )
-}
-
-const STATUS_PILL: Record<string, string> = {
-  'مكتمل': 'bg-emerald-100 text-emerald-700',
-  'قيد المعالجة': 'bg-amber-100 text-amber-700',
-  'لم يطلب': 'bg-red-100 text-red-700',
 }
 
 // The materials journey, shown as a horizontal stepper
@@ -152,6 +135,8 @@ const MAT_STATUS_LABEL: Record<string, string> = {
   delivered: 'تم الاستلام', partial: 'استلام جزئي',
 }
 
+// Columns mirror the client's SAP export:
+// Purchasing Document · Material · Short Text · Order Quantity · Order Unit (+ مرفقات)
 function ItemsTable({ items }: { items: MaterialItem[] }) {
   if (items.length === 0) return null
   return (
@@ -160,12 +145,11 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
             <th className="px-3 py-2.5 text-start font-medium">#</th>
-            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">SAP No</th>
-            <th className="px-3 py-2.5 text-start font-medium">الوصف</th>
+            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">Purchasing Document</th>
+            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">Material</th>
+            <th className="px-3 py-2.5 text-start font-medium">Short Text (الوصف)</th>
             <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
-            <th className="px-3 py-2.5 text-start font-medium" dir="ltr">STO No</th>
-            <th className="px-3 py-2.5 text-start font-medium">حالة الصنف</th>
-            <th className="px-3 py-2.5 text-start font-medium">ملاحظات</th>
+            <th className="px-3 py-2.5 text-start font-medium">الوحدة</th>
             <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
           </tr>
         </thead>
@@ -173,16 +157,11 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
           {items.map((item, i) => (
             <tr key={i}>
               <td className="px-3 py-2.5 text-gray-400">{i + 1}</td>
+              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
               <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sap_no || '—'}</td>
               <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-normal">{item.description || item.name || '—'}</td>
               <td className="px-3 py-2.5 text-gray-700">{item.quantity ?? '—'}</td>
-              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
-              <td className="px-3 py-2.5">
-                {item.status
-                  ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_PILL[item.status] ?? 'bg-gray-100 text-gray-600'}`}>{item.status}</span>
-                  : <span className="text-gray-400">—</span>}
-              </td>
-              <td className="px-3 py-2.5 text-gray-400 italic whitespace-normal">{item.notes || '—'}</td>
+              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.unit || '—'}</td>
               <td className="px-3 py-2.5">
                 {item.attachments && item.attachments.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
@@ -242,11 +221,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   // (Legacy price total — only meaningful for old records that carried unit_price.)
   const itemsTotal = draftItems.reduce((sum, item) => sum + ((item.quantity ?? 0) * (item.unit_price ?? 0)), 0)
 
-  // Materials completion — share of items marked مكتمل, else derived from the record status.
-  const completedItemsCount = draftItems.filter((it) => it.status === 'مكتمل').length
-  const materialsPct = draftItems.length > 0
-    ? Math.round((completedItemsCount / draftItems.length) * 100)
-    : material ? (MAT_STATUS_PCT[status] ?? 0) : 0
+  // Materials completion — derived from the workflow stage (per-item statuses
+  // were removed with the SAP column layout, per client decision).
+  const materialsPct = material ? (MAT_STATUS_PCT[status] ?? 0) : 0
 
   // ── Materials journey (horizontal stepper) ──
   const hasAnyContent = draftItems.length > 0 || requestDocs.length > 0
@@ -286,18 +263,18 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const excelInputRef = useRef<HTMLInputElement>(null)
 
   function rowEmpty(it: MaterialItem) {
-    return !(it.description?.trim() || it.name?.trim() || it.sap_no?.trim() || it.sto_no?.trim() || it.notes?.trim() || it.quantity)
+    return !(it.description?.trim() || it.name?.trim() || it.sap_no?.trim() || it.sto_no?.trim() || it.unit?.trim() || it.quantity)
   }
 
   function handleSaveItems() {
-    // Drop fully-empty rows; keep anything with at least a description / SAP / qty.
+    // Drop fully-empty rows; keep anything with at least a description / Material / qty.
     const cleaned = draftItems
       .map((it) => ({
         ...it,
         sap_no: it.sap_no?.trim() || undefined,
         description: (it.description ?? it.name ?? '').trim(),
         sto_no: it.sto_no?.trim() || undefined,
-        notes: it.notes?.trim() || undefined,
+        unit: it.unit?.trim() || undefined,
       }))
       .filter((it) => !rowEmpty(it))
     if (cleaned.length === 0) {
@@ -318,7 +295,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   }
 
   function handleAddItem() {
-    setDraftItems((prev) => [...prev, { sap_no: '', description: '', quantity: undefined, sto_no: '', status: 'قيد المعالجة', notes: '', attachments: [] }])
+    setDraftItems((prev) => [...prev, { sto_no: '', sap_no: '', description: '', quantity: undefined, unit: '', attachments: [] }])
   }
 
   function updateDraftItem(idx: number, patch: Partial<MaterialItem>) {
@@ -394,7 +371,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       try {
         const XLSX = await import('xlsx')
         const buf = await file.arrayBuffer()
-        const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
+        const parsed = parseWorkbook(XLSX, buf)
 
         if (parsed.primary) {
           setExcelPreview({ fileName: file.name, ...parsed, primary: parsed.primary, includeUnparsed: true })
@@ -416,10 +393,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   function confirmExcelImport() {
     if (!excelPreview) return
     const { items, unparsed } = applyMapping(
-      excelPreview.primary.grid, excelPreview.primary.headerRow, excelPreview.primary.mapping, normalizeStatus,
+      excelPreview.primary.grid, excelPreview.primary.headerRow, excelPreview.primary.mapping,
     )
     const extra: MaterialItem[] = excelPreview.includeUnparsed
-      ? unparsed.map((u) => ({ description: u.text, status: 'قيد المعالجة', attachments: [] }))
+      ? unparsed.map((u) => ({ description: u.text, attachments: [] }))
       : []
     const all = [...items, ...extra, ...excelPreview.extraItems]
     if (all.length === 0) { toast.error('لا توجد أصناف للاستيراد بالإعدادات الحالية'); return }
@@ -433,12 +410,12 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   async function downloadExcelTemplate() {
     const XLSX = await import('xlsx')
     const rows = [
-      ['SAP No', 'Description', 'Qty', 'STO No', 'Item Status', 'Note'],
-      ['123456', 'PVC Pipe 4 inch', 20, '', 'قيد المعالجة', ''],
-      ['234567', 'Cable 6mm', 150, '', 'مكتمل', 'مثال — احذف هذا الصف'],
+      ['Purchasing Document', 'Material', 'Short Text', 'Order Quantity', 'Order Unit'],
+      ['9200043607', '7003027', 'EVO with DISPLAY, PRINTER', 2, 'EA'],
+      ['9200043607', '5000674', 'مثال عربي — احذف هذا الصف', 4, 'EA'],
     ]
     const ws = XLSX.utils.aoa_to_sheet(rows)
-    ws['!cols'] = [{ wch: 12 }, { wch: 40 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 24 }]
+    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 44 }, { wch: 14 }, { wch: 10 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Materials')
     XLSX.writeFile(wb, 'قالب-مواد-سمنان.xlsx')
@@ -460,25 +437,18 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     const en = lang === 'en'
     const L = en
       ? { title: 'Materials Delivery Note', project: 'Project', client: 'Client', date: 'Date',
-          no: '#', sap: 'SAP No.', desc: 'Description', qty: 'Qty', status: 'Status',
-          delivered: 'Delivered by', received: 'Received by (Client)', sign: 'Signature', empty: 'No items',
-          brand: 'SAMNAN PETROLEUM SERVICES', sub: 'سمنان للخدمات البترولية' }
+          no: '#', doc: 'Purchasing Document', sap: 'Material', desc: 'Short Text', qty: 'Qty', unit: 'Unit',
+          delivered: 'Delivered by', received: 'Received by (Client)', sign: 'Signature', empty: 'No items' }
       : { title: 'مذكرة تسليم مواد', project: 'المشروع', client: 'العميل', date: 'التاريخ',
-          no: '#', sap: 'رقم SAP', desc: 'الوصف', qty: 'الكمية', status: 'الحالة',
-          delivered: 'المُسلِّم', received: 'المُستلِم (العميل)', sign: 'التوقيع', empty: 'لا توجد أصناف',
-          brand: 'سمنان للخدمات البترولية', sub: 'SAMNAN PETROLEUM SERVICES' }
-    const statusTxt = (s?: string) => {
-      const v = (s || '').trim()
-      if (!en) return v || '—'
-      return ({ 'مكتمل': 'Completed', 'قيد المعالجة': 'In Process', 'لم يطلب': 'Not Requested' } as Record<string, string>)[v] || (v || '—')
-    }
+          no: '#', doc: 'مستند الشراء', sap: 'رقم المادة', desc: 'الوصف', qty: 'الكمية', unit: 'الوحدة',
+          delivered: 'المُسلِّم', received: 'المُستلِم (العميل)', sign: 'التوقيع', empty: 'لا توجد أصناف' }
     const today = new Intl.DateTimeFormat(en ? 'en-GB' : 'ar-SA', {
       day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn', timeZone: 'Asia/Riyadh',
     }).format(new Date())
     const rows = draftItems.map((it, i) => `<tr>
-      <td>${i + 1}</td><td dir="ltr">${it.sap_no || '—'}</td>
+      <td>${i + 1}</td><td dir="ltr">${it.sto_no || '—'}</td><td dir="ltr">${it.sap_no || '—'}</td>
       <td>${(it.description || it.name || '—').replace(/</g, '&lt;')}</td>
-      <td dir="ltr">${it.quantity ?? '—'}</td><td>${statusTxt(it.status)}</td></tr>`).join('')
+      <td dir="ltr">${it.quantity ?? '—'}</td><td dir="ltr">${it.unit || '—'}</td></tr>`).join('')
     const html = `<!DOCTYPE html><html dir="${en ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
       <title>${L.title} — ${projectName ?? ''}</title>
       <style>
@@ -501,8 +471,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         ${clientName ? `<div><b>${L.client}:</b> ${clientName}</div>` : ''}
         <div><b>${L.date}:</b> ${today}</div>
       </div>
-      <table><thead><tr><th>${L.no}</th><th>${L.sap}</th><th>${L.desc}</th><th>${L.qty}</th><th>${L.status}</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#999">${L.empty}</td></tr>`}</tbody></table>
+      <table><thead><tr><th>${L.no}</th><th>${L.doc}</th><th>${L.sap}</th><th>${L.desc}</th><th>${L.qty}</th><th>${L.unit}</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:#999">${L.empty}</td></tr>`}</tbody></table>
       <div class="sign"><div>${L.delivered} — ${L.sign}</div><div>${L.received} — ${L.sign}</div></div>
       ${letterheadCloseHtml()}
       </body></html>`
@@ -513,7 +483,8 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   }
 
   // Paste multiple rows from Excel: TSV (tab between columns, newline between rows).
-  // Column order matches the client's sheet: Legal Study · SAP No · Description · Qty · STO No · Item Status · Note · Attachment
+  // Column order matches the client's SAP export:
+  // Purchasing Document · Material · Short Text · Order Quantity · Order Unit
   function handlePasteRows(e: React.ClipboardEvent, startIdx: number) {
     const text = e.clipboardData.getData('text/plain')
     if (!text || !/[\t\n]/.test(text)) return  // single value → let default paste happen
@@ -521,39 +492,37 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     let rows = parseClipboardTable(text)
     if (rows.length === 0) return
     // Skip an Excel header row if present (works for Arabic or English headers).
-    const HEADER_HINT = /legal|study|sap|sto|qty|quant|desc|status|note|attach|الوصف|كمية|الحالة|ملاحظ|الكمية|قانون|مرفق/i
+    const HEADER_HINT = /purchas|material|short|text|unit|sap|sto|qty|quant|desc|الوصف|كمية|الكمية|الوحدة|مستند|مرفق/i
     if (rows.length > 1) {
       const firstJoined = rows[0].join(' ')
-      const low = firstJoined.toLowerCase()
-      const looksHeader = (low.includes('sap') || low.includes('sto') || HEADER_HINT.test(firstJoined)) && !/\d{3,}/.test(firstJoined)
+      const looksHeader = HEADER_HINT.test(firstJoined) && !/\d{3,}/.test(firstJoined)
       if (looksHeader) rows = rows.slice(1)
     }
-    // Anchor on the SAP column: the first cell that looks like a SAP code
-    // (5–8 digit number; STO codes are ~10 digits and excluded). This makes
-    // paste robust to leading columns like "#" / "No" / "Legal Study" that
-    // would otherwise shift every field by one (the reported "skipped cells").
-    // Then map from that anchor: SAP · Description · Qty · STO · Status · Note.
+    // Anchor on the Material column (5–8 digit code; Purchasing Documents are
+    // ~10 digits and excluded), so leading columns never shift the fields.
+    // Then map: Material · Short Text · Qty · Unit, with the Purchasing
+    // Document picked up from any 9–11 digit cell before the anchor.
     let base = -1
     for (const r of rows) {
       const idx = r.findIndex((c) => /^\d{5,8}$/.test((c ?? '').trim()))
       if (idx >= 0) { base = idx; break }
     }
-    if (base < 0) {
-      const STATUS_WORDS = /^(completed|complete|done|in[\s-]?progress|processing|not[\s-]?requested|pending|مكتمل|قيد|لم\s)/i
-      base = STATUS_WORDS.test((rows[0][0] ?? '').trim()) ? 1 : 0
-    }
-    const parsed: MaterialItem[] = rows.map((c) => {
-      const qty = parseFloat((c[base + 2] ?? '').replace(/[^\d.]/g, ''))
-      return {
-        sap_no: (c[base] ?? '').trim() || undefined,
-        description: (c[base + 1] ?? '').trim(),
-        quantity: isNaN(qty) ? undefined : qty,
-        sto_no: (c[base + 3] ?? '').trim() || undefined,
-        status: normalizeStatus((c[base + 4] ?? '').trim()) || 'قيد المعالجة',
-        notes: (c[base + 5] ?? '').trim() || undefined,
-        attachments: [],
-      }
-    })
+    if (base < 0) base = 1   // assume [doc, material, ...] layout
+    const parsed: MaterialItem[] = rows
+      .map((c) => {
+        const qty = parseFloat((c[base + 2] ?? '').replace(/,/g, '').replace(/[^\d.]/g, ''))
+        const docCell = c.slice(0, base).find((x) => /^\d{9,11}$/.test((x ?? '').trim()))
+        return {
+          sto_no: (docCell ?? '').trim() || undefined,
+          sap_no: (c[base] ?? '').trim() || undefined,
+          description: (c[base + 1] ?? '').trim(),
+          quantity: isNaN(qty) ? undefined : qty,
+          unit: (c[base + 3] ?? '').trim() || undefined,
+          attachments: [],
+        }
+      })
+      .filter((it) => it.sap_no || it.description)
+    if (parsed.length === 0) { toast.error('لم يتم التعرف على أصناف في المحتوى الملصوق'); return }
     setDraftItems((prev) => {
       const next = [...prev]
       // Replace the current (target) row with the first pasted row, then insert the rest after it.
@@ -713,7 +682,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
       </div>
 
       {view === 'status' ? (
-        <MaterialsStatusView items={draftItems} projectName={projectName ?? ''} clientName={clientName} />
+        <MaterialsStatusView items={draftItems} projectName={projectName ?? ''} clientName={clientName} overallStatus={material?.status ?? null} />
       ) : (
       <>
       {/* ── Materials completion — first thing in the section ── */}
@@ -729,9 +698,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           <div className="h-full rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${materialsPct}%` }} />
         </div>
         <p className="text-xs text-gray-500 mt-1.5">
-          {draftItems.length > 0
-            ? `${completedItemsCount} من ${draftItems.length} أصناف مكتملة`
-            : material ? `الحالة: ${MAT_STATUS_LABEL[status] ?? status}` : 'لم تُدخَل مواد بعد'}
+          {material
+            ? `الحالة: ${MAT_STATUS_LABEL[status] ?? status}${draftItems.length ? ` · ${draftItems.length} صنف` : ''}`
+            : 'لم تُدخَل مواد بعد'}
         </p>
       </div>
 
@@ -851,12 +820,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                               checked={draftItems.length > 0 && selectedRows.size === draftItems.length}
                               onChange={toggleAllRows} title="تحديد الكل" />
                           </th>
-                          <th className="px-2 py-2 text-start font-medium" dir="ltr">SAP No</th>
-                          <th className="px-2 py-2 text-start font-medium">الوصف *</th>
+                          <th className="px-2 py-2 text-start font-medium" dir="ltr">Purchasing Document</th>
+                          <th className="px-2 py-2 text-start font-medium" dir="ltr">Material</th>
+                          <th className="px-2 py-2 text-start font-medium">Short Text (الوصف) *</th>
                           <th className="px-2 py-2 text-start font-medium">الكمية</th>
-                          <th className="px-2 py-2 text-start font-medium" dir="ltr">STO No</th>
-                          <th className="px-2 py-2 text-start font-medium">حالة الصنف</th>
-                          <th className="px-2 py-2 text-start font-medium">ملاحظات</th>
+                          <th className="px-2 py-2 text-start font-medium">الوحدة</th>
                           <th className="px-2 py-2 text-start font-medium">مرفقات</th>
                           <th className="px-2 py-2" />
                         </tr>
@@ -868,12 +836,17 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                               <input type="checkbox" className="h-4 w-4 accent-brand-600 align-middle"
                                 checked={selectedRows.has(i)} onChange={() => toggleRow(i)} />
                             </td>
+                            <td className="px-2 py-1.5 w-32">
+                              <Input className="h-9" dir="ltr" placeholder="9200043607" value={item.sto_no ?? ''}
+                                onPaste={(e) => handlePasteRows(e, i)}
+                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
+                            </td>
                             <td className="px-2 py-1.5 w-28">
-                              <Input className="h-9" dir="ltr" placeholder="SAP" value={item.sap_no ?? ''}
+                              <Input className="h-9" dir="ltr" placeholder="7003027" value={item.sap_no ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { sap_no: e.target.value })} />
                             </td>
-                            <td className="px-2 py-1.5 min-w-[180px]">
+                            <td className="px-2 py-1.5 min-w-[200px]">
                               <Input className="h-9" placeholder="الوصف" value={item.description ?? item.name ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { description: e.target.value })} />
@@ -884,26 +857,11 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { quantity: e.target.value === '' ? undefined : parseFloat(e.target.value) })} />
                             </td>
-                            <td className="px-2 py-1.5 w-28">
-                              <Input className="h-9" dir="ltr" placeholder="STO" value={item.sto_no ?? ''}
+                            <td className="px-2 py-1.5 w-24">
+                              {/* Entered manually — e.g. EA / M / SET */}
+                              <Input className="h-9" dir="ltr" placeholder="EA" value={item.unit ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
-                                onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
-                            </td>
-                            <td className="px-2 py-1.5 w-36">
-                              <select
-                                value={item.status ?? 'قيد المعالجة'}
-                                onChange={(e) => updateDraftItem(i, { status: e.target.value })}
-                                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15"
-                              >
-                                {MATERIAL_ITEM_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                                {item.status && !MATERIAL_ITEM_STATUSES.includes(item.status as typeof MATERIAL_ITEM_STATUSES[number]) && (
-                                  <option value={item.status}>{item.status}</option>
-                                )}
-                              </select>
-                            </td>
-                            <td className="px-2 py-1.5 min-w-[140px]">
-                              <Input className="h-9" placeholder="اختياري" value={item.notes ?? ''}
-                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
+                                onChange={(e) => updateDraftItem(i, { unit: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 min-w-[120px]">
                               <div className="flex flex-wrap items-center gap-1">
@@ -1208,7 +1166,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         <DialogContent className="max-h-[65vh] overflow-y-auto">
           {excelPreview && (() => {
             const { grid, headerRow, mapping } = excelPreview.primary
-            const { items, unparsed } = applyMapping(grid, headerRow, mapping, normalizeStatus)
+            const { items, unparsed } = applyMapping(grid, headerRow, mapping)
             const dataRows = grid.slice(headerRow + 1)
             const previewRows = dataRows.slice(0, 8)
             const width = mapping.length

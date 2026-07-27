@@ -2,59 +2,64 @@ import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
 import { parseWorkbook, applyMapping, analyzeGrid, combineSheets } from '@/lib/excel-materials'
 
-const normalizeStatus = (s: string) => {
-  const v = (s || '').trim().toLowerCase()
-  if (/^(completed|complete|done|مكتمل)/.test(v)) return 'مكتمل'
-  if (/^(in[\s-]?progress|processing|قيد)/.test(v)) return 'قيد المعالجة'
-  if (/^(not[\s-]?requested|pending|لم)/.test(v)) return 'لم يطلب'
-  return ''
-}
-
 function wbToBuf(rows: unknown[][], sheetName = 'Sheet1'): ArrayBuffer {
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, sheetName)
-  const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
-  return out
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
 }
 
-describe('parseWorkbook', () => {
-  it('parses a standard sheet with headers', () => {
+describe('parseWorkbook — SAP export columns', () => {
+  it('parses the client layout: Purchasing Document · Material · Short Text · Qty · Unit', () => {
     const buf = wbToBuf([
-      ['SAP No', 'Description', 'Qty', 'STO No', 'Item Status', 'Note'],
-      ['123456', 'PVC Pipe', 20, '', 'مكتمل', ''],
-      ['234567', 'Cable 6mm', 150, '1010284729', 'قيد المعالجة', 'عاجل'],
+      ['Purchasing Document', 'Material', 'Short Text', 'Order Quantity', 'Order Unit'],
+      ['9200043607', '5000674', 'غطاس بنزين ST', 4, 'EA'],
+      ['9200043607', '7003027', 'EVO with DISPLAY, PRINTER', 2, 'EA'],
     ])
-    const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
+    const parsed = parseWorkbook(XLSX, buf)
     expect(parsed.primary).not.toBeNull()
-    const { items, unparsed } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping, normalizeStatus)
+    const { items, unparsed } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping)
     expect(items).toHaveLength(2)
-    expect(items[0].sap_no).toBe('123456')
-    expect(items[0].quantity).toBe(20)
-    expect(items[1].status).toBe('قيد المعالجة')
+    expect(items[0].sto_no).toBe('9200043607')
+    expect(items[0].sap_no).toBe('5000674')
+    expect(items[0].quantity).toBe(4)
+    expect(items[0].unit).toBe('EA')
+    expect(items[1].description).toBe('EVO with DISPLAY, PRINTER')
     expect(unparsed).toHaveLength(0)
+  })
+
+  it('headerless sheet: anchors on Material, doc column before it is detected', () => {
+    const buf = wbToBuf([
+      ['9200043607', '7003344', '2" Float Kit for fuel tank', 2, 'EA'],
+      ['9200043607', '5000686', 'Inventory Probe 2"', 2, 'EA'],
+    ])
+    const parsed = parseWorkbook(XLSX, buf)
+    const { items } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping)
+    expect(items).toHaveLength(2)
+    expect(items[0].sto_no).toBe('9200043607')
+    expect(items[0].sap_no).toBe('7003344')
+    expect(items[0].unit).toBe('EA')
   })
 
   it('never silently drops non-empty rows', () => {
     const buf = wbToBuf([
-      ['SAP No', 'Description', 'Qty'],
+      ['Material', 'Short Text', 'Qty'],
       ['123456', 'Pipe', 5],
-      ['', '', ''],                       // fully empty — ok to skip
-      ['ملاحظة عامة عن الطلب', '', ''],   // header col has text but not sap/desc... actually col0=sap
+      ['', '', ''],                     // fully empty — ok to skip
+      ['ملاحظة عامة عن الطلب', '', ''], // text without material/desc mapping → unparsed or item
     ])
-    const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
-    const { items, unparsed } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping, normalizeStatus)
-    // Every non-empty row is either an item or reported unparsed
+    const parsed = parseWorkbook(XLSX, buf)
+    const { items, unparsed } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping)
     expect(items.length + unparsed.length).toBe(2)
   })
 
   it('handles Arabic headers and multiple sheets', () => {
     const ws1 = XLSX.utils.aoa_to_sheet([
-      ['م', 'رقم المادة', 'الوصف', 'الكمية', 'الحالة'],
-      ['1', '445566', 'مواسير حريق', '30', 'مكتمل'],
+      ['مستند الشراء', 'رقم المادة', 'الوصف', 'الكمية', 'الوحدة'],
+      ['9200043607', '445566', 'مواسير حريق', '30', 'EA'],
     ])
     const ws2 = XLSX.utils.aoa_to_sheet([
-      ['SAP', 'Description', 'Qty'],
+      ['Material', 'Short Text', 'Qty'],
       ['778899', 'Valves', '12'],
     ])
     const wb = XLSX.utils.book_new()
@@ -62,39 +67,27 @@ describe('parseWorkbook', () => {
     XLSX.utils.book_append_sheet(wb, ws2, 'ورقة2')
     const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
 
-    const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
-    expect(parsed.primary).not.toBeNull()
-    const all = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping, normalizeStatus)
+    const parsed = parseWorkbook(XLSX, buf)
+    const all = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping)
     expect(all.items.length + parsed.extraItems.length).toBe(2)
   })
 
-  it('headerless sheet falls back to SAP anchor', () => {
+  it('numeric artifacts are normalised', () => {
     const buf = wbToBuf([
-      ['123456', 'Pipe 4"', 20, '', 'Completed'],
-      ['234567', 'Cable', 30, '', 'In Progress'],
-    ])
-    const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
-    const { items } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping, normalizeStatus)
-    expect(items).toHaveLength(2)
-    expect(items[0].sap_no).toBe('123456')
-  })
-
-  it('merged/numeric artifacts are normalised', () => {
-    const buf = wbToBuf([
-      ['SAP No', 'Description', 'Qty'],
+      ['Material', 'Short Text', 'Order Quantity'],
       [123456, 'Pipe', '1,200'],
     ])
-    const parsed = parseWorkbook(XLSX, buf, normalizeStatus)
-    const { items } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping, normalizeStatus)
+    const parsed = parseWorkbook(XLSX, buf)
+    const { items } = applyMapping(parsed.primary!.grid, parsed.primary!.headerRow, parsed.primary!.mapping)
     expect(items[0].sap_no).toBe('123456')
     expect(items[0].quantity).toBe(1200)
   })
 
   it('combineSheets and analyzeGrid survive odd grids', () => {
-    expect(combineSheets([], normalizeStatus).primary).toBeNull()
+    expect(combineSheets([]).primary).toBeNull()
     const s = analyzeGrid([['فقط نص واحد']], 'x')
     expect(s.grid.length).toBe(1)
-    const r = applyMapping(s.grid, s.headerRow, s.mapping, normalizeStatus)
+    const r = applyMapping(s.grid, s.headerRow, s.mapping)
     expect(r.items.length + r.unparsed.length).toBe(1)
   })
 })
