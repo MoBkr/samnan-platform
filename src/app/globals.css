@@ -273,7 +273,8 @@
     -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
   }
   body.printing-materials #materials-print tr { page-break-inside: avoid !important; }
-  /* Hide the attachments column (last) — not useful on paper */
-  body.printing-materials #materials-print thead th:last-child,
-  body.printing-materials #materials-print tbody td:last-child { display: none !important; }
+  /* Hide the attachments column (2nd from last) — not useful on paper.
+     The last column is the print-only MARK ✓ hand-check box. */
+  body.printing-materials #materials-print thead th:nth-last-child(2),
+  body.printing-materials #materials-print tbody td:nth-last-child(2) { display: none !important; }
 }

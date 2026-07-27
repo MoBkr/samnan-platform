@@ -151,6 +151,8 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
             <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
             <th className="px-3 py-2.5 text-start font-medium">الوحدة</th>
             <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
+            {/* Hand-check column — print only */}
+            <th className="hidden print:table-cell px-3 py-2.5 text-center font-medium" dir="ltr">MARK ✓</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-50">
@@ -174,6 +176,7 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
                   </div>
                 ) : <span className="text-gray-400">—</span>}
               </td>
+              <td className="hidden print:table-cell w-16" />
             </tr>
           ))}
         </tbody>
@@ -431,49 +434,64 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     window.print()
   }
 
-  // Bilingual delivery note — generated in a clean print window (AR or EN).
-  // Item descriptions stay as entered; only labels/statuses are translated.
+  // Bilingual delivery note — matches the company's official format:
+  // No. · SAP · Description · Qty · Unit · MARK (hand-check box), then the
+  // project band and the receiver signature box (DATE/NAME/ID/MOBILE/SIGN.).
   function printDeliveryNote(lang: 'ar' | 'en') {
     const en = lang === 'en'
     const L = en
       ? { title: 'Materials Delivery Note', project: 'Project', client: 'Client', date: 'Date',
-          no: '#', doc: 'Purchasing Document', sap: 'Material', desc: 'Short Text', qty: 'Qty', unit: 'Unit',
-          delivered: 'Delivered by', received: 'Received by (Client)', sign: 'Signature', empty: 'No items' }
+          no: 'No.', sap: 'SAP', desc: 'DESCRIPTION', qty: 'QTY.', unit: 'UNIT', mark: 'MARK',
+          empty: 'No items',
+          boxDate: 'DATE:', boxName: 'NAME:', boxId: 'ID No.:', boxMobile: 'MOBILE:', boxSign: 'SIGN.:' }
       : { title: 'مذكرة تسليم مواد', project: 'المشروع', client: 'العميل', date: 'التاريخ',
-          no: '#', doc: 'مستند الشراء', sap: 'رقم المادة', desc: 'الوصف', qty: 'الكمية', unit: 'الوحدة',
-          delivered: 'المُسلِّم', received: 'المُستلِم (العميل)', sign: 'التوقيع', empty: 'لا توجد أصناف' }
+          no: 'م', sap: 'SAP', desc: 'الوصف', qty: 'الكمية', unit: 'الوحدة', mark: 'MARK ✓',
+          empty: 'لا توجد أصناف',
+          boxDate: 'التاريخ:', boxName: 'الاسم:', boxId: 'رقم الهوية:', boxMobile: 'الجوال:', boxSign: 'التوقيع:' }
     const today = new Intl.DateTimeFormat(en ? 'en-GB' : 'ar-SA', {
       day: 'numeric', month: 'long', year: 'numeric', numberingSystem: 'latn', timeZone: 'Asia/Riyadh',
     }).format(new Date())
     const rows = draftItems.map((it, i) => `<tr>
-      <td>${i + 1}</td><td dir="ltr">${it.sto_no || '—'}</td><td dir="ltr">${it.sap_no || '—'}</td>
+      <td>${i + 1}</td><td dir="ltr">${it.sap_no || '—'}</td>
       <td>${(it.description || it.name || '—').replace(/</g, '&lt;')}</td>
-      <td dir="ltr">${it.quantity ?? '—'}</td><td dir="ltr">${it.unit || '—'}</td></tr>`).join('')
+      <td dir="ltr">${it.quantity ?? '—'}</td><td dir="ltr">${it.unit || '—'}</td>
+      <td class="mark"></td></tr>`).join('')
     const html = `<!DOCTYPE html><html dir="${en ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
       <title>${L.title} — ${projectName ?? ''}</title>
       <style>
         ${LETTERHEAD_CSS}
         body{font-family:${en ? 'Arial,sans-serif' : 'Tahoma,Arial,sans-serif'};color:#111}
-        h2{color:#1841A0;margin:0 0 4px;text-align:center}
+        .doc-title{border:1.5px solid #111;padding:8px 12px;text-align:center;font-weight:800;font-style:italic;
+          font-size:16px;margin-bottom:14px}
         .meta{color:#555;font-size:12px;margin-bottom:12px;text-align:${en ? 'left' : 'right'}}
         .meta b{color:#111}
-        table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-        th,td{border:1px solid #ddd;padding:7px 9px;text-align:${en ? 'left' : 'right'};vertical-align:top}
-        th{background:#1841A0;color:#fff}
-        tr:nth-child(even) td{background:#f7f9fc}
-        .sign{display:flex;justify-content:space-between;margin-top:48px;gap:40px}
-        .sign div{flex:1;border-top:1px solid #333;padding-top:6px;font-size:12px;color:#333}
+        table.items{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+        table.items th,table.items td{border:1px solid #64748b;padding:8px 10px;text-align:${en ? 'left' : 'right'};vertical-align:top}
+        table.items th{background:#c9d6e8;color:#111;font-style:italic;font-weight:800;text-align:center}
+        table.items td.mark{width:70px}
+        /* Project band + receiver signature box — like the official sheet */
+        .band{border:1.5px solid #111;text-align:center;font-weight:700;font-size:13px;padding:6px;margin-top:28px}
+        table.signbox{border-collapse:collapse;font-size:12px;margin-top:10px;width:60%;max-width:340px}
+        table.signbox td{border:1.5px solid #111;padding:8px 10px}
+        table.signbox td.l{font-weight:800;width:90px;background:#fff}
+        table.signbox td.v{border-bottom:1.5px dotted #333;min-width:200px;color:#999}
       </style></head><body>
       ${letterheadOpenHtml(window.location.origin)}
-      <h2>${L.title}</h2>
+      <div class="doc-title">${L.title} — ${(projectName ?? '').replace(/</g, '&lt;')}</div>
       <div class="meta">
-        <div><b>${L.project}:</b> ${projectName ?? ''}</div>
         ${clientName ? `<div><b>${L.client}:</b> ${clientName}</div>` : ''}
         <div><b>${L.date}:</b> ${today}</div>
       </div>
-      <table><thead><tr><th>${L.no}</th><th>${L.doc}</th><th>${L.sap}</th><th>${L.desc}</th><th>${L.qty}</th><th>${L.unit}</th></tr></thead>
+      <table class="items"><thead><tr><th>${L.no}</th><th>${L.sap}</th><th>${L.desc}</th><th>${L.qty}</th><th>${L.unit}</th><th>${L.mark}</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:#999">${L.empty}</td></tr>`}</tbody></table>
-      <div class="sign"><div>${L.delivered} — ${L.sign}</div><div>${L.received} — ${L.sign}</div></div>
+      <div class="band">${(projectName ?? '').replace(/</g, '&lt;')}</div>
+      <table class="signbox">
+        <tr><td class="l">${L.boxDate}</td><td class="v">&nbsp;</td></tr>
+        <tr><td class="l">${L.boxName}</td><td class="v">&nbsp;</td></tr>
+        <tr><td class="l">${L.boxId}</td><td class="v">&nbsp;</td></tr>
+        <tr><td class="l">${L.boxMobile}</td><td class="v">&nbsp;</td></tr>
+        <tr><td class="l">${L.boxSign}</td><td class="v">&nbsp;</td></tr>
+      </table>
       ${letterheadCloseHtml()}
       </body></html>`
     const w = window.open('', '_blank')

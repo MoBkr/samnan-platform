@@ -21,13 +21,13 @@ const T = {
   ar: {
     title: 'حالة المواد', project: 'المشروع', client: 'العميل', date: 'التاريخ',
     overall: 'الحالة العامة', total: 'إجمالي الأصناف',
-    no: '#', doc: 'مستند الشراء', mat: 'رقم المادة', desc: 'الوصف', qty: 'الكمية', unit: 'الوحدة',
+    no: '#', doc: 'مستند الشراء', mat: 'رقم المادة', desc: 'الوصف', qty: 'الكمية', unit: 'الوحدة', mark: 'MARK ✓',
     empty: 'لا توجد أصناف', print: 'طباعة', switch: 'English',
   },
   en: {
     title: 'Materials Status', project: 'Project', client: 'Client', date: 'Date',
     overall: 'Overall Status', total: 'Total Items',
-    no: '#', doc: 'Purchasing Document', mat: 'Material', desc: 'Short Text', qty: 'Qty', unit: 'Unit',
+    no: '#', doc: 'Purchasing Document', mat: 'Material', desc: 'Short Text', qty: 'Qty', unit: 'Unit', mark: 'MARK',
     empty: 'No items', print: 'Print', switch: 'عربي',
   },
 }
@@ -62,6 +62,7 @@ export function MaterialsStatusView({
         <td>${(it.description || it.name || '—').replace(/</g, '&lt;')}</td>
         <td dir="ltr">${it.quantity ?? '—'}</td>
         <td dir="ltr">${it.unit || '—'}</td>
+        <td class="mark"></td>
       </tr>`).join('')
 
     const html = `<!DOCTYPE html><html dir="${isEn ? 'ltr' : 'rtl'}" lang="${lang}"><head><meta charset="utf-8">
@@ -77,6 +78,7 @@ export function MaterialsStatusView({
         th,td{border:1px solid #ddd;padding:7px 9px;text-align:${isEn ? 'left' : 'right'};vertical-align:top}
         th{background:#1841A0;color:#fff}
         tr:nth-child(even) td{background:#f7f9fc}
+        td.mark{width:64px}
       </style></head><body>
       ${letterheadOpenHtml(window.location.origin)}
       <h2>${t.title}</h2>
@@ -86,8 +88,8 @@ export function MaterialsStatusView({
         <div><b>${t.date}:</b> ${today}</div>
         <div style="margin-top:6px"><b>${t.overall}:</b> <span class="pill">${overallLabel}</span> &nbsp; ${t.total}: ${items.length}</div>
       </div>
-      <table><thead><tr><th>${t.no}</th><th>${t.doc}</th><th>${t.mat}</th><th>${t.desc}</th><th>${t.qty}</th><th>${t.unit}</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:#999">${t.empty}</td></tr>`}</tbody></table>
+      <table><thead><tr><th>${t.no}</th><th>${t.doc}</th><th>${t.mat}</th><th>${t.desc}</th><th>${t.qty}</th><th>${t.unit}</th><th>${t.mark}</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:#999">${t.empty}</td></tr>`}</tbody></table>
       ${letterheadCloseHtml()}
       </body></html>`
 
