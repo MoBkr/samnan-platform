@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { LangProvider } from '@/lib/i18n'
 import type { Profile } from '@/types/database'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +16,7 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
+    <LangProvider>
     <div className="flex h-screen overflow-hidden">
       {/* Overlay — all screen sizes */}
       {sidebarOpen && (
@@ -47,5 +49,6 @@ export function DashboardShell({ profile, children }: DashboardShellProps) {
         </main>
       </div>
     </div>
+    </LangProvider>
   )
 }

@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, LogOut, ChevronDown, Home, User, NotebookPen } from 'lucide-react'
-import { ROLE_LABELS } from '@/lib/constants'
+import { Menu, LogOut, ChevronDown, Home, User, NotebookPen, Globe } from 'lucide-react'
 import { signOut } from '@/lib/actions/auth'
+import { useLang } from '@/lib/i18n'
 import { NotificationBell } from '@/components/layout/notification-bell'
 import type { Profile } from '@/types/database'
 
@@ -35,6 +35,8 @@ const DASHBOARD_LINK: Record<string, string> = {
 export function Header({ profile, onMenuClick }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { lang, setLang, t } = useLang()
+  const roleLabel = (r: string) => t(('role.' + r) as never)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -56,7 +58,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
         <button
           onClick={onMenuClick}
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
-          aria-label="القائمة"
+          aria-label={t('nav.menu')}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -74,8 +76,8 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
             />
           </div>
           <div className="leading-tight hidden sm:block">
-            <p className="text-sm font-bold text-brand-800 group-hover:text-brand-600 transition-colors">سمنان</p>
-            <p className="text-[10px] text-gray-400">منصة الإدارة</p>
+            <p className="text-sm font-bold text-brand-800 group-hover:text-brand-600 transition-colors">{t('app.samnan')}</p>
+            <p className="text-[10px] text-gray-400">{t('app.admin_platform')}</p>
           </div>
         </Link>
 
@@ -86,16 +88,26 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
         <Link
           href={dashboardHref}
           className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-gray-500 hover:bg-brand-50 hover:text-brand-700 transition-colors"
-          title="الرئيسية"
+          title={t('nav.home')}
         >
           <Home className="h-4 w-4" />
-          <span className="hidden sm:inline">الرئيسية</span>
+          <span className="hidden sm:inline">{t('nav.home')}</span>
         </Link>
 
       </div>
 
-      {/* Left side — bell + user */}
+      {/* Left side — language + bell + user */}
       <div className="flex items-center gap-3">
+        {/* Language switch — flips the whole platform */}
+        <button
+          onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 transition-all duration-200 hover:border-brand-300 hover:text-brand-700 hover:-translate-y-px hover:shadow-sm"
+          title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+        >
+          <Globe className="h-3.5 w-3.5" />
+          {lang === 'ar' ? 'EN' : 'عربي'}
+        </button>
+
         {/* Notification bell */}
         {profile && <NotificationBell />}
 
@@ -110,7 +122,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
             >
               <div className="hidden sm:block text-end">
                 <p className="text-sm font-semibold text-gray-900 leading-tight">{profile.full_name}</p>
-                <p className="text-xs text-gray-500 leading-tight">{ROLE_LABELS[profile.role]}</p>
+                <p className="text-xs text-gray-500 leading-tight">{roleLabel(profile.role)}</p>
               </div>
               {profile.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -141,7 +153,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{profile.full_name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{ROLE_LABELS[profile.role]}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{roleLabel(profile.role)}</p>
                     </div>
                   </div>
                 </div>
@@ -154,7 +166,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <User className="h-4 w-4 text-gray-400" />
-                    ملفي الشخصي
+                    {t('nav.profile')}
                   </Link>
                   <Link
                     href="/notebook"
@@ -162,7 +174,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <NotebookPen className="h-4 w-4 text-gray-400" />
-                    مدونتي
+                    {t('nav.notebook')}
                   </Link>
                   <Link
                     href={dashboardHref}
@@ -170,7 +182,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <Home className="h-4 w-4 text-gray-400" />
-                    الرئيسية
+                    {t('nav.home')}
                   </Link>
 
                   {/* Sign out — NO onClick that closes dropdown before form submits */}
@@ -180,7 +192,7 @@ export function Header({ profile, onMenuClick }: HeaderProps) {
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut className="h-4 w-4" />
-                      تسجيل الخروج
+                      {t('nav.signout')}
                     </button>
                   </form>
                 </div>

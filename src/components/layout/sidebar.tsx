@@ -19,11 +19,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/actions/auth'
+import { useLang } from '@/lib/i18n'
+import type { DictKey } from '@/lib/i18n-dict'
 import type { Profile } from '@/types/database'
-import { ROLE_LABELS } from '@/lib/constants'
 
 interface NavItem {
-  label: string
+  key: DictKey
   href: string
   icon: React.ReactNode
   roles: string[]
@@ -31,55 +32,55 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    label: 'لوحة التحكم',
+    key: 'nav.dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard className="h-5 w-5" />,
     roles: ['coordinator', 'sales_engineer', 'admin'],
   },
   {
-    label: 'المشاريع',
+    key: 'nav.projects',
     href: '/projects',
     icon: <FolderKanban className="h-5 w-5" />,
     roles: ['coordinator', 'sales_engineer', 'admin'],
   },
   {
-    label: 'المدفوعات',
+    key: 'nav.payments',
     href: '/payments',
     icon: <Wallet className="h-5 w-5" />,
     roles: ['coordinator', 'admin'],
   },
   {
-    label: 'التركيبات',
+    key: 'nav.installation',
     href: '/installation',
     icon: <Hammer className="h-5 w-5" />,
     roles: ['installation', 'coordinator', 'admin'],
   },
   {
-    label: 'الفنيون',
+    key: 'nav.technicians',
     href: '/technicians',
     icon: <HardHat className="h-5 w-5" />,
     roles: ['installation', 'coordinator', 'admin'],
   },
   {
-    label: 'طلبات المشتريات',
+    key: 'nav.purchase',
     href: '/purchase-requests',
     icon: <ShoppingCart className="h-5 w-5" />,
     roles: ['coordinator', 'admin'],
   },
   {
-    label: 'مدونتي',
+    key: 'nav.notebook',
     href: '/notebook',
     icon: <NotebookPen className="h-5 w-5" />,
     roles: ['coordinator', 'sales_engineer', 'installation', 'admin'],
   },
   {
-    label: 'التقارير',
+    key: 'nav.reports',
     href: '/reports',
     icon: <FileBarChart2 className="h-5 w-5" />,
     roles: ['coordinator', 'admin'],
   },
   {
-    label: 'سجل التدقيق',
+    key: 'nav.audit',
     href: '/audit-log',
     icon: <ScrollText className="h-5 w-5" />,
     roles: ['coordinator', 'admin'],
@@ -88,7 +89,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const ADMIN_ITEMS: NavItem[] = [
   {
-    label: 'إدارة المستخدمين',
+    key: 'nav.users',
     href: '/users',
     icon: <Users className="h-5 w-5" />,
     roles: ['admin'],
@@ -113,6 +114,7 @@ interface SidebarProps {
 
 export function Sidebar({ profile, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const { t } = useLang()
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(profile.role))
   const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(profile.role))
 
@@ -132,8 +134,8 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
             />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-tight">منصة سمنان</p>
-            <p className="text-xs text-slate-500 leading-tight">سمنان القابضة</p>
+            <p className="text-sm font-bold text-white leading-tight">{t('app.name')}</p>
+            <p className="text-xs text-slate-500 leading-tight">{t('app.holding')}</p>
           </div>
         </div>
         {onClose && (
@@ -166,7 +168,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white leading-tight">{profile.full_name}</p>
-            <p className="text-xs text-slate-400 leading-tight mt-0.5">{ROLE_LABELS[profile.role]}</p>
+            <p className="text-xs text-slate-400 leading-tight mt-0.5">{t(('role.' + profile.role) as DictKey)}</p>
           </div>
         </Link>
       </div>
@@ -175,7 +177,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
         {/* Main items */}
         <div>
-          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-600">القائمة</p>
+          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-600">{t('nav.menu')}</p>
           <ul className="space-y-0.5">
             {visibleItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
@@ -198,7 +200,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
                     <span className={cn('transition-all duration-200', isActive ? 'text-blue-200 scale-110' : 'text-slate-500 group-hover:text-white group-hover:scale-105')}>
                       {item.icon}
                     </span>
-                    {item.label}
+                    {t(item.key)}
                   </Link>
                 </li>
               )
@@ -211,7 +213,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
           <div>
             <div className="mb-2 px-2 flex items-center gap-2">
               <div className="h-px flex-1 bg-white/10" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">الإدارة</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">{t('nav.admin')}</p>
               <div className="h-px flex-1 bg-white/10" />
             </div>
             <ul className="space-y-0.5">
@@ -240,7 +242,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
                       )}>
                         {item.icon}
                       </span>
-                      {item.label}
+                      {t(item.key)}
                       {isActive && (
                         <span className={cn('ms-auto h-1.5 w-1.5 rounded-full', isReports ? 'bg-teal-300' : 'bg-blue-300')} />
                       )}
@@ -261,7 +263,7 @@ export function Sidebar({ profile, onClose }: SidebarProps) {
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
           >
             <LogOut className="h-4 w-4" />
-            تسجيل الخروج
+            {t('nav.signout')}
           </button>
         </form>
         <a
