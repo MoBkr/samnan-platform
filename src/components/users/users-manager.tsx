@@ -28,9 +28,11 @@ function generatePassword(length = 10) {
 interface UsersManagerProps {
   users: Profile[]
   currentUserId: string
+  /** auth email per user id — admins see who is behind each account */
+  emails?: Record<string, string>
 }
 
-export function UsersManager({ users, currentUserId }: UsersManagerProps) {
+export function UsersManager({ users, currentUserId, emails = {} }: UsersManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
   const [resetTarget, setResetTarget] = useState<Profile | null>(null)
@@ -145,7 +147,10 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
               <div key={u.id} className="flex items-center gap-3 rounded-xl border border-blue-100 bg-white p-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
-                  <p className="text-xs text-gray-500 truncate">{ROLE_LABELS[u.role]} • {formatDateShort(u.created_at)}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {ROLE_LABELS[u.role]} • {formatDateShort(u.created_at)}
+                    {emails[u.id] && <span dir="ltr"> • {emails[u.id]}</span>}
+                  </p>
                 </div>
                 <Button size="sm" loading={isPending && approvingId === u.id}
                   onClick={() => handleApprove(u)} className="shrink-0 gap-1.5 bg-green-600 hover:bg-green-700 text-white">
@@ -177,6 +182,7 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
           <TableHeader>
             <TableRow>
               <TableHead>الاسم</TableHead>
+              <TableHead>البريد الإلكتروني</TableHead>
               <TableHead>الدور</TableHead>
               <TableHead>الحالة</TableHead>
               <TableHead>تاريخ الإنشاء</TableHead>
@@ -191,6 +197,7 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
               users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.full_name}</TableCell>
+                  <TableCell dir="ltr" className="text-start text-xs text-gray-500">{emails[user.id] ?? '—'}</TableCell>
                   <TableCell>
                     <Badge variant={ROLE_BADGE_VARIANTS[user.role]}>
                       {ROLE_LABELS[user.role]}
