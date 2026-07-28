@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Clock3, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { AuthShell } from '@/components/auth/auth-shell'
@@ -89,13 +90,13 @@ export default function SignupPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="password">كلمة المرور</Label>
-                  <Input id="password" name="password" type="password"
-                    placeholder="••••••••" required dir="ltr" className="h-11 text-start" />
+                  <PasswordInput id="password" name="password"
+                    placeholder="••••••••" required className="h-11" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="confirm_password">تأكيد كلمة المرور</Label>
-                  <Input id="confirm_password" name="confirm_password" type="password"
-                    placeholder="••••••••" required dir="ltr" className="h-11 text-start" />
+                  <PasswordInput id="confirm_password" name="confirm_password"
+                    placeholder="••••••••" required className="h-11" />
                 </div>
               </div>
 

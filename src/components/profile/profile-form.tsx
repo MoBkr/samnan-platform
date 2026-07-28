@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Camera, Trash2, Lock, User, ShieldAlert, Check, Mail, Phone, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { updateMyProfile, changeMyPassword } from '@/lib/actions/profile'
 import { uploadFileDirect } from '@/lib/upload-client'
@@ -185,15 +186,15 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>كلمة المرور الحالية</Label>
-              <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} dir="ltr" autoComplete="current-password" />
+              <PasswordInput value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
             </div>
             <div className="space-y-1.5">
               <Label>كلمة المرور الجديدة</Label>
-              <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} dir="ltr" autoComplete="new-password" />
+              <PasswordInput value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
             </div>
             <div className="space-y-1.5">
               <Label>تأكيد كلمة المرور</Label>
-              <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" autoComplete="new-password" />
+              <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
             </div>
           </div>
 

@@ -160,7 +160,7 @@ export default function ResetPasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">
             <Label htmlFor="password">كلمة المرور الجديدة</Label>
-            <div className="relative">
+            <div className="relative" dir="ltr">
               <Input id="password" name="password" type={show ? 'text' : 'password'}
                 placeholder="••••••••" required autoComplete="new-password" dir="ltr"
                 className="h-12 text-start pe-11"

@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { signIn } from '@/lib/actions/auth'
 
@@ -60,8 +61,8 @@ export default function LoginPage() {
                     نسيت كلمة المرور؟
                   </Link>
                 </div>
-                <Input id="password" name="password" type="password" placeholder="••••••••"
-                  required autoComplete="current-password" dir="ltr" className="h-12 text-start" />
+                <PasswordInput id="password" name="password" placeholder="••••••••"
+                  required autoComplete="current-password" className="h-12" />
               </div>
               {error && (
                 <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">

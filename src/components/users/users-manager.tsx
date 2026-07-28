@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { UserPlus, Trash2, KeyRound, Copy, Check, RefreshCw, UserCheck, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -349,7 +350,7 @@ export function UsersManager({ users, currentUserId }: UsersManagerProps) {
             </div>
             <div className="space-y-1.5">
               <Label>كلمة المرور</Label>
-              <Input name="password" type="password" required placeholder="••••••••" dir="ltr" minLength={6} />
+              <PasswordInput name="password" required placeholder="••••••••" minLength={6} />
             </div>
             <div className="space-y-1.5">
               <Label>الدور</Label>
