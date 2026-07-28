@@ -801,7 +801,7 @@ export function ProjectDetail({
         <nav className="flex gap-0 overflow-x-auto">
           {TABS
             .filter((tab) => tab.id !== 'installation' || project.has_installation)
-            .filter((tab) => tab.id !== 'purchase' || canManage)
+            .filter((tab) => tab.id !== 'purchase' || canManage || currentProfile.role === 'sales_engineer')
             .map((tab) => (
             <button
               key={tab.id}
@@ -853,13 +853,14 @@ export function ProjectDetail({
             canManage={canManage}
           />
         )}
-        {activeTab === 'purchase' && canManage && (
+        {activeTab === 'purchase' && (canManage || currentProfile.role === 'sales_engineer') && (
           <PurchaseBoard
             requests={purchaseRequests}
             users={brUsers}
             projectNames={[project.project_name]}
             currentProfile={currentProfile}
             lockedProjectName={project.project_name}
+            readOnly={!canManage}
           />
         )}
         {activeTab === 'board' && (

@@ -33,6 +33,9 @@ interface Props {
   // When embedded inside a project: only that project's requests, and new
   // requests are pinned to it. Same data as the main board — edits sync both.
   lockedProjectName?: string
+  // View-only (e.g. the project's sales engineer): browse cards + details,
+  // no create/edit/delete/stage actions.
+  readOnly?: boolean
 }
 
 type BrForm = {
@@ -48,7 +51,7 @@ const EMPTY: BrForm = {
   extraDocs: [],
 }
 
-export function PurchaseBoard({ requests, users, projectNames, myProjectNames = [], currentProfile, lockedProjectName }: Props) {
+export function PurchaseBoard({ requests, users, projectNames, myProjectNames = [], currentProfile, lockedProjectName, readOnly = false }: Props) {
   const [isPending, startTransition] = useTransition()
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -168,7 +171,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
             </span>
           )}
         </div>
-        <Button size="sm" onClick={openNew}><Plus className="h-4 w-4" /> طلب شراء جديد</Button>
+        {!readOnly && <Button size="sm" onClick={openNew}><Plus className="h-4 w-4" /> طلب شراء جديد</Button>}
       </div>
 
       {/* Search by BR number / release (تعميد) number / project name */}
@@ -220,7 +223,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-16 text-center">
           <Package className="mx-auto mb-3 h-9 w-9 text-gray-300" />
           <p className="text-sm font-medium text-gray-600">لا توجد طلبات شراء</p>
-          <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={openNew}><Plus className="h-3.5 w-3.5" /> أنشئ أول طلب</Button>
+          {!readOnly && <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={openNew}><Plus className="h-3.5 w-3.5" /> أنشئ أول طلب</Button>}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -243,8 +246,12 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => openEdit(detail)} className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50" title="تعديل"><Edit2 className="h-4 w-4" /></button>
-                <button onClick={() => handleDelete(detail.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50" title="حذف"><Trash2 className="h-4 w-4" /></button>
+                {!readOnly && (
+                  <>
+                    <button onClick={() => openEdit(detail)} className="rounded-lg p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50" title="تعديل"><Edit2 className="h-4 w-4" /></button>
+                    <button onClick={() => handleDelete(detail.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50" title="حذف"><Trash2 className="h-4 w-4" /></button>
+                  </>
+                )}
                 <DialogClose onClose={() => setDetailId(null)} />
               </div>
             </DialogHeader>
@@ -294,7 +301,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
 
               {/* Stepper */}
               <h4 className="mb-3 text-sm font-bold text-gray-800">مراحل الطلب</h4>
-              <Stepper r={detail} isPending={isPending} onAdvance={() => advance(detail)} onMoveTo={(s) => moveTo(detail, s)} />
+              <Stepper r={detail} isPending={isPending} onAdvance={() => advance(detail)} onMoveTo={(s) => moveTo(detail, s)} readOnly={readOnly} />
             </DialogContent>
           </>
         )}
@@ -369,11 +376,12 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
 }
 
 /* ── Stepper with per-stage attachments + advance ── */
-function Stepper({ r, isPending, onAdvance }: {
+function Stepper({ r, isPending, onAdvance, readOnly = false }: {
   r: PurchaseRequest
   isPending: boolean
   onAdvance: () => void
   onMoveTo: (s: BrStage) => void
+  readOnly?: boolean
 }) {
   const [isPendingLocal, startLocal] = useTransition()
   const current = stageIdx(r.stage)
@@ -448,18 +456,20 @@ function Stepper({ r, isPending, onAdvance }: {
                       <Paperclip className="h-3 w-3 text-gray-400 shrink-0" />
                       <span className="flex-1 truncate text-gray-700">{a.name}</span>
                       <a href={a.url} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline shrink-0">عرض</a>
-                      <button onClick={() => removeAtt(a.url)} className="text-gray-400 hover:text-red-500 shrink-0"><X className="h-3 w-3" /></button>
+                      {!readOnly && <button onClick={() => removeAtt(a.url)} className="text-gray-400 hover:text-red-500 shrink-0"><X className="h-3 w-3" /></button>}
                     </div>
                   ))}
-                  <button onClick={() => triggerUpload(stage)} disabled={uploading || isPendingLocal}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50">
-                    <Upload className="h-3 w-3" /> إرفاق مستند لهذه المرحلة
-                  </button>
+                  {!readOnly && (
+                    <button onClick={() => triggerUpload(stage)} disabled={uploading || isPendingLocal}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50">
+                      <Upload className="h-3 w-3" /> إرفاق مستند لهذه المرحلة
+                    </button>
+                  )}
                 </div>
               )}
 
               {/* advance button on current stage */}
-              {isCurrent && !isLast && (
+              {isCurrent && !isLast && !readOnly && (
                 <Button size="sm" className="mt-2.5 gap-1.5" loading={isPending} onClick={onAdvance}>
                   <Check className="h-3.5 w-3.5" /> تمت هذه المرحلة — انتقل للتالية
                   <ArrowLeft className="h-3.5 w-3.5" />

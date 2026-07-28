@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { FolderKanban, TrendingUp, CheckCircle2, ArrowLeft } from 'lucide-react'
+import { FolderKanban, CheckCircle2, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProjectStatusBadge } from '@/components/shared/status-badge'
 import { CollapsibleSection } from '@/components/dashboard/collapsible-section'
+import { RevenueBreakdownCard } from '@/components/dashboard/revenue-breakdown-card'
 import { formatCurrency } from '@/lib/utils'
 import type { Profile, Project } from '@/types/database'
 
@@ -14,7 +15,6 @@ interface SalesEngineerDashboardProps {
 export function SalesEngineerDashboard({ profile, projects }: SalesEngineerDashboardProps) {
   const active = projects.filter((p) => p.status === 'active')
   const completed = projects.filter((p) => p.status === 'completed')
-  const totalRevenue = projects.reduce((s, p) => s + (p.total_amount ?? 0), 0)
 
   return (
     <div className="space-y-5">
@@ -41,13 +41,13 @@ export function SalesEngineerDashboard({ profile, projects }: SalesEngineerDashb
           <p className="text-2xl font-bold text-gray-900">{active.length}</p>
           <p className="text-xs text-gray-500 mt-0.5">مشاريع نشطة</p>
         </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-            <TrendingUp className="h-5 w-5 text-green-700" />
-          </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
-          <p className="text-xs text-gray-500 mt-0.5">إجمالي قيمة المشاريع</p>
-        </div>
+        {/* Same card + rule as the coordinator dashboard:
+            headline counts active + on_hold only, breakdown shows the rest as غير محتسبة */}
+        <RevenueBreakdownCard
+          projects={projects}
+          label="إجمالي قيمة المشاريع"
+          iconBg="bg-green-50 text-green-700"
+        />
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
             <CheckCircle2 className="h-5 w-5 text-emerald-700" />
