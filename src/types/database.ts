@@ -215,6 +215,7 @@ export interface CustodyEntry {
   amount: number
   entry_date: string | null
   recipient: string | null         // من استلم العهدة / من صرف
+  invoice_number: string | null    // رقم فاتورة الشراء (للمصروفات)
   attachments: { url: string; name: string }[]
   notes: string | null
   created_by: string | null

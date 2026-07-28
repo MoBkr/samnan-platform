@@ -43,6 +43,7 @@ export function ProjectCustody({
   const [amount, setAmount] = useState('')
   const [entryDate, setEntryDate] = useState(todaySA())
   const [recipient, setRecipient] = useState('')
+  const [invoiceNo, setInvoiceNo] = useState('')
   const [notes, setNotes] = useState('')
   const [files, setFiles] = useState<{ url: string; name: string }[]>([])
   const [uploading, setUploading] = useState(false)
@@ -55,7 +56,7 @@ export function ProjectCustody({
 
   function resetForm() {
     setKind('expense'); setCategory('materials'); setDescription(''); setAmount('')
-    setEntryDate(todaySA()); setRecipient(''); setNotes(''); setFiles([])
+    setEntryDate(todaySA()); setRecipient(''); setInvoiceNo(''); setNotes(''); setFiles([])
   }
 
   async function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -81,7 +82,8 @@ export function ProjectCustody({
       try {
         const r = await addCustodyEntry({
           projectId, kind, category, description, amount: amt,
-          entryDate, recipient, notes, attachments: files,
+          entryDate, recipient, invoiceNumber: kind === 'expense' ? invoiceNo : null,
+          notes, attachments: files,
         })
         if (r?.error) toast.error(r.error)
         else {
@@ -195,6 +197,13 @@ export function ProjectCustody({
                   </div>
                 </div>
 
+                {kind === 'expense' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">رقم فاتورة الشراء</Label>
+                    <Input className="h-9" dir="ltr" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="اختياري — رقم الفاتورة" />
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label className="text-xs">ملاحظات</Label>
                   <Input className="h-9" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" />
@@ -255,6 +264,7 @@ export function ProjectCustody({
                           <p className="text-xs text-gray-500 mt-0.5">
                             {e.entry_date ? formatDateShort(e.entry_date) : ''}
                             {e.recipient ? ` · ${e.recipient}` : ''}
+                            {e.invoice_number ? ` · فاتورة ${e.invoice_number}` : ''}
                             {e.creator?.full_name ? ` · بواسطة ${e.creator.full_name}` : ''}
                           </p>
                           {e.notes && <p className="text-xs text-gray-400 italic mt-0.5">{e.notes}</p>}

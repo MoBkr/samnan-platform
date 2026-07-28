@@ -39,6 +39,13 @@
    alter table public.app_notifications enable row level security;
    ```
 
+🆕 **Supabase — رقم فاتورة الشراء في العهدة (REQUIRED for the custody invoice-number field):** Run in SQL Editor:
+   ```sql
+   alter table public.custody_entries
+     add column if not exists invoice_number text;
+   ```
+   Without this, saving a custody expense fails with a column-not-found error.
+
 🆕 **Supabase — تاريخ انتهاء التركيب المتوقع (REQUIRED for install schedule dates):** Run in SQL Editor:
    ```sql
    alter table public.installations

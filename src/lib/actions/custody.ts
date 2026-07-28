@@ -42,6 +42,7 @@ export async function addCustodyEntry(data: {
   amount: number
   entryDate?: string | null
   recipient?: string | null
+  invoiceNumber?: string | null
   notes?: string | null
   attachments?: { url: string; name: string }[]
 }) {
@@ -61,6 +62,9 @@ export async function addCustodyEntry(data: {
     amount: data.amount,
     entry_date: data.entryDate || null,
     recipient: data.recipient?.trim() || null,
+    // Sent only when filled — entries without an invoice keep saving even
+    // before the invoice_number migration is applied.
+    ...(data.invoiceNumber?.trim() ? { invoice_number: data.invoiceNumber.trim() } : {}),
     notes: data.notes?.trim() || null,
     attachments,
     created_by: auth.user.id,
@@ -82,10 +86,11 @@ export async function addCustodyEntry(data: {
   const kindLabel = data.kind === 'advance' ? 'استلام عهدة' : 'صرف من العهدة'
   await service.from('activity_log').insert({
     project_id: data.projectId, user_id: auth.user.id,
-    action: `${kindLabel}: ${data.description.trim()} — ${formatCurrency(data.amount)}${data.category ? ` (${CUSTODY_CATEGORY_LABELS[data.category] ?? data.category})` : ''}${attachments.length ? ` — ${attachments.length} مرفق` : ''}`,
+    action: `${kindLabel}: ${data.description.trim()} — ${formatCurrency(data.amount)}${data.category ? ` (${CUSTODY_CATEGORY_LABELS[data.category] ?? data.category})` : ''}${data.invoiceNumber?.trim() ? ` — فاتورة ${data.invoiceNumber.trim()}` : ''}${attachments.length ? ` — ${attachments.length} مرفق` : ''}`,
     details: {
       kind: data.kind, amount: data.amount, category: data.category ?? null,
-      recipient: data.recipient ?? null, attachments: attachments.map((f) => f.name),
+      recipient: data.recipient ?? null, invoice_number: data.invoiceNumber ?? null,
+      attachments: attachments.map((f) => f.name),
     },
   } as never)
 
