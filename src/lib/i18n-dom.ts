@@ -32,8 +32,13 @@ function getPhraseRe(): RegExp {
   return phraseRe
 }
 
-/** Translate one string; null = nothing translatable in it. */
-export function translatePhrase(raw: string): string | null {
+/**
+ * Translate one string; null = nothing translatable in it.
+ * `allowPartial` (inside `data-i18n-mixed` containers, e.g. the audit log)
+ * translates known phrases even when Arabic data remains around them —
+ * producing intentionally bilingual rows like "Purchase request created: تجربة".
+ */
+export function translatePhrase(raw: string, allowPartial = false): string | null {
   if (!AR_CHAR.test(raw)) return null
   const m = raw.match(/^(\s*)([\s\S]*?)(\s*)$/)
   if (!m) return null
@@ -58,7 +63,7 @@ export function translatePhrase(raw: string): string | null {
     // survives the replacement, the node contains user data — leave the
     // whole node untouched so names and free text are never half-translated.
     const replaced = core.replace(getPhraseRe(), (hit) => AR_PHRASES[hit] ?? hit)
-    if (replaced !== core && !AR_CHAR.test(replaced)) en = replaced
+    if (replaced !== core && (allowPartial || !AR_CHAR.test(replaced))) en = replaced
   }
   if (en === undefined) return null
   return lead + en + trail
@@ -73,6 +78,13 @@ function isSkipped(start: Element | null): boolean {
   return false
 }
 
+function isMixed(start: Element | null): boolean {
+  for (let el: Element | null = start; el; el = el.parentElement) {
+    if ((el as HTMLElement).dataset?.i18nMixed !== undefined) return true
+  }
+  return false
+}
+
 /**
  * Start translating the live DOM to English. Returns a stop function that
  * disconnects the observer and restores every original Arabic string.
@@ -83,7 +95,7 @@ export function startDomTranslation(): () => void {
   const attrOrig = new Map<Element, Map<string, string>>()
 
   function translateTextNode(node: Text) {
-    const out = translatePhrase(node.data)
+    const out = translatePhrase(node.data, isMixed(node.parentElement))
     if (out !== null && out !== node.data) {
       textOrig.set(node, node.data)
       node.data = out
@@ -91,10 +103,11 @@ export function startDomTranslation(): () => void {
   }
 
   function translateAttrs(el: Element) {
+    const mixed = isMixed(el)
     for (const attr of TRANSLATABLE_ATTRS) {
       const v = el.getAttribute(attr)
       if (!v) continue
-      const out = translatePhrase(v)
+      const out = translatePhrase(v, mixed)
       if (out !== null && out !== v) {
         let m = attrOrig.get(el)
         if (!m) {

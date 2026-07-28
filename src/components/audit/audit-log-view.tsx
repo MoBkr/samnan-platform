@@ -123,7 +123,9 @@ export function AuditLogView({ logs, brs }: Props) {
   ]
 
   return (
-    <div className="space-y-4">
+    // data-i18n-mixed: in English mode, audit rows translate their fixed
+    // action phrases while names/free text stay Arabic — intentionally bilingual.
+    <div className="space-y-4" data-i18n-mixed>
       {/* Controls */}
       <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm space-y-3">
         <div className="flex flex-col gap-2.5 sm:flex-row">
@@ -200,7 +202,8 @@ export function AuditLogView({ logs, brs }: Props) {
                       : ctx.type === 'account' ? 'bg-rose-50 text-rose-700'
                       : 'bg-gray-100 text-gray-500')}>
                     {ctx.type === 'project' ? <FolderKanban className="h-3 w-3 shrink-0" /> : ctx.type === 'br' ? <ShoppingCart className="h-3 w-3 shrink-0" /> : ctx.type === 'account' ? <UserCog className="h-3 w-3 shrink-0" /> : <Shield className="h-3 w-3 shrink-0" />}
-                    <span className="truncate">{ctx.label}</span>
+                    {/* Context is a raw name (project/user) — never translate it */}
+                    <span className="truncate" data-no-i18n>{ctx.label}</span>
                   </span>
                 </li>
               )

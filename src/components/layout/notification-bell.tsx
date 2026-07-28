@@ -106,7 +106,7 @@ export function NotificationBell() {
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto" data-i18n-mixed>
             {items.length === 0 ? (
               <div className="flex flex-col items-center py-10 text-center">
                 <Bell className="h-7 w-7 text-gray-300 mb-2" />

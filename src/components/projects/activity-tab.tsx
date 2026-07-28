@@ -27,7 +27,8 @@ export function ActivityTab({ activityLog }: ActivityTabProps) {
   }
 
   return (
-    <div className="space-y-3">
+    // data-i18n-mixed: activity rows translate fixed phrases, keep data Arabic.
+    <div className="space-y-3" data-i18n-mixed>
       {activityLog.map((log) => {
         const changes = getChanges(log.details)
         return (
