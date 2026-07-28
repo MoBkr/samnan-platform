@@ -74,7 +74,7 @@ function ClientDocSlot({ field, label, url, canManage, isPending, onUpload, onDe
           )}
         </div>
       )}
-      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.dwg,.dxf" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onUpload(field, f) }} />
     </div>
   )
@@ -462,12 +462,12 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
               <input
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,application/pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.dwg,.dxf,image/jpeg,image/png,image/webp,application/pdf"
                 required
                 className="w-full text-sm"
                 onChange={handleFilesChange}
               />
-              <p className="text-xs text-gray-500">الحد الأقصى: 50 ميجابايت لكل ملف • PDF أو صورة</p>
+              <p className="text-xs text-gray-500">الحد الأقصى: 50 ميجابايت لكل ملف • PDF / صورة / أوتوكاد DWG</p>
               {selectedFiles.length > 1 && (
                 <p className="text-xs text-brand-600 font-medium">تم اختيار {selectedFiles.length} ملفات</p>
               )}
@@ -501,7 +501,7 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
               <input
                 ref={contractInputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,application/pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.dwg,.dxf,image/jpeg,image/png,image/webp,application/pdf"
                 required
                 className="w-full text-sm"
                 onChange={(e) => setContractFile(e.target.files?.[0] ?? null)}

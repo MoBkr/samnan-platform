@@ -10,7 +10,11 @@ const ALLOWED_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   'application/vnd.ms-excel', // .xls / some .csv
   'text/csv',
+  // AutoCAD — MIME reporting is unreliable for these; extension is the real gate
+  'application/acad', 'application/x-dwg', 'image/vnd.dwg', 'application/dxf', 'image/vnd.dxf',
 ]
+const ALLOWED_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'xlsx', 'xls', 'csv', 'dwg', 'dxf']
+const extOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
 
 // ── New: returns a signed URL so the browser uploads directly to Supabase ──
 // The file never passes through Vercel, so no 4.5 MB limit applies.
@@ -26,8 +30,8 @@ export async function createUploadSignedUrl(
     if (!user) return { error: 'غير مصرح' }
 
     if (fileSize > MAX_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
-    if (!ALLOWED_MIMES.includes(mimeType)) {
-      return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ JPG / PNG / WebP / PDF' }
+    if (!ALLOWED_MIMES.includes(mimeType) && !ALLOWED_EXTS.includes(extOf(fileName))) {
+      return { error: 'صيغة الملف غير مدعومة. يُسمح بـ PDF، صور JPG / PNG / WebP، Excel، أو أوتوكاد DWG / DXF' }
     }
 
     const ext = fileName.split('.').pop() ?? 'bin'
@@ -57,8 +61,8 @@ export async function uploadFile(formData: FormData): Promise<{ url: string } | 
 
     if (!file || file.size === 0) return { error: 'لم يتم اختيار ملف' }
     if (file.size > MAX_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
-    if (!ALLOWED_MIMES.includes(file.type)) {
-      return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ JPG / PNG / PDF' }
+    if (!ALLOWED_MIMES.includes(file.type) && !ALLOWED_EXTS.includes(extOf(file.name))) {
+      return { error: 'صيغة الملف غير مدعومة. يُسمح بـ PDF، صور JPG / PNG / WebP، Excel، أو أوتوكاد DWG / DXF' }
     }
 
     const ext = file.name.split('.').pop() ?? 'bin'
@@ -69,7 +73,7 @@ export async function uploadFile(formData: FormData): Promise<{ url: string } | 
     const service = createServiceClient()
     const { data, error } = await service.storage
       .from(BUCKET)
-      .upload(path, buffer, { contentType: file.type, upsert: false })
+      .upload(path, buffer, { contentType: file.type || 'application/octet-stream', upsert: false })
 
     if (error) return { error: 'فشل رفع الملف. حاول مرة أخرى' }
 

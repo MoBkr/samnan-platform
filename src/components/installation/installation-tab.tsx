@@ -850,7 +850,7 @@ function StageItem({
                 {rejectUploading ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                 إرفاق ملف / صورة
               </button>
-              <input ref={rejectInputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={onRejectFiles} />
+              <input ref={rejectInputRef} type="file" multiple accept="image/*,application/pdf,.dwg,.dxf" className="hidden" onChange={onRejectFiles} />
 
               <div className="flex items-center gap-2 pt-1">
                 <Button size="sm" onClick={submitRejection} className="bg-red-600 hover:bg-red-700 text-white">
@@ -883,7 +883,7 @@ function StageItem({
             </div>
           )}
 
-          <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={onFile} />
+          <input ref={inputRef} type="file" accept="image/*,application/pdf,.dwg,.dxf" className="hidden" onChange={onFile} />
         </div>
       )}
     </div>
@@ -1105,7 +1105,7 @@ function SlotItem({
             className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
             {uploadingRej ? <Clock className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} إرفاق ملف / صورة
           </button>
-          <input ref={rejInputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={pickRejFiles} />
+          <input ref={rejInputRef} type="file" multiple accept="image/*,application/pdf,.dwg,.dxf" className="hidden" onChange={pickRejFiles} />
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={submitReject} className="bg-red-600 hover:bg-red-700 text-white">تسجيل الرفض</Button>
             <Button size="sm" variant="outline" onClick={() => { setRejecting(false); setNote(''); setRejFiles([]) }}>إلغاء</Button>

@@ -218,7 +218,7 @@ export function ProjectCustody({
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50">
                     {uploading ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} إرفاق فاتورة / إيصال
                   </button>
-                  <input ref={fileRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={pickFiles} />
+                  <input ref={fileRef} type="file" multiple accept="image/*,application/pdf,.dwg,.dxf" className="hidden" onChange={pickFiles} />
                 </div>
 
                 <div className="flex items-center gap-2 border-t border-gray-200 pt-2.5">

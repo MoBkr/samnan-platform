@@ -10,7 +10,14 @@ const ALLOWED_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   'application/vnd.ms-excel', // .xls / some .csv
   'text/csv',
+  // AutoCAD — browsers report these inconsistently, extension check below is the real gate
+  'application/acad', 'application/x-dwg', 'image/vnd.dwg', 'application/dxf', 'image/vnd.dxf',
 ]
+// Browsers often give AutoCAD files an empty/octet-stream MIME type, so the
+// file extension is the reliable check.
+const ALLOWED_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'xlsx', 'xls', 'csv', 'dwg', 'dxf']
+
+const extOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
 
 export async function uploadFileDirect(
   file: File,
@@ -20,8 +27,8 @@ export async function uploadFileDirect(
   if (file.size > MAX_SIZE) {
     return { error: `حجم الملف (${(file.size / 1024 / 1024).toFixed(1)} MB) يتجاوز الحد المسموح به (50 MB)` }
   }
-  if (!ALLOWED_MIMES.includes(file.type)) {
-    return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ PDF أو صورة JPG / PNG / WebP' }
+  if (!ALLOWED_MIMES.includes(file.type) && !ALLOWED_EXTS.includes(extOf(file.name))) {
+    return { error: 'صيغة الملف غير مدعومة. يُسمح بـ PDF، صور JPG / PNG / WebP، Excel، أو أوتوكاد DWG / DXF' }
   }
 
   // 1. Ask the server for a signed upload URL (no file data sent — tiny request)
@@ -33,7 +40,8 @@ export async function uploadFileDirect(
     const res = await fetch(signed.signedUrl, {
       method: 'PUT',
       body: file,
-      headers: { 'Content-Type': file.type },
+      // CAD files often have an empty type — storage needs something valid
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')

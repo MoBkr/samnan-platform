@@ -411,7 +411,7 @@ function Stepper({ r, isPending, onAdvance, readOnly = false }: {
 
   return (
     <div className="space-y-0">
-      <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={onFile} />
+      <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.dwg,.dxf" className="hidden" onChange={onFile} />
       {BR_STAGES.map((stage, idx) => {
         const done = idx < current
         const isCurrent = idx === current
@@ -529,7 +529,7 @@ function MaterialsEditor({ materials, onChange, allowDoc, materialsDoc, onDoc }:
               <Upload className="h-3.5 w-3.5" /> {docUploading ? 'جاري الرفع...' : 'إرفاق قائمة المواد كملف (PDF / صورة) بدل الكتابة'}
             </button>
           )}
-          <input ref={docRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={onDocFile} />
+          <input ref={docRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.dwg,.dxf" className="hidden" onChange={onDocFile} />
         </div>
       )}
       {allowDoc && <p className="text-center text-[11px] text-gray-400">— أو أدخلها يدوياً —</p>}
@@ -594,7 +594,7 @@ function ProjectDocsUploader({ docs, onChange }: { docs: { url: string; name: st
           className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 disabled:opacity-50">
           {uploading ? <Upload className="h-3.5 w-3.5 animate-pulse" /> : <Upload className="h-3.5 w-3.5" />} رفع ملفات
         </button>
-        <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={onFiles} />
+        <input ref={inputRef} type="file" multiple accept="image/*,application/pdf,.dwg,.dxf" className="hidden" onChange={onFiles} />
       </div>
       {docs.length > 0 ? (
         <div className="space-y-1">

@@ -121,14 +121,15 @@ export async function uploadAttachment(formData: FormData) {
     if (file.size > MAX_FILE_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
 
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-    if (!allowedMimes.includes(file.type)) {
-      return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ JPG / PNG / WebP / PDF' }
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'dwg', 'dxf']
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    if (!allowedMimes.includes(file.type) && !allowedExts.includes(ext)) {
+      return { error: 'صيغة الملف غير مدعومة. يُسمح بـ JPG / PNG / WebP / PDF أو أوتوكاد DWG / DXF' }
     }
 
     const timestamp = Date.now()
     const randomStr = Math.random().toString(36).slice(2)
-    const ext = file.name.split('.').pop() || 'bin'
-    const fileName = `${timestamp}-${randomStr}.${ext}`
+    const fileName = `${timestamp}-${randomStr}.${ext || 'bin'}`
     const filePath = `${docType}/${fileName}`
 
     const service = createServiceClient()
