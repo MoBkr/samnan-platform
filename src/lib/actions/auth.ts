@@ -272,24 +272,43 @@ export async function deleteUser(targetUserId: string) {
 
   const service = createServiceClient()
 
-  // Detach user from any projects before deletion
+  // Keep the name for the audit entry — the profile row is about to go.
+  const targetProfile = (await service
+    .from('profiles')
+    .select('full_name')
+    .eq('id', targetUserId)
+    .single()) as QueryResult<{ full_name: string }>
+
+  // Every table referencing profiles(id) must be detached first, otherwise
+  // the profile delete fails on FK constraints for any user with activity.
+  // Nullable references → null (history rows survive, anonymized):
   await service.from('projects').update({ coordinator_id: null } as never).eq('coordinator_id', targetUserId)
   await service.from('projects').update({ sales_engineer_id: null } as never).eq('sales_engineer_id', targetUserId)
   await service.from('projects').update({ installation_id: null } as never).eq('installation_id', targetUserId)
+  await service.from('materials').update({ requested_by: null } as never).eq('requested_by', targetUserId)
+  await service.from('documents').update({ uploaded_by: null } as never).eq('uploaded_by', targetUserId)
+  await service.from('project_notes').update({ author_id: null } as never).eq('author_id', targetUserId)
+  await service.from('custody_entries').update({ created_by: null } as never).eq('created_by', targetUserId)
+  await service.from('technician_assignments').update({ created_by: null } as never).eq('created_by', targetUserId)
+  await service.from('purchase_requests').update({ engineer_id: null } as never).eq('engineer_id', targetUserId)
+  await service.from('purchase_requests').update({ created_by: null } as never).eq('created_by', targetUserId)
+  await service.from('activity_log').update({ user_id: null } as never).eq('user_id', targetUserId)
+  // Owned rows (NOT NULL owner) → deleted with the account:
+  await service.from('personal_notes').delete().eq('owner_id', targetUserId)
+  await service.from('app_notifications').delete().eq('recipient_id', targetUserId)
 
-  // Delete profile record first (avoids FK constraint when deleting auth user)
   const { error: profileError } = await service
     .from('profiles')
     .delete()
     .eq('id', targetUserId)
 
-  if (profileError) return { error: 'فشل حذف بيانات المستخدم' }
+  if (profileError) return { error: `فشل حذف بيانات المستخدم — ${profileError.message}` }
 
   // Delete auth user
   const { error: authError } = await service.auth.admin.deleteUser(targetUserId)
   if (authError) return { error: 'فشل حذف حساب تسجيل الدخول. حاول مرة أخرى' }
 
-  await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: 'حذف مستخدم', details: { target: targetUserId } } as never)
+  await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: `حذف مستخدم: ${targetProfile.data?.full_name ?? targetUserId}`, details: { target: targetUserId } } as never)
   revalidatePath('/users')
   return { success: true }
 }
