@@ -328,6 +328,8 @@ export async function deleteProject(projectId: string) {
   // Delete every record that references the project (FK constraints), then the
   // project itself. Missing any of these makes the final delete fail silently.
   // Order matters: documents point at payments, so they go first.
+  await service.from('project_notes').delete().eq('project_id', projectId)
+  await service.from('notifications').delete().eq('project_id', projectId)
   await service.from('app_notifications').delete().eq('project_id', projectId)
   await service.from('technician_assignments').delete().eq('project_id', projectId)
   await service.from('activity_log').delete().eq('project_id', projectId)
