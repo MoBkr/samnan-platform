@@ -194,7 +194,7 @@ export function NewProjectForm({
               <Upload className="h-7 w-7 text-gray-400" />
               <div>
                 <p className="text-sm font-semibold text-gray-700">ارفع العقد هنا</p>
-                <p className="text-xs text-gray-400 mt-1">PDF — حتى 10 ميجابايت</p>
+                <p className="text-xs text-gray-400 mt-1">PDF — حتى 50 ميجابايت</p>
               </div>
             </button>
           )}

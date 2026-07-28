@@ -4,7 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { createClient } from '@/lib/supabase/server'
 
 const BUCKET = 'documents'
-const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_SIZE = 50 * 1024 * 1024 // 50 MB — matches the client-side limit
 const ALLOWED_MIMES = [
   'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
@@ -25,7 +25,7 @@ export async function createUploadSignedUrl(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'غير مصرح' }
 
-    if (fileSize > MAX_SIZE) return { error: 'حجم الملف يتجاوز 10 ميجابايت' }
+    if (fileSize > MAX_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
     if (!ALLOWED_MIMES.includes(mimeType)) {
       return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ JPG / PNG / WebP / PDF' }
     }
@@ -56,7 +56,7 @@ export async function uploadFile(formData: FormData): Promise<{ url: string } | 
     const folder = (formData.get('folder') as string) || 'misc'
 
     if (!file || file.size === 0) return { error: 'لم يتم اختيار ملف' }
-    if (file.size > MAX_SIZE) return { error: 'حجم الملف يتجاوز 10 ميجابايت' }
+    if (file.size > MAX_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
     if (!ALLOWED_MIMES.includes(file.type)) {
       return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ JPG / PNG / PDF' }
     }

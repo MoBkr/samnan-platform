@@ -4,7 +4,7 @@
 
 import { createUploadSignedUrl } from '@/lib/actions/upload'
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_SIZE = 50 * 1024 * 1024 // 50 MB — Supabase Storage's default per-file cap
 const ALLOWED_MIMES = [
   'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
@@ -18,7 +18,7 @@ export async function uploadFileDirect(
 ): Promise<{ url: string } | { error: string }> {
   // Client-side validation first — gives instant feedback before any network call
   if (file.size > MAX_SIZE) {
-    return { error: `حجم الملف (${(file.size / 1024 / 1024).toFixed(1)} MB) يتجاوز الحد المسموح به (10 MB)` }
+    return { error: `حجم الملف (${(file.size / 1024 / 1024).toFixed(1)} MB) يتجاوز الحد المسموح به (50 MB)` }
   }
   if (!ALLOWED_MIMES.includes(file.type)) {
     return { error: 'صيغة الملف غير مدعومة. يُسمح فقط بـ PDF أو صورة JPG / PNG / WebP' }

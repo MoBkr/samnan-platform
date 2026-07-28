@@ -228,11 +228,11 @@ describe('Project closure validation', () => {
 
 // ─── File validation ──────────────────────────────────────────────────────────
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024
+const MAX_FILE_SIZE = 50 * 1024 * 1024
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
 
 function validateAttachment(file: { size: number; type: string }): { ok: boolean; error?: string } {
-  if (file.size > MAX_FILE_SIZE) return { ok: false, error: 'حجم الملف يتجاوز 10 ميجابايت' }
+  if (file.size > MAX_FILE_SIZE) return { ok: false, error: 'حجم الملف يتجاوز 50 ميجابايت' }
   if (!ALLOWED_MIMES.includes(file.type)) return { ok: false, error: 'صيغة الملف غير مدعومة' }
   return { ok: true }
 }
@@ -255,9 +255,9 @@ describe('File attachment validation', () => {
   })
 
   it('rejects oversized file', () => {
-    const result = validateAttachment({ size: 11 * 1024 * 1024, type: 'application/pdf' })
+    const result = validateAttachment({ size: 51 * 1024 * 1024, type: 'application/pdf' })
     expect(result.ok).toBe(false)
-    expect(result.error).toContain('10')
+    expect(result.error).toContain('50')
   })
 
   it('rejects exactly at the limit + 1 byte', () => {

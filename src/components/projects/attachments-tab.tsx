@@ -467,7 +467,7 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
                 className="w-full text-sm"
                 onChange={handleFilesChange}
               />
-              <p className="text-xs text-gray-500">الحد الأقصى: 10 ميجابايت لكل ملف • PDF أو صورة</p>
+              <p className="text-xs text-gray-500">الحد الأقصى: 50 ميجابايت لكل ملف • PDF أو صورة</p>
               {selectedFiles.length > 1 && (
                 <p className="text-xs text-brand-600 font-medium">تم اختيار {selectedFiles.length} ملفات</p>
               )}
@@ -506,7 +506,7 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
                 className="w-full text-sm"
                 onChange={(e) => setContractFile(e.target.files?.[0] ?? null)}
               />
-              <p className="text-xs text-gray-500">الحد الأقصى: 10 ميجابايت</p>
+              <p className="text-xs text-gray-500">الحد الأقصى: 50 ميجابايت</p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setContractDialog(false); setContractFile(null) }}>إلغاء</Button>

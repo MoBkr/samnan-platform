@@ -984,7 +984,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-6 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
                     <Upload className="h-6 w-6 text-gray-400" />
                     <p className="text-sm font-medium text-gray-600">اضغط لرفع الإيصال</p>
-                    <p className="text-xs text-gray-400">JPG، PNG، PDF — حتى 10 ميجابايت</p>
+                    <p className="text-xs text-gray-400">JPG، PNG، PDF — حتى 50 ميجابايت</p>
                   </button>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />

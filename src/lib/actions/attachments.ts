@@ -7,7 +7,7 @@ import { detachFromJsonb, removeDocumentRows, removeStorageFiles } from '@/lib/f
 import type { Document } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB — matches the client-side limit
 
 export async function getProjectAttachments(projectId: string) {
   try {
@@ -118,7 +118,7 @@ export async function uploadAttachment(formData: FormData) {
 
     if (!file) return { error: 'لم يتم اختيار ملف' }
     if (!projectId || !docType) return { error: 'بيانات المشروع مفقودة' }
-    if (file.size > MAX_FILE_SIZE) return { error: 'حجم الملف يتجاوز 10 ميجابايت' }
+    if (file.size > MAX_FILE_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
 
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
     if (!allowedMimes.includes(file.type)) {
