@@ -84,6 +84,9 @@ export interface MaterialItem {
   quantity?: number
   unit?: string
   attachments?: { url: string; name: string }[]
+  // Site-only item state (not in the Excel template / printed delivery note).
+  // Missing = 'completed' — the default for every imported/added item.
+  item_state?: 'completed' | 'in_progress' | 'not_requested'
   // Legacy fields (older records) — kept optional for backward compatibility
   status?: string
   notes?: string

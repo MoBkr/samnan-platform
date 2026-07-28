@@ -135,9 +135,25 @@ const MAT_STATUS_LABEL: Record<string, string> = {
   delivered: 'تم الاستلام', partial: 'استلام جزئي',
 }
 
+// Site-only per-item state — NOT part of the Excel template and hidden from
+// every print (the official delivery note keeps its fixed columns).
+type ItemState = NonNullable<MaterialItem['item_state']>
+const ITEM_STATE_LABEL: Record<ItemState, string> = {
+  completed: 'مكتمل', in_progress: 'قيد الإجراء', not_requested: 'لم يطلب',
+}
+const ITEM_STATE_STYLE: Record<ItemState, string> = {
+  completed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  in_progress: 'border-amber-200 bg-amber-50 text-amber-700',
+  not_requested: 'border-red-200 bg-red-50 text-red-700',
+}
+const itemState = (item: MaterialItem): ItemState => item.item_state ?? 'completed'
+
 // Columns mirror the client's SAP export:
 // Purchasing Document · Material · Short Text · Order Quantity · Order Unit (+ مرفقات)
-function ItemsTable({ items }: { items: MaterialItem[] }) {
+function ItemsTable({ items, onStateChange }: {
+  items: MaterialItem[]
+  onStateChange?: (idx: number, state: ItemState) => void
+}) {
   if (items.length === 0) return null
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
@@ -150,6 +166,8 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
             <th className="px-3 py-2.5 text-start font-medium">Short Text (الوصف)</th>
             <th className="px-3 py-2.5 text-start font-medium">الكمية</th>
             <th className="px-3 py-2.5 text-start font-medium">الوحدة</th>
+            {/* Site-only — never printed */}
+            <th className="px-3 py-2.5 text-start font-medium print:hidden">حالة الصنف</th>
             <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
             {/* Hand-check column — print only */}
             <th className="hidden print:table-cell px-3 py-2.5 text-center font-medium" dir="ltr">MARK ✓</th>
@@ -164,6 +182,23 @@ function ItemsTable({ items }: { items: MaterialItem[] }) {
               <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-normal">{item.description || item.name || '—'}</td>
               <td className="px-3 py-2.5 text-gray-700">{item.quantity ?? '—'}</td>
               <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.unit || '—'}</td>
+              <td className="px-3 py-2.5 print:hidden">
+                {onStateChange ? (
+                  <select
+                    value={itemState(item)}
+                    onChange={(e) => onStateChange(i, e.target.value as ItemState)}
+                    className={`h-7 cursor-pointer rounded-lg border px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${ITEM_STATE_STYLE[itemState(item)]}`}
+                  >
+                    <option value="completed">مكتمل</option>
+                    <option value="in_progress">قيد الإجراء</option>
+                    <option value="not_requested">لم يطلب</option>
+                  </select>
+                ) : (
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${ITEM_STATE_STYLE[itemState(item)]}`}>
+                    {ITEM_STATE_LABEL[itemState(item)]}
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-2.5">
                 {item.attachments && item.attachments.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
@@ -303,6 +338,18 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
 
   function updateDraftItem(idx: number, patch: Partial<MaterialItem>) {
     setDraftItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+
+  // Item-state change from the view table — persists immediately.
+  function handleItemState(idx: number, state: ItemState) {
+    const next = draftItems.map((it, i) => (i === idx ? { ...it, item_state: state } : it))
+    setDraftItems(next)
+    startTransition(async () => {
+      try {
+        const result = await updateMaterialsItems(projectId, next)
+        if (result?.error) toast.error(result.error)
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
   }
 
   function handleRemoveItem(idx: number) {
@@ -843,6 +890,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                           <th className="px-2 py-2 text-start font-medium">Short Text (الوصف) *</th>
                           <th className="px-2 py-2 text-start font-medium">الكمية</th>
                           <th className="px-2 py-2 text-start font-medium">الوحدة</th>
+                          <th className="px-2 py-2 text-start font-medium">حالة الصنف</th>
                           <th className="px-2 py-2 text-start font-medium">مرفقات</th>
                           <th className="px-2 py-2" />
                         </tr>
@@ -880,6 +928,15 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                               <Input className="h-9" dir="ltr" placeholder="EA" value={item.unit ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { unit: e.target.value })} />
+                            </td>
+                            <td className="px-2 py-1.5 w-28">
+                              <select value={itemState(item)}
+                                onChange={(e) => updateDraftItem(i, { item_state: e.target.value as ItemState })}
+                                className={`h-9 w-full cursor-pointer rounded-lg border px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${ITEM_STATE_STYLE[itemState(item)]}`}>
+                                <option value="completed">مكتمل</option>
+                                <option value="in_progress">قيد الإجراء</option>
+                                <option value="not_requested">لم يطلب</option>
+                              </select>
                             </td>
                             <td className="px-2 py-1.5 min-w-[120px]">
                               <div className="flex flex-wrap items-center gap-1">
@@ -962,7 +1019,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             ) : (
               <div id="materials-print">
                 <PrintHeader title="قائمة المواد" subtitle={projectName} />
-                <ItemsTable items={draftItems} />
+                <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} />
               </div>
             )}
 
@@ -1068,7 +1125,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 </div>
               </div>
 
-              <ItemsTable items={draftItems} />
+              <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} />
 
               {itemsTotal > 0 && (
                 <div className="flex items-center justify-between rounded-xl bg-brand-50 border border-brand-100 px-4 py-3">
@@ -1152,7 +1209,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           {draftItems.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد</p>
-              <ItemsTable items={draftItems} />
+              <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} />
             </div>
           )}
 
