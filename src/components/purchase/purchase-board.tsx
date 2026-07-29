@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Plus, Trash2, Edit2, Calendar, AlertTriangle, Check, ChevronLeft,
-  MapPin, User, Truck, Hash, Flag, Package, Paperclip, Upload, ArrowLeft, X, Search,
+  MapPin, User, Truck, Hash, Flag, Package, Paperclip, Upload, ArrowLeft, X, Search, RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -376,7 +376,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
 }
 
 /* ── Stepper with per-stage attachments + advance ── */
-function Stepper({ r, isPending, onAdvance, readOnly = false }: {
+function Stepper({ r, isPending, onAdvance, onMoveTo, readOnly = false }: {
   r: PurchaseRequest
   isPending: boolean
   onAdvance: () => void
@@ -437,7 +437,22 @@ function Stepper({ r, isPending, onAdvance, readOnly = false }: {
                 <p className={cn('text-sm font-bold', done ? 'text-emerald-700' : isCurrent ? 'text-brand-700' : 'text-gray-400')}>
                   {BR_STAGE_LABELS[stage]}
                 </p>
-                {when && <span className="text-[11px] text-gray-400">{formatDateShort(when)}</span>}
+                <div className="flex items-center gap-2">
+                  {when && <span className="text-[11px] text-gray-400">{formatDateShort(when)}</span>}
+                  {/* Reopen a completed stage to fix a mistake — same as materials/installation */}
+                  {done && !readOnly && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`الرجوع لمرحلة «${BR_STAGE_LABELS[stage]}»؟ ستُعاد المراحل التالية عند إكمالها من جديد.`)) onMoveTo(stage)
+                      }}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                      title="إعادة فتح هذه المرحلة"
+                    >
+                      <RotateCcw className="h-3 w-3" /> إعادة فتح
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Logistics: surface expected delivery date */}

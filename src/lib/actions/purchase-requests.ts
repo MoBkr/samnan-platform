@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { BR_STAGE_LABELS } from '@/lib/constants'
+import { BR_STAGES, BR_STAGE_LABELS } from '@/lib/constants'
 import { purgeFiles } from '@/lib/file-cleanup'
 import type { PurchaseRequest, BrStage, BrAttachment, BrMaterial } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
@@ -117,12 +117,19 @@ export async function movePurchaseRequest(id: string, stage: BrStage) {
 
   const service = createServiceClient()
   const { data: cur } = (await service
-    .from('purchase_requests').select('started_at, stage_history, project_name').eq('id', id).single()) as unknown as {
-      data: { started_at: string | null; stage_history: Record<string, string> | null; project_name: string | null } | null
+    .from('purchase_requests').select('stage, started_at, stage_history, project_name').eq('id', id).single()) as unknown as {
+      data: { stage: BrStage; started_at: string | null; stage_history: Record<string, string> | null; project_name: string | null } | null
     }
+
+  // Backward move = reopening a stage to fix a mistake (like materials/installation)
+  const isBack = cur ? BR_STAGES.indexOf(stage) < BR_STAGES.indexOf(cur.stage) : false
 
   const history = { ...(cur?.stage_history ?? {}) }
   if (!history[stage]) history[stage] = new Date().toISOString()
+  if (isBack) {
+    // Stages after the reopened one get re-stamped when completed again
+    for (const s of BR_STAGES.slice(BR_STAGES.indexOf(stage) + 1)) delete history[s]
+  }
 
   const patch: Record<string, unknown> = { stage, stage_history: history, updated_at: new Date().toISOString() }
   if (stage !== 'create') {
@@ -138,7 +145,10 @@ export async function movePurchaseRequest(id: string, stage: BrStage) {
   const projectId = await resolveProjectId(service, cur?.project_name ?? null)
   await service.from('activity_log').insert({
     project_id: projectId, user_id: auth.user.id,
-    action: `طلب شراء — اكتملت مرحلة وانتقل إلى: ${BR_STAGE_LABELS[stage]}`, details: { br_id: id, stage },
+    action: isBack
+      ? `طلب شراء — إعادة فتح مرحلة: ${BR_STAGE_LABELS[stage]}`
+      : `طلب شراء — اكتملت مرحلة وانتقل إلى: ${BR_STAGE_LABELS[stage]}`,
+    details: { br_id: id, stage, reopened: isBack },
   } as never)
 
   revalidatePath('/purchase-requests')
