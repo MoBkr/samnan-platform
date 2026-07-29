@@ -121,15 +121,13 @@ export async function movePurchaseRequest(id: string, stage: BrStage) {
       data: { stage: BrStage; started_at: string | null; stage_history: Record<string, string> | null; project_name: string | null } | null
     }
 
-  // Backward move = reopening a stage to fix a mistake (like materials/installation)
+  // Backward move = reopening ONE stage to fix a mistake. Later stages keep
+  // their completion stamps — after the fix, a single advance jumps the
+  // request straight back to where it was.
   const isBack = cur ? BR_STAGES.indexOf(stage) < BR_STAGES.indexOf(cur.stage) : false
 
   const history = { ...(cur?.stage_history ?? {}) }
   if (!history[stage]) history[stage] = new Date().toISOString()
-  if (isBack) {
-    // Stages after the reopened one get re-stamped when completed again
-    for (const s of BR_STAGES.slice(BR_STAGES.indexOf(stage) + 1)) delete history[s]
-  }
 
   const patch: Record<string, unknown> = { stage, stage_history: history, updated_at: new Date().toISOString() }
   if (stage !== 'create') {

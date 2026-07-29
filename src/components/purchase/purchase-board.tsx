@@ -133,13 +133,19 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
   }
 
   function advance(r: PurchaseRequest) {
-    const next = BR_STAGES[stageIdx(r.stage) + 1]
+    const cur = stageIdx(r.stage)
+    // If a later stage already has a completion stamp, this stage was merely
+    // reopened for a fix — one advance jumps straight back to where it was.
+    const furthest = Math.max(cur, ...BR_STAGES.map((s, i) => (r.stage_history?.[s] ? i : -1)))
+    const next = BR_STAGES[furthest > cur ? furthest : cur + 1]
     if (!next) return
     startTransition(async () => {
       try {
         const res = await movePurchaseRequest(r.id, next)
         if (res?.error) toast.error(res.error)
-        else toast.success(`اكتملت المرحلة — انتقل إلى: ${BR_STAGE_LABELS[next]}`)
+        else toast.success(furthest > cur
+          ? `تم التعديل — رجع الطلب إلى: ${BR_STAGE_LABELS[next]}`
+          : `اكتملت المرحلة — انتقل إلى: ${BR_STAGE_LABELS[next]}`)
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
   }
@@ -413,10 +419,12 @@ function Stepper({ r, isPending, onAdvance, onMoveTo, readOnly = false }: {
     <div className="space-y-0">
       <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.dwg,.dxf" className="hidden" onChange={onFile} />
       {BR_STAGES.map((stage, idx) => {
-        const done = idx < current
+        const when = r.stage_history?.[stage]
+        // A stamped stage after the current one = the request was reopened at
+        // an earlier stage for a fix; later stages stay green as completed.
+        const done = idx !== current && (idx < current || !!when)
         const isCurrent = idx === current
         const atts = (r.attachments ?? []).filter((a) => a.stage === stage)
-        const when = r.stage_history?.[stage]
         const isLast = idx === BR_STAGES.length - 1
         return (
           <div key={stage} className="flex gap-3">
@@ -443,7 +451,7 @@ function Stepper({ r, isPending, onAdvance, onMoveTo, readOnly = false }: {
                   {done && !readOnly && (
                     <button
                       onClick={() => {
-                        if (confirm(`الرجوع لمرحلة «${BR_STAGE_LABELS[stage]}»؟ ستُعاد المراحل التالية عند إكمالها من جديد.`)) onMoveTo(stage)
+                        if (confirm(`إعادة فتح مرحلة «${BR_STAGE_LABELS[stage]}» للتعديل؟ المراحل التالية تبقى كما هي.`)) onMoveTo(stage)
                       }}
                       disabled={isPending}
                       className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
@@ -483,10 +491,14 @@ function Stepper({ r, isPending, onAdvance, onMoveTo, readOnly = false }: {
                 </div>
               )}
 
-              {/* advance button on current stage */}
+              {/* advance button on current stage — after a reopen it returns
+                  the request to the furthest completed stage in one click */}
               {isCurrent && !isLast && !readOnly && (
                 <Button size="sm" className="mt-2.5 gap-1.5" loading={isPending} onClick={onAdvance}>
-                  <Check className="h-3.5 w-3.5" /> تمت هذه المرحلة — انتقل للتالية
+                  <Check className="h-3.5 w-3.5" />
+                  {BR_STAGES.some((s, i) => i > current && r.stage_history?.[s])
+                    ? 'تم التعديل — رجوع لآخر مرحلة'
+                    : 'تمت هذه المرحلة — انتقل للتالية'}
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </Button>
               )}
