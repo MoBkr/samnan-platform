@@ -1381,6 +1381,7 @@ export const AR_PHRASES: Record<string, string> = {
   'إعادة فتح هذه المرحلة': 'Reopen this stage',
   'تم التعديل — رجوع لآخر مرحلة': 'Done editing — return to the latest stage',
   'تم التعديل — رجع الطلب إلى:': 'Edit done — request returned to:',
+  'عرض المتأخر فقط': 'Show overdue only',
   'حالة الصنف': 'Item status',
   'قيد الإجراء': 'In progress',
   'لم يطلب': 'Not requested',

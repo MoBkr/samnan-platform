@@ -58,7 +58,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
   const [form, setForm] = useState<BrForm>({ ...EMPTY })
   const [detailId, setDetailId] = useState<string | null>(null)
   const [scope, setScope] = useState<'mine' | 'all'>('mine')
-  const [filter, setFilter] = useState<BrStage | 'all'>('all')
+  const [filter, setFilter] = useState<BrStage | 'all' | 'overdue'>('all')
   const [search, setSearch] = useState('')
   const today = todaySA()
 
@@ -76,8 +76,10 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
 
   const detail = requests.find((r) => r.id === detailId) || null
   const q = search.trim().toLowerCase()
+  const isLate = (r: PurchaseRequest) => r.stage !== 'completed' && !!r.due_date && r.due_date < today
   const shown = scoped.filter((r) => {
-    if (filter !== 'all' && r.stage !== filter) return false
+    if (filter === 'overdue') { if (!isLate(r)) return false }
+    else if (filter !== 'all' && r.stage !== filter) return false
     if (q) {
       const hay = [r.br_number ?? '', r.release_number ?? '', r.project_name ?? '', r.supplier_name ?? ''].join(' ').toLowerCase()
       if (!hay.includes(q)) return false
@@ -178,9 +180,12 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <span><span className="font-bold text-gray-800">{scoped.length}</span> طلب</span>
           {overdueCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+            <button onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')}
+              title="عرض المتأخر فقط"
+              className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors',
+                filter === 'overdue' ? 'bg-red-600 border-red-600 text-white' : 'bg-red-50 border-red-100 text-red-600 hover:bg-red-100')}>
               <AlertTriangle className="h-3 w-3" /> {overdueCount} متأخر
-            </span>
+            </button>
           )}
         </div>
         {!readOnly && <Button size="sm" onClick={openNew}><Plus className="h-4 w-4" /> طلب شراء جديد</Button>}
@@ -224,6 +229,9 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
       {/* Stage filter */}
       <div className="flex flex-wrap gap-2">
         <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} label="الكل" count={scoped.length} />
+        {overdueCount > 0 && (
+          <FilterChip active={filter === 'overdue'} onClick={() => setFilter('overdue')} label="متأخر" count={overdueCount} tone="red" />
+        )}
         {BR_STAGES.map((s) => {
           const c = scoped.filter((r) => r.stage === s).length
           return <FilterChip key={s} active={filter === s} onClick={() => setFilter(s)} label={BR_STAGE_LABELS[s]} count={c} />
@@ -648,11 +656,17 @@ function ProjectDocsUploader({ docs, onChange }: { docs: { url: string; name: st
   )
 }
 
-function FilterChip({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
+function FilterChip({ active, onClick, label, count, tone = 'brand' }: {
+  active: boolean; onClick: () => void; label: string; count: number; tone?: 'brand' | 'red'
+}) {
   return (
     <button onClick={onClick} className={cn('rounded-full border px-3 py-1 text-xs font-medium transition-all',
-      active ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300')}>
-      {label} <span className={cn('ms-1 rounded-full px-1 text-[10px] font-bold', active ? 'text-white/80' : 'text-gray-400')}>{count}</span>
+      active
+        ? tone === 'red' ? 'bg-red-600 border-red-600 text-white' : 'bg-brand-600 border-brand-600 text-white'
+        : tone === 'red'
+          ? 'bg-red-50 border-red-200 text-red-600 hover:border-red-300'
+          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300')}>
+      {label} <span className={cn('ms-1 rounded-full px-1 text-[10px] font-bold', active ? 'text-white/80' : tone === 'red' ? 'text-red-500' : 'text-gray-400')}>{count}</span>
     </button>
   )
 }
