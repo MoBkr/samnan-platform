@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>التوثيق الفني الشامل — منصة سمنان لإدارة المشاريع</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#1841A0; --brand-dark:#122E78; --brand-light:#EEF2FF;
+    --accent:#3B5FD4; --ink:#111827; --muted:#6B7280; --line:#E5E7EB;
+    --green:#059669; --amber:#D97706; --red:#DC2626; --bg:#F6F8FC;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Cairo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.9;font-size:15px}
+  .page{max-width:1080px;margin:0 auto;padding:0 24px 80px}
+
+  /* ── Cover ── */
+  .cover{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 60%,var(--accent) 100%);color:#fff;border-radius:0 0 32px 32px;padding:56px 32px 48px;text-align:center;position:relative;overflow:hidden}
+  .cover::before{content:'';position:absolute;inset:0;background:radial-gradient(600px 300px at 80% -10%,rgba(255,255,255,.14),transparent 60%),radial-gradient(500px 260px at 10% 110%,rgba(255,255,255,.08),transparent 55%)}
+  .cover>*{position:relative}
+  .logos{display:flex;align-items:center;justify-content:center;gap:28px;margin-bottom:30px;flex-wrap:wrap}
+  .logo-card{background:#fff;border-radius:18px;padding:14px 26px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+  .logo-card img{height:64px;display:block;object-fit:contain}
+  .logos .x{font-size:26px;font-weight:900;color:rgba(255,255,255,.75)}
+  .cover h1{font-size:34px;font-weight:900;letter-spacing:-.5px}
+  .cover .sub{font-size:17px;color:#cdd9ff;margin-top:8px;font-weight:600}
+  .cover .meta{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:26px}
+  .cover .meta span{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:5px 18px;font-size:13px;font-weight:700}
+
+  /* ── Stats band ── */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:-30px auto 40px;max-width:1000px;position:relative;padding:0 8px}
+  .stat{background:#fff;border-radius:18px;padding:18px 10px;text-align:center;box-shadow:0 10px 30px rgba(18,46,120,.12);border:1px solid #EDF1FA}
+  .stat b{display:block;font-size:26px;font-weight:900;color:var(--brand)}
+  .stat span{font-size:12.5px;color:var(--muted);font-weight:700}
+
+  /* ── Sections ── */
+  h2.sec{font-size:24px;font-weight:900;color:var(--brand-dark);margin:52px 0 6px;display:flex;align-items:center;gap:12px}
+  h2.sec .n{background:var(--brand);color:#fff;border-radius:12px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .sec-desc{color:var(--muted);font-weight:600;margin-bottom:18px}
+  .card{background:#fff;border:1px solid #EDF1FA;border-radius:20px;padding:26px 28px;box-shadow:0 4px 18px rgba(18,46,120,.05);margin-bottom:18px}
+  .card h3{font-size:18px;font-weight:800;color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .card h3 .tag{font-size:11px;background:var(--brand-light);color:var(--brand);border-radius:99px;padding:2px 12px;font-weight:800}
+  .card p.lead{color:#374151;font-weight:600;margin-bottom:10px}
+  ul.f{list-style:none;display:grid;gap:7px;margin-top:6px}
+  ul.f li{position:relative;padding-inline-start:26px;color:#374151;font-weight:500;font-size:14.5px}
+  ul.f li::before{content:'✓';position:absolute;inset-inline-start:0;top:0;color:var(--green);font-weight:900}
+  ul.f li b{color:var(--ink);font-weight:800}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.two{grid-template-columns:1fr}}
+
+  /* ── Tables ── */
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:14px;overflow:hidden}
+  th{background:var(--brand);color:#fff;padding:10px 14px;text-align:right;font-weight:800;font-size:13.5px}
+  td{padding:9px 14px;border-bottom:1px solid #F1F4FA;font-weight:600;color:#374151}
+  tr:last-child td{border-bottom:none}
+  tr:nth-child(even) td{background:#FAFBFE}
+  .hours-total td{background:var(--brand-light)!important;color:var(--brand-dark);font-weight:900;font-size:15px}
+  .num{font-weight:800;color:var(--brand);white-space:nowrap}
+
+  .pill{display:inline-block;background:var(--brand-light);color:var(--brand);border-radius:99px;padding:2px 13px;font-size:12.5px;font-weight:800;margin:2px}
+  .pill.g{background:#ECFDF5;color:var(--green)} .pill.a{background:#FFFBEB;color:var(--amber)} .pill.r{background:#FEF2F2;color:var(--red)}
+
+  .note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:14px 18px;color:#92400E;font-weight:700;font-size:14px;margin:14px 0}
+  .highlight{background:linear-gradient(135deg,var(--brand-light),#fff);border:1px solid #DCE4FA;border-radius:20px;padding:24px 28px;margin:18px 0}
+
+  /* ── TOC ── */
+  .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .toc a{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EDF1FA;border-radius:14px;padding:11px 16px;text-decoration:none;color:var(--ink);font-weight:700;font-size:13.5px;transition:.15s}
+  .toc a:hover{border-color:var(--brand);color:var(--brand);transform:translateY(-1px)}
+  .toc a i{font-style:normal;background:var(--brand-light);color:var(--brand);border-radius:8px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0}
+
+  /* ── Footer ── */
+  .footer{margin-top:70px;border-top:2px solid var(--line);padding-top:30px;text-align:center}
+  .footer .logos-sm{display:flex;justify-content:center;align-items:center;gap:22px;margin-bottom:14px}
+  .footer img{height:44px;object-fit:contain}
+  .footer p{color:var(--muted);font-size:13px;font-weight:600}
+
+  @media print{
+    body{background:#fff;font-size:12px}
+    .cover{border-radius:0}
+    .card,.stat{box-shadow:none;break-inside:avoid}
+    h2.sec{break-after:avoid}
+    a{color:inherit;text-decoration:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ COVER ═══════════ -->
+<div class="cover">
+  <div class="logos">
+    <div class="logo-card"><img src="/logo.png" alt="مجموعة سمنان القابضة"></div>
+    <span class="x">×</span>
+    <div class="logo-card"><img src="/thakaa-flow.png" alt="Thakaa Flow — ذكاء فلو"></div>
+  </div>
+  <h1>التوثيق الفني الشامل</h1>
+  <p class="sub">منصة سمنان لإدارة المشاريع — نظام متكامل لإدارة دورة حياة المشاريع من التعاقد حتى التسليم النهائي</p>
+  <div class="meta">
+    <span>الإصدار 1.0</span>
+    <span>يوليو 2026</span>
+    <span>تطوير: ذكاء فلو — Thakaa Flow</span>
+    <span>العميل: مجموعة سمنان القابضة</span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><b>22,800+</b><span>سطر كود إنتاجي</span></div>
+  <div class="stat"><b>19</b><span>وحدة وظيفية رئيسية</span></div>
+  <div class="stat"><b>20</b><span>شاشة / صفحة</span></div>
+  <div class="stat"><b>16</b><span>جدول قاعدة بيانات</span></div>
+  <div class="stat"><b>208</b><span>إصدار برمجي (commit)</span></div>
+  <div class="stat"><b>87</b><span>اختبار آلي ناجح</span></div>
+</div>
+
+<div class="page">
+
+<!-- ═══════════ TOC ═══════════ -->
+<h2 class="sec"><span class="n">📑</span> محتويات التوثيق</h2>
+<div class="toc">
+  <a href="#overview"><i>1</i> نظرة عامة والبنية التقنية</a>
+  <a href="#roles"><i>2</i> الأدوار والصلاحيات</a>
+  <a href="#projects"><i>3</i> إدارة المشاريع</a>
+  <a href="#payments"><i>4</i> الدفعات والفوترة</a>
+  <a href="#materials"><i>5</i> المواد والتوريد</a>
+  <a href="#installation"><i>6</i> التركيبات والمعاينات</a>
+  <a href="#technicians"><i>7</i> الفنيون</a>
+  <a href="#custody"><i>8</i> العهد المالية</a>
+  <a href="#purchase"><i>9</i> طلبات المشتريات BR</a>
+  <a href="#board"><i>10</i> مدونة المشروع والمدونة الشخصية</a>
+  <a href="#notifications"><i>11</i> الإشعارات والتذكيرات</a>
+  <a href="#dashboards"><i>12</i> لوحات التحكم</a>
+  <a href="#reports"><i>13</i> التقارير والملخص السنوي</a>
+  <a href="#audit"><i>14</i> سجل التدقيق</a>
+  <a href="#track"><i>15</i> صفحة متابعة العميل</a>
+  <a href="#printing"><i>16</i> الطباعة والمستندات الرسمية</a>
+  <a href="#i18n"><i>17</i> الترجمة عربي / إنجليزي</a>
+  <a href="#users"><i>18</i> المستخدمون والملف الشخصي</a>
+  <a href="#security"><i>19</i> الأمان والحماية</a>
+  <a href="#database"><i>20</i> قاعدة البيانات</a>
+  <a href="#quality"><i>21</i> الجودة والاختبارات</a>
+  <a href="#hours"><i>22</i> ساعات العمل والتكلفة</a>
+</div>
+
+<!-- ═══════════ 1. OVERVIEW ═══════════ -->
+<h2 class="sec" id="overview"><span class="n">1</span> نظرة عامة والبنية التقنية</h2>
+<p class="sec-desc">منصة ويب عربية RTL كاملة، مصممة خصيصاً لطريقة عمل سمنان للخدمات البترولية — بديل مركزي واحد عن ملفات الإكسل وجروبات الواتساب.</p>
+<div class="card">
+  <p class="lead">المنصة تدير دورة حياة المشروع كاملة: التعاقد ← الدفعة الأولى ← طلب المواد ← التوريد ← التركيب والمعاينات ← الدفعة النهائية ← الإغلاق. كل دور وظيفي يرى ما يخصه فقط، وكل عملية تُسجَّل وتُدقَّق.</p>
+  <div class="two">
+    <div>
+      <h3>البنية التقنية</h3>
+      <ul class="f">
+        <li><b>الواجهة:</b> Next.js 15 (App Router) + TypeScript + Tailwind CSS — تصميم عربي RTL بخط Cairo</li>
+        <li><b>الخلفية:</b> Server Actions مع تحقق صلاحيات على السيرفر في كل عملية</li>
+        <li><b>قاعدة البيانات:</b> Supabase (PostgreSQL) مع Row Level Security مفعّلة على كل الجداول</li>
+        <li><b>الملفات:</b> Supabase Storage — رفع مباشر من المتصفح بروابط موقّعة (حتى 50MB للملف)</li>
+        <li><b>الاستضافة:</b> Vercel (إنتاج) — قابلة للنقل لأي استضافة أو سيرفر خاص</li>
+      </ul>
+    </div>
+    <div>
+      <h3>مواصفات عامة</h3>
+      <ul class="f">
+        <li><b>متجاوبة بالكامل:</b> تعمل على الموبايل والتابلت والكمبيوتر</li>
+        <li><b>ثنائية اللغة:</b> عربي / إنجليزي بضغطة زر لكل الشاشات</li>
+        <li><b>تصميم عصري:</b> نظام تصميم موحّد (ألوان، ظلال، حركات انتقالية) بمستوى منصات SaaS العالمية</li>
+        <li><b>حالات تحميل وتنبيهات</b> عربية واضحة في كل عملية</li>
+        <li><b>لا حذف نهائي عشوائي:</b> أرشفة وتعطيل بدل الحذف، مع مسارات حذف آمنة للإدارة فقط</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 2. ROLES ═══════════ -->
+<h2 class="sec" id="roles"><span class="n">2</span> الأدوار والصلاحيات</h2>
+<p class="sec-desc">أربعة أدوار وظيفية، وكل شاشة محمية على مستوى السيرفر — الرابط المباشر لا يفتح ما لا يخص المستخدم.</p>
+<div class="card">
+  <table>
+    <tr><th>الدور</th><th>الصلاحيات الأساسية</th></tr>
+    <tr><td><b>مهندس إدارة المشاريع</b></td><td>إدارة كاملة لكل المشاريع: إنشاء، دفعات، مواد، تركيبات، طلبات شراء، إغلاق — هو المشغّل الرئيسي للمنصة</td></tr>
+    <tr><td><b>مهندس المبيعات</b></td><td>مشاريع عملائه فقط: إنشاء مشروع، تأكيد إرسال الفاتورة واستلام الدفع، طباعة الفواتير، اطّلاع على طلبات الشراء (قراءة فقط)</td></tr>
+    <tr><td><b>مدير التركيبات</b></td><td>قسم التركيب بمشاريعه: المعاينات والمراحل، الفنيون، العهد المالية، المدونة، المرفقات والعقد (قراءة) — بدون ماليات، ومشاريع زملائه تظهر مقفولة</td></tr>
+    <tr><td><b>الإدارة العليا</b></td><td>كل ما سبق + إدارة المستخدمين والموافقة على الحسابات + الاطّلاع على المدونات الشخصية (يُسجَّل في التدقيق) + التقارير</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════ 3. PROJECTS ═══════════ -->
+<h2 class="sec" id="projects"><span class="n">3</span> إدارة المشاريع</h2>
+<div class="card">
+  <h3>دورة حياة كاملة لكل مشروع <span class="tag">الوحدة الأم</span></h3>
+  <ul class="f">
+    <li><b>إنشاء مشروع</b> بنموذج شامل: العميل، رقم حساب العميل الداخلي (للمحاسبة)، الموقع/المدينة، القيمة، التواريخ، نوع المشروع (مع تركيب / بدون تركيب — يتخطى خطوات التركيب تلقائياً)</li>
+    <li><b>رفع العقد PDF</b> + مرفقات إضافية أثناء الإنشاء تذهب مباشرة لتاب المرفقات</li>
+    <li><b>تعيين فريق المشروع</b> (مهندس إدارة، مبيعات، تركيبات) مع عرض حِمل العمل الحالي لكل شخص قبل التعيين</li>
+    <li><b>شريط مراحل حي:</b> تعاقد ← دفعات ← طلب المواد ← توريد ← تركيب مجدول ← تركيب منجز ← إغلاق</li>
+    <li><b>رأس مالي مباشر:</b> المحصّل / المتبقي / قيمة المشروع / نسبة إنجاز المواد / نسبة إنجاز التركيب</li>
+    <li><b>إجراءات الحالة:</b> إغلاق (يمنع الإغلاق مع دفعات معلقة) — تعليق وإعادة تفعيل — إلغاء بسبب إلزامي — حذف نهائي آمن (للملغي/المعلق فقط، يمسح كل السجلات والملفات المرتبطة)</li>
+    <li><b>بحث وفلاتر متقدمة</b> في قائمة المشاريع: بالاسم/العميل/رقم الحساب/المدينة/المهندس + فلتر حالة + تحديد عدد النتائج</li>
+    <li><b>تبويبات مشاريعي / كل المشاريع</b> لكل دور</li>
+    <li><b>ملخص المشروع:</b> صفحة نظرة عامة سريعة للإدارة (العميل والمالي والمواد والتركيب والفريق وأهم المرفقات وآخر نشاط) قابلة للطباعة عربي/إنجليزي</li>
+    <li><b>تعديل معلومات وقيمة المشروع</b> في أي وقت مع تسجيل التغيير في التدقيق</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 4. PAYMENTS ═══════════ -->
+<h2 class="sec" id="payments"><span class="n">4</span> الدفعات والفوترة</h2>
+<div class="card">
+  <h3>إدارة مالية كاملة لكل مشروع <span class="tag">أكثر الوحدات تفصيلاً</span></h3>
+  <ul class="f">
+    <li><b>جدول دفعات مرن:</b> دفعة أولى / مواد / تركيب / نهائية / مخصصة — مع السماح بأكثر من دفعة من نفس النوع، وعنوان ثانوي اختياري لكل دفعة</li>
+    <li><b>تسجيل التحصيل:</b> كامل أو جزئي مع شريط تقدم، رفع إيصال الدفع + مرفقات إضافية (فاتورة، ضمان...)</li>
+    <li><b>حماية الدفع الزائد:</b> لو العميل دفع أكثر من المتفق عليه — تنبيه + ملاحظة إلزامية توضح السبب + تأكيد صريح، ثم ترتفع قيمة الدفعة ويتسجل كل شيء في التدقيق</li>
+    <li><b>تعديل شامل لأي دفعة:</b> كل حقل قابل للتصحيح بمافيه الحالة نفسها (لو حد سجّل دفعة بالغلط) مع إعادة احتساب تلقائية</li>
+    <li><b>بيانات الفاتورة الضريبية:</b> رقم الفاتورة (مع زر نسخ لنظام SAP)، تاريخ الفاتورة، اسم الشركة/البائع</li>
+    <li><b>حالة الفوترة والتحصيل:</b> تم الفوترة / تم التحصيل / تم الاثنين — تظهر شارة على الكارت</li>
+    <li><b>خطاب الاعتماد LC:</b> تفعيل لكل دفعة مع تاريخ الدفع وعدد الأيام — والمنصة تحسب تاريخ الاستحقاق وترسل تنبيهاً تلقائياً لمهندس إدارة المشاريع عند حلوله</li>
+    <li><b>تذكيرات آلية</b> بالدفعات المستحقة لمهندس الإدارة والمبيعات</li>
+    <li><b>تأكيد مزدوج من المبيعات:</b> "تم إرسال الفاتورة للعميل" و"العميل دفع المبلغ" — متاح لمهندس المبيعات المسؤول فقط</li>
+    <li><b>طباعة فاتورة رسمية</b> لأي دفعة مدفوعة — عربي أو إنجليزي — على الورق الرسمي بشعار سمنان مع ختم PAID وخانات التوقيع</li>
+    <li><b>كشف متأخرات عام:</b> صفحة المدفوعات تجمع المتأخر من كل المشاريع</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 5. MATERIALS ═══════════ -->
+<h2 class="sec" id="materials"><span class="n">5</span> المواد والتوريد</h2>
+<div class="card">
+  <h3>من طلب المواد حتى مذكرة التسليم الرسمية <span class="tag">متوافقة مع SAP</span></h3>
+  <ul class="f">
+    <li><b>أعمدة مطابقة لتصدير SAP:</b> Purchasing Document · Material · Short Text · Order Quantity · Order Unit + مرفقات لكل صنف</li>
+    <li><b>استيراد Excel ذكي:</b> رفع ملف القالب يُقرأ 100% — مع محرك تحليل يتعرف على الأعمدة تلقائياً (عربي أو إنجليزي، مع أو بدون عناوين) وشاشة مراجعة لتصحيح أي عمود قبل الاستيراد — لا يدخل صنف إلا بعد الضغط على «استيراد»</li>
+    <li><b>لصق مباشر من Excel:</b> نسخ صفوف ولصقها في الجدول يوزعها على الأعمدة تلقائياً</li>
+    <li><b>قالب Excel جاهز</b> بالأعمدة الصحيحة وأمثلة، بضغطة زر</li>
+    <li><b>حالة الصنف:</b> مكتمل (افتراضي) / قيد الإجراء / لم يطلب (أحمر) — في الموقع فقط، لا تظهر في القالب ولا المطبوعات</li>
+    <li><b>مسار توريد بأربع خطوات</b> مع إمكانية التراجع عن أي خطوة: طلب المواد ← جاهزة للتوريد ← التوريد والتسليم ← تم الاستلام</li>
+    <li><b>مذكرة تسليم مواد رسمية</b> عربي/إنجليزي بالتنسيق المعتمد: جدول No. / SAP / DESCRIPTION / QTY / UNIT مع عمود MARK ✓ للتشييك اليدوي وصندوق توقيعات (التاريخ، الاسم، رقم الهوية، الجوال، التوقيع)</li>
+    <li><b>وصل الاستلام الموقّع من العميل</b> يُرفع ويُحفظ — والتوريد لا يُحتسب مؤكداً في التقارير إلا به</li>
+    <li><b>التسليم قبل التحصيل مسموح</b> (بقرار العميل) مع تذكير بأن دفعة المواد لم تُحصَّل</li>
+    <li><b>إنشاء دفعة المواد</b> في تاب الدفعات بضغطة من نفس الشاشة</li>
+    <li><b>تاب "حالة المواد"</b> بعرض ثنائي اللغة قابل للطباعة — لمشاركة الحالة مع العملاء الأجانب</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 6. INSTALLATION ═══════════ -->
+<h2 class="sec" id="installation"><span class="n">6</span> التركيبات والمعاينات</h2>
+<div class="card">
+  <h3>مسار فحص هندسي من خمس مراحل <span class="tag">أكبر وحدة</span></h3>
+  <ul class="f">
+    <li><b>جدولة التركيب</b> (لمهندس الإدارة): تاريخ البدء + تاريخ الانتهاء المتوقع + المدة المتوقعة — كلها قابلة للتعديل لاحقاً، مع تسجيل إبلاغ العميل</li>
+    <li><b>خمس مراحل معتمدة:</b> فحص الموقع (بتأكيد بدء الفريق) ← معاينة المواد MIR (ميكانيكا / كهرباء / ملف شامل) ← معاينة التركيب WIR ← الاختبار والتشغيل ← قائمة الملاحظات Snag List</li>
+    <li><b>معاينة التركيب WIR ببنود قياسية:</b> Tank، Pipe، Pressure Test، Conduit، Control Panel، Connection Generator، Cable Pulling، Cable Termination — كل بند يُعتمد أو يُرفض على حدة</li>
+    <li><b>نظام رفض متكامل:</b> رفض بند أو مرحلة بسبب مكتوب و/أو مرفقات، مع منع إتمام مرحلة فيها بند مرفوض حتى حل المشكلة، وإمكانية «لا ينطبق» للبنود غير المطلوبة + إضافة بنود يدوية</li>
+    <li><b>ملفات لكل مرحلة وكل بند</b> — صور ومستندات المعاينات تتوثق في مكانها</li>
+    <li><b>رجوع وإعادة فتح:</b> أي مرحلة أو بند يمكن إعادة فتحه لتصحيح خطأ</li>
+    <li><b>مركز مشاريع التركيبات:</b> مدير التركيبات يرى مشاريعه بتفاصيلها، ومشاريع زملائه تظهر مقفولة «ما عندك صلاحية» — مع إحصائيات تتبع الفلتر (مشاريعي / كل المشاريع)</li>
+    <li><b>عرض خاص لفريق التركيبات</b> داخل المشروع: معلومات المشروع والعميل والمالي المسموح + تبويبات التركيب / المدونة / المرفقات</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 7. TECHNICIANS ═══════════ -->
+<h2 class="sec" id="technicians"><span class="n">7</span> الفنيون</h2>
+<div class="card">
+  <h3>سجل فنيين مشترك بمنع تعارض الحجوزات</h3>
+  <ul class="f">
+    <li><b>قائمة فنيين موحّدة</b> للشركة (سجلات، ليست حسابات دخول): الاسم، الرقم الوظيفي، الحالة</li>
+    <li><b>صفحة /technicians:</b> متاح / محجوز الآن، بحث، إضافة وتعديل وإيقاف وتفعيل (لا يمكن إيقاف فني محجوز)</li>
+    <li><b>تعيين لكل مشروع بفترة زمنية</b> (من — إلى) مع <b>منع التعارض تلقائياً:</b> الفني المحجوز لا يُعيَّن على مشروع متداخل زمنياً</li>
+    <li><b>سجل تعيينات كامل</b> لكل فني: أي مشروع ومتى، مع إنهاء التعيين (اكتمل) أو إزالته</li>
+    <li>إدارتها متاحة للتركيبات ومهندس الإدارة والإدارة العليا</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 8. CUSTODY ═══════════ -->
+<h2 class="sec" id="custody"><span class="n">8</span> العهد المالية</h2>
+<div class="card">
+  <h3>عهدة نقدية لمدير التركيبات بمحاسبة كاملة</h3>
+  <ul class="f">
+    <li><b>استلام عهدة / صرف من العهدة</b> مع ملخص حي: إجمالي العهدة — المصروف — المتبقي (يحمرّ لو بالسالب)</li>
+    <li><b>تصنيفات صرف:</b> مواد خاصة للمشروع، سكن الفنيين، مواصلات، عدد وأدوات، أخرى</li>
+    <li><b>رقم فاتورة الشراء</b> لكل مصروف + التاريخ + الصارف/المورّد + ملاحظات</li>
+    <li><b>فواتير وإيصالات مرفقة</b> بكل سجل — وتظهر تلقائياً في مرفقات المشروع</li>
+    <li><b>كل حركة تُسجَّل في سجل التدقيق</b> بالمبلغ والتصنيف — والحذف يُسجَّل أيضاً</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 9. PURCHASE ═══════════ -->
+<h2 class="sec" id="purchase"><span class="n">9</span> طلبات المشتريات (BR)</h2>
+<div class="card">
+  <h3>لوحة متابعة المشتريات من الطلب حتى الاستلام</h3>
+  <ul class="f">
+    <li><b>سبع مراحل:</b> إنشاء الطلب ← موافقة المدير ← إدارة المخزون ← تعميد ← المالية ← Logistic ← تم الاستلام — بمسار مرئي وتواريخ لكل مرحلة</li>
+    <li><b>بيانات الطلب:</b> رقم BR، رقم التعميد، المورّد، المهندس المسؤول، الموقع، الأولوية (مهم/متوسط)، تاريخ البدء وتاريخ الوصول المتوقع</li>
+    <li><b>قائمة المواد المطلوب شراؤها:</b> جدول أصناف يدوي أو إرفاقها كملف PDF/صورة</li>
+    <li><b>مرفقات لكل مرحلة</b> (عروض أسعار، تعميدات، أوامر شراء...)</li>
+    <li><b>ربط مباشر بالمشروع:</b> الطلب يظهر داخل تاب "طلبات الشراء" في المشروع — وأي تعديل يتزامن بين اللوحة والمشروع، مع اختيار المشروع من نافذة بحث أنيقة (مشاريعي/كل المشاريع) أو «بدون مشروع»</li>
+    <li><b>إعادة فتح ذكية لأي مرحلة:</b> تفتح المرحلة المحددة فقط للتصحيح — المراحل التالية تبقى مكتملة بتواريخها، وزر واحد يرجع الطلب لمكانه</li>
+    <li><b>ترتيب تلقائي حسب تاريخ الوصول</b> الأقرب فالأبعد + <b>فلتر متأخر</b> أحمر + فلاتر المراحل وبحث برقم BR/التعميد/المشروع/المورّد</li>
+    <li><b>نطاق طلباتي / كل الطلبات</b> — ومهندس المبيعات يشاهد طلبات مشاريعه قراءة فقط</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 10. BOARD ═══════════ -->
+<h2 class="sec" id="board"><span class="n">10</span> مدونة المشروع والمدونة الشخصية</h2>
+<div class="two">
+  <div class="card">
+    <h3>مدونة المشروع <span class="tag">بديل جروب الواتساب</span></h3>
+    <ul class="f">
+      <li>محادثة جماعية لفريق المشروع بواجهة شبيهة بالشات</li>
+      <li><b>منشن @</b> لأي عضو — يوصله إشعار فوري</li>
+      <li><b>مهام وتذكيرات ومواعيد ذكية</b> بتاريخ استحقاق — إشعار تلقائي للفريق عند حلول الموعد، وتعليم المهمة منجزة</li>
+      <li>تعديل وحذف رسائلك (والإدارة تدير الكل) + بحث داخل المدونة</li>
+      <li>متاحة لكل فريق المشروع بمن فيهم التركيبات والمبيعات المعيّنون</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>المدونة الشخصية (مدونتي)</h3>
+    <ul class="f">
+      <li>دفتر خاص لكل موظف: ملاحظات، مهام، تذكيرات، مواعيد</li>
+      <li>إشعار في المنصة عند حلول موعد أي عنصر</li>
+      <li><b>خصوصية واضحة:</b> لا يراها أي زميل — الإدارة العليا فقط تطّلع (قراءة دون تعديل) <b>وكل اطّلاع يُسجَّل في سجل التدقيق</b> ويعرفه الموظف</li>
+      <li>ظاهرة في القائمة الرئيسية لكل الأدوار</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════ 11. NOTIFICATIONS ═══════════ -->
+<h2 class="sec" id="notifications"><span class="n">11</span> الإشعارات والتذكيرات</h2>
+<div class="card">
+  <h3>جرس إشعارات حي داخل المنصة</h3>
+  <ul class="f">
+    <li><b>نقطة حمراء بعدد غير المقروء</b> — والضغط على الإشعار يوديك لمكانه بالظبط</li>
+    <li><b>أحداث مغطاة:</b> جدولة تركيب، تعيين فني، تعيينك على مشروع، جاهزية المواد، تسجيل دفعة، تأكيدات المبيعات، منشن في مدونة، مهمة/تذكير حان موعده</li>
+    <li><b>تذكيرات مالية آلية:</b> دفعة استحق موعدها، وخطاب اعتماد LC حان استحقاقه — تصل لمهندس الإدارة والمبيعات (مرة واحدة لكل حدث، بدون تكرار مزعج)</li>
+    <li>تعليم الكل كمقروء بضغطة</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 12. DASHBOARDS ═══════════ -->
+<h2 class="sec" id="dashboards"><span class="n">12</span> لوحات التحكم</h2>
+<div class="card">
+  <h3>لوحة مخصصة لكل دور</h3>
+  <ul class="f">
+    <li><b>مهندس إدارة المشاريع:</b> يحتاج إجراءً الآن (مهمة محددة لكل مشروع حسب مرحلته)، المتأخرات، تركيبات اليوم، الملخص المالي بشرائح الحالات، مراحل المشاريع المجمعة</li>
+    <li><b>الإدارة العليا:</b> نظرة تنفيذية شاملة — كل المشاريع والفريق والتوزيع والمتأخرات وقيمة الأعمال</li>
+    <li><b>مهندس المبيعات:</b> مشاريعه وقيمتها (كارت القيمة الموحّد: النشط + المعلق فقط، والملغي «غير محتسب» بتفصيل قابل للتوسيع)</li>
+    <li><b>مدير التركيبات:</b> تركيبات اليوم والقادمة، ما لم يبدأ، ومركز مشاريعه — بإحصائيات تتبع فلتر مشاريعي/الكل</li>
+    <li><b>كل الكروت قابلة للضغط</b> وتودي للقسم الصحيح، والقيم تستثني الملغي من الإجماليات</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 13. REPORTS ═══════════ -->
+<h2 class="sec" id="reports"><span class="n">13</span> التقارير والملخص السنوي</h2>
+<div class="card">
+  <h3>تصدير وطباعة رسمية للإدارة</h3>
+  <ul class="f">
+    <li><b>الملخص السنوي:</b> لكل سنة — مشاريع أُنشئت / اكتملت / أُلغيت، عمليات التوريد المؤكدة (بمذكرة تسليم فقط)، تركيبات مكتملة، المحصَّل خلال السنة، قيمة العقود الجديدة — بجدول مقارنة بين السنوات</li>
+    <li><b>تقرير المشاريع:</b> كل المشاريع بالحالة والقيمة والفريق والتواريخ</li>
+    <li><b>تقرير المدفوعات:</b> كل الدفعات بالمحصّل والمتبقي والاستحقاق</li>
+    <li><b>تقرير الحسابات / الموظفين</b> وسجل النشاطات</li>
+    <li><b>طباعة / PDF على الورق الرسمي</b> بشعار سمنان وتاريخ إصدار</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 14. AUDIT ═══════════ -->
+<h2 class="sec" id="audit"><span class="n">14</span> سجل التدقيق</h2>
+<div class="card">
+  <h3>كل عملية على المنصة موثّقة — من فعلها ومتى</h3>
+  <ul class="f">
+    <li><b>تغطية شاملة:</b> المشاريع والدفعات والمواد والتركيبات والعهد والفنيين وطلبات الشراء والحسابات والمدونات — كل إنشاء وتعديل وحذف واعتماد ورفض وإعادة فتح</li>
+    <li><b>تصنيف ذكي:</b> مشاريع / طلبات شراء / حسابات وموظفين / إداري — مع فلاتر بالمشروع والطلب والفترة الزمنية وبحث حر</li>
+    <li><b>تعديلات الدفعات تُسجَّل بالقيم</b> القديمة ← الجديدة، وتغييرات الحسابات (اسم، جوال، كلمة مرور) تُبلَّغ للإدارة</li>
+    <li><b>طباعة رسمية</b> للسجل المفلتر بتوقيت السعودية</li>
+    <li>في الوضع الإنجليزي يظهر ثنائي اللغة: الإجراء بالإنجليزية والأسماء كما أُدخلت</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 15. TRACK ═══════════ -->
+<h2 class="sec" id="track"><span class="n">15</span> صفحة متابعة العميل</h2>
+<div class="card">
+  <h3>رابط مشاركة خارجي بدون تسجيل دخول <span class="tag">واجهة العميل النهائي</span></h3>
+  <ul class="f">
+    <li><b>زر «مشاركة مع العميل»</b> يولّد رابطاً آمناً برمز فريد — للعرض فقط، ولا يصل لأي بيانات داخلية</li>
+    <li><b>ثنائية اللغة</b> عربي/إنجليزي بزر تبديل — للعملاء الأجانب</li>
+    <li><b>يعرض:</b> مراحل المشروع والمرحلة الحالية، جدول الدفعات وحالتها، نسب المحصّل/المتبقي/الإجمالي، حالة المواد بالأصناف والكميات، وتقدم التركيب — تحديث مباشر من المنصة</li>
+    <li>معاينة الصفحة كما يراها العميل قبل الإرسال</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 16. PRINTING ═══════════ -->
+<h2 class="sec" id="printing"><span class="n">16</span> الطباعة والمستندات الرسمية</h2>
+<div class="card">
+  <h3>كل مطبوعات المنصة على الورق الرسمي</h3>
+  <ul class="f">
+    <li><b>ترويسة موحّدة</b> بشعار سمنان للخدمات البترولية على رأس كل مستند</li>
+    <li><b>المستندات:</b> الفاتورة الضريبية (بختم PAID وخانات توقيع)، مذكرة تسليم المواد (بالتنسيق الرسمي المعتمد)، قائمة المواد (عرضي A4)، ملخص المشروع، حالة المواد، التقارير، سجل التدقيق</li>
+    <li><b>اختيار اللغة قبل الطباعة</b> عربي / إنجليزي حيثما يلزم</li>
+    <li><b>تقويم أنيق</b> لاختيار التواريخ بضغطة في كل حقول المنصة، والتواريخ بارزة بالأزرق الداكن (والمتأخر أحمر) في كل الشاشات</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 17. i18n ═══════════ -->
+<h2 class="sec" id="i18n"><span class="n">17</span> الترجمة عربي / إنجليزي</h2>
+<div class="card">
+  <h3>المنصة كاملة تتحول للإنجليزية بضغطة زر</h3>
+  <ul class="f">
+    <li><b>زر EN / عربي</b> في رأس كل صفحة (وفي شاشات الدخول) — الاتجاه يتبدل RTL ⇄ LTR والاختيار محفوظ للمستخدم</li>
+    <li><b>قاموس شامل يتجاوز 1,000 عبارة</b> يغطي كل شاشة ورسالة وتنبيه في المنصة</li>
+    <li><b>محرك ترجمة ذكي:</b> يترجم الواجهة فورياً مع بقاء <b>بيانات المستخدمين كما أُدخلت</b> (أسماء المشاريع والعملاء والملاحظات لا تُمس) — وحماية خاصة تمنع أي ترجمة جزئية مشوّهة للأسماء</li>
+    <li><b>سجل التدقيق ثنائي اللغة</b> في الوضع الإنجليزي: الإجراءات بالإنجليزية والأسماء بالعربية</li>
+    <li>المطبوعات الرسمية لها اختيار لغة مستقل لا يتأثر بلغة الواجهة</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 18. USERS ═══════════ -->
+<h2 class="sec" id="users"><span class="n">18</span> المستخدمون والملف الشخصي</h2>
+<div class="two">
+  <div class="card">
+    <h3>إدارة المستخدمين (للإدارة)</h3>
+    <ul class="f">
+      <li><b>موافقة على الحسابات الجديدة:</b> من يسجّل بنفسه لا يدخل حتى توافق الإدارة — مع عرض الإيميل للتحقق من الهوية قبل التفعيل</li>
+      <li>إنشاء مستخدم مباشرة بكلمة مرور، تعديل الأدوار، حذف الحسابات</li>
+      <li><b>إعادة تعيين كلمة المرور:</b> توليد كلمة قوية تلقائياً مع زر نسخ لتسليمها للموظف</li>
+      <li>عمود البريد الإلكتروني لكل الحسابات</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>ملفي الشخصي (لكل موظف)</h3>
+    <ul class="f">
+      <li>صورة شخصية، الاسم، رقم الجوال</li>
+      <li>تغيير كلمة المرور (بكلمة المرور الحالية) مع أزرار إظهار/إخفاء في كل حقول كلمات المرور بالمنصة</li>
+      <li><b>الشفافية:</b> أي تغيير للاسم/الجوال/كلمة المرور يُسجَّل في التدقيق ويصل إشعار للإدارة</li>
+      <li>استعادة كلمة المرور بالإيميل من شاشة الدخول</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════ 19. SECURITY ═══════════ -->
+<h2 class="sec" id="security"><span class="n">19</span> الأمان والحماية</h2>
+<div class="card">
+  <ul class="f">
+    <li><b>تحقق صلاحيات على السيرفر في كل عملية</b> — تغيير الواجهة أو الرابط لا يمنح صلاحية</li>
+    <li><b>Row Level Security</b> مفعّلة على كل جداول قاعدة البيانات، والكتابة عبر قناة خدمة محكومة</li>
+    <li><b>حماية المسارات:</b> Middleware يعيد غير المسجّل للدخول، وكل دور لصفحاته فقط</li>
+    <li><b>رفع ملفات آمن:</b> فحص النوع والحجم (50MB) على الطرفين، روابط رفع موقّعة قصيرة العمر، دعم PDF / صور / Excel / AutoCAD DWG-DXF</li>
+    <li><b>تنظيف مركزي للملفات:</b> حذف أي سجل يمسح ملفاته من التخزين — لا ملفات يتيمة</li>
+    <li><b>حذف المشروع النهائي</b> يمسح كل السجلات المرتبطة (دفعات، مواد، تركيبات، مدونة، عهد، إشعارات، ملفات) بترتيب آمن</li>
+    <li><b>كلمات المرور</b> بمعايير Supabase Auth، واستعادتها برابط آمن منتهي الصلاحية</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 20. DATABASE ═══════════ -->
+<h2 class="sec" id="database"><span class="n">20</span> قاعدة البيانات</h2>
+<p class="sec-desc">16 جدولاً مترابطاً في PostgreSQL — كل جدول بمفاتيح خارجية وفهارس مدروسة.</p>
+<div class="card">
+  <div style="display:flex;flex-wrap:wrap;gap:6px">
+    <span class="pill">profiles — المستخدمون والأدوار</span>
+    <span class="pill">projects — المشاريع</span>
+    <span class="pill">payments — الدفعات (+LC والفوترة)</span>
+    <span class="pill">materials — المواد (أصناف SAP)</span>
+    <span class="pill">supply_orders — أوامر التوريد</span>
+    <span class="pill">installations — التركيبات والمراحل</span>
+    <span class="pill">technicians — الفنيون</span>
+    <span class="pill">technician_assignments — تعيينات الفنيين</span>
+    <span class="pill">custody_entries — العهد المالية</span>
+    <span class="pill">purchase_requests — طلبات المشتريات</span>
+    <span class="pill">project_notes — مدونة المشروع</span>
+    <span class="pill">personal_notes — المدونات الشخصية</span>
+    <span class="pill">app_notifications — الإشعارات</span>
+    <span class="pill">documents — المستندات والمرفقات</span>
+    <span class="pill">activity_log — سجل التدقيق</span>
+    <span class="pill">notifications — قناة إشعارات احتياطية</span>
+  </div>
+  <p style="margin-top:14px;color:var(--muted);font-weight:600;font-size:13.5px">+ مخزن ملفات Supabase Storage (bucket: documents) لكل العقود والفواتير والإيصالات وصور المعاينات ومخططات AutoCAD.</p>
+</div>
+
+<!-- ═══════════ 21. QUALITY ═══════════ -->
+<h2 class="sec" id="quality"><span class="n">21</span> الجودة والاختبارات</h2>
+<div class="card">
+  <ul class="f">
+    <li><b>87 اختباراً آلياً</b> (Vitest) لقواعد العمل الحساسة: منطق الدفعات، تحقق الملفات، محرك استيراد Excel بكل حالاته الشاذة</li>
+    <li><b>فحص متصفح حقيقي (Playwright)</b> قبل كل تسليم: تسجيل دخول فعلي بحسابات مؤقتة، تنفيذ السيناريو كاملاً على نسخة الإنتاج، والتحقق من النتيجة في قاعدة البيانات — ثم تنظيف كامل لبيانات الاختبار</li>
+    <li><b>TypeScript صارم</b> — بناء الإنتاج يمر بفحص أنواع كامل قبل كل نشر</li>
+    <li><b>208 إصداراً برمجياً موثقاً</b> في Git برسائل تفصيلية — تاريخ كامل قابل للمراجعة والرجوع</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 22. HOURS ═══════════ -->
+<h2 class="sec" id="hours"><span class="n">22</span> ساعات العمل والتكلفة</h2>
+<p class="sec-desc">تقدير هندسي واقعي لحجم العمل المنفَّذ، مبني على نطاق كل وحدة كما سُلِّمت فعلياً (بما فيه جولات التعديل والتحسين بطلب العميل).</p>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>الوحدة</th><th>أبرز ما تتضمنه</th><th>الساعات</th></tr>
+    <tr><td>1</td><td>التأسيس والبنية</td><td>Next.js + Supabase، المصادقة والأدوار، الحماية، نظام التصميم RTL</td><td class="num">30</td></tr>
+    <tr><td>2</td><td>إدارة المشاريع</td><td>الإنشاء، الفريق، دورة الحياة، الإجراءات، البحث والفلاتر، الملخص، الحذف الآمن</td><td class="num">40</td></tr>
+    <tr><td>3</td><td>الدفعات والفوترة</td><td>الجدول، التحصيل والدفع الزائد، التعديل الشامل، LC والتذكيرات، الفاتورة الثنائية</td><td class="num">44</td></tr>
+    <tr><td>4</td><td>المواد والتوريد</td><td>أعمدة SAP، محرك استيراد Excel والمراجعة، مذكرة التسليم الرسمية، حالات الأصناف</td><td class="num">44</td></tr>
+    <tr><td>5</td><td>التركيبات والمعاينات</td><td>المراحل الخمس، بنود WIR، الرفض والحل، إعادة الفتح، مركز مشاريع التركيبات</td><td class="num">48</td></tr>
+    <tr><td>6</td><td>الفنيون</td><td>السجل المشترك، الحجز بمنع التعارض، سجل التعيينات</td><td class="num">15</td></tr>
+    <tr><td>7</td><td>العهد المالية</td><td>العهدة والصرف، التصنيفات، رقم الفاتورة، الترابط مع المرفقات والتدقيق</td><td class="num">12</td></tr>
+    <tr><td>8</td><td>طلبات المشتريات BR</td><td>اللوحة والمراحل، الربط بالمشروع، إعادة الفتح الذكية، الترتيب والفلاتر</td><td class="num">30</td></tr>
+    <tr><td>9</td><td>المدونتان</td><td>مدونة المشروع بالمنشن والمهام، المدونة الشخصية، اطّلاع الإدارة الموثّق</td><td class="num">25</td></tr>
+    <tr><td>10</td><td>الإشعارات والتذكيرات</td><td>الجرس، الأحداث، تذكيرات الاستحقاق وLC الآلية</td><td class="num">12</td></tr>
+    <tr><td>11</td><td>التقارير</td><td>الملخص السنوي، تقارير المشاريع والمدفوعات والموظفين، الطباعة الرسمية</td><td class="num">15</td></tr>
+    <tr><td>12</td><td>سجل التدقيق</td><td>التغطية الشاملة، التصنيف والفلاتر، الطباعة</td><td class="num">12</td></tr>
+    <tr><td>13</td><td>صفحة متابعة العميل</td><td>الرابط الآمن، العرض الثنائي اللغة، النِسَب المالية والمراحل</td><td class="num">12</td></tr>
+    <tr><td>14</td><td>نظام الطباعة</td><td>الترويسة الرسمية، قوالب الفاتورة والمذكرة والتقارير، CSS الطباعة</td><td class="num">15</td></tr>
+    <tr><td>15</td><td>الترجمة عربي/إنجليزي</td><td>قاموس 1,000+ عبارة، محرك الترجمة الفوري، حماية بيانات المستخدم، التدقيق الثنائي</td><td class="num">28</td></tr>
+    <tr><td>16</td><td>المستخدمون والملف الشخصي</td><td>الموافقات، الأدوار، إعادة التعيين، البروفايل والشفافية، استعادة كلمة المرور</td><td class="num">18</td></tr>
+    <tr><td>17</td><td>لوحات التحكم</td><td>أربع لوحات مخصصة بالأدوار، المهام الذكية، الملخص المالي</td><td class="num">20</td></tr>
+    <tr><td>18</td><td>تجربة الاستخدام والتصميم</td><td>الوجه العصري الكامل، التقويم الأنيق، إبراز التواريخ، تحسينات الموبايل</td><td class="num">20</td></tr>
+    <tr><td>19</td><td>الجودة والاختبارات</td><td>87 اختباراً آلياً + فحوصات المتصفح الحقيقية قبل كل تسليم</td><td class="num">15</td></tr>
+    <tr><td>20</td><td>النشر والتشغيل والدعم</td><td>إعداد Vercel وSupabase، الترحيلات، معالجة ملاحظات التشغيل الفعلي</td><td class="num">15</td></tr>
+    <tr class="hours-total"><td colspan="3">إجمالي ساعات العمل الفعلية</td><td class="num">470 ساعة</td></tr>
+  </table>
+
+  <div class="note" style="margin-top:18px">
+    📌 <b>مقارنة بالتقدير المبدئي:</b> كان التقدير الأولي للمشروع <b>335 ساعة عمل</b>. حجم العمل المُسلَّم فعلياً يعادل <b>~470 ساعة</b> — أي بزيادة <b>~40٪</b> عن التقدير. السبب: نطاق المنصة توسّع أثناء التنفيذ بطلبات العميل — أبرزها الترجمة الكاملة للمنصة، نظام المعاينات الهندسي بالبنود (MIR/WIR)، محرك استيراد Excel الذكي، خطابات الاعتماد LC بتذكيراتها، الفواتير ومذكرات التسليم الرسمية الثنائية اللغة، المدونتان بالإشعارات، وصفحة متابعة العميل — وكلها وحدات لم تكن في النطاق الأصلي أو كانت أبسط بكثير.
+  </div>
+
+  <div class="highlight">
+    <b style="color:var(--brand-dark);font-size:16px">خلاصة الإنجاز:</b>
+    <p style="font-weight:600;color:#374151;margin-top:6px">
+      470 ساعة عمل هندسي على مدى 26 يوم عمل فعلي (13 مايو — 30 يوليو 2026)، أنتجت 22,800+ سطر كود إنتاجي في 208 إصدارات موثقة —
+      منصة مكتملة تعمل الآن على بيئة الإنتاج ويستخدمها فريق سمنان يومياً.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════ LINKS ═══════════ -->
+<div class="highlight" style="text-align:center">
+  <b style="color:var(--brand-dark)">روابط المنصة والتوثيق</b><br>
+  <span style="font-weight:700">🌐 المنصة: samnan-platform.vercel.app</span><br>
+  <span style="font-weight:700">📚 هذا التوثيق: /samnan-documentation.html &nbsp;·&nbsp; 📄 <a href="/samnan-documentation.pdf" style="color:var(--brand)">تحميل نسخة PDF</a></span>
+</div>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<div class="footer">
+  <div class="logos-sm">
+    <img src="/thakaa-flow.png" alt="Thakaa Flow">
+    <img src="/logo.png" alt="سمنان">
+  </div>
+  <p><b>تصميم وتطوير: ذكاء فلو — Thakaa Flow</b> · ai@tfco.sa</p>
+  <p>لصالح مجموعة سمنان القابضة — سمنان للخدمات البترولية · © 2026</p>
+</div>
+
+</div>
+</body>
+</html>
