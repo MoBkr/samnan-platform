@@ -144,7 +144,7 @@ export function InstallationDashboard({ profile, installations, projects }: Inst
                     <p className="text-xs text-gray-500">{inst.project.client_name}</p>
                     {inst.scheduled_date && (
                       <span className={`text-xs ${inst.scheduled_date === today ? 'text-emerald-600 font-semibold' : 'text-gray-400'}`}>
-                        — {inst.scheduled_date === today ? 'اليوم' : formatDateShort(inst.scheduled_date)}
+                        — <span className="font-bold text-brand-800">{inst.scheduled_date === today ? 'اليوم' : formatDateShort(inst.scheduled_date)}</span>
                       </span>
                     )}
                   </div>

@@ -473,7 +473,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   {payment.due_date && (
                     <p className={`flex items-center gap-1.5 text-xs mb-3 ${overdue ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
                       <Receipt className="h-3 w-3 shrink-0" />
-                      استحقاق: {formatDateShort(payment.due_date)}
+                      استحقاق: <span className={`font-bold ${overdue ? 'text-red-600' : 'text-brand-800'}`} dir="ltr">{formatDateShort(payment.due_date)}</span>
                       {overdue && <span className="text-red-500">(متأخر)</span>}
                     </p>
                   )}
@@ -510,9 +510,9 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                         <FileText className="h-3.5 w-3.5" /> خطاب اعتماد (LC)
                       </div>
                       <p className="text-[11px] text-indigo-600 mt-0.5">
-                        {payment.lc_date ? `تاريخ الدفع: ${formatDateShort(payment.lc_date)}` : 'تاريخ الدفع: —'}
+                        تاريخ الدفع: {payment.lc_date ? <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(payment.lc_date)}</span> : '—'}
                         {payment.lc_days != null && ` · المدة: ${payment.lc_days} يوم`}
-                        {payment.lc_date && payment.lc_days != null && ` · الاستحقاق: ${formatDateShort(lcMaturity(payment.lc_date, payment.lc_days))}`}
+                        {payment.lc_date && payment.lc_days != null && <> · الاستحقاق: <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(lcMaturity(payment.lc_date, payment.lc_days))}</span></>}
                       </p>
                     </div>
                   )}

@@ -405,10 +405,10 @@ export function ProjectDetail({
               </span>
             )}
             {project.start_date && (
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                {formatDateShort(project.start_date)}
-                {project.expected_end_date && ` — ${formatDateShort(project.expected_end_date)}`}
+              <span className="flex items-center gap-1.5 font-bold text-brand-800">
+                <Calendar className="h-4 w-4 text-brand-400" />
+                <span dir="ltr">{formatDateShort(project.start_date)}</span>
+                {project.expected_end_date && <span dir="ltr"> — {formatDateShort(project.expected_end_date)}</span>}
               </span>
             )}
           </div>
@@ -564,10 +564,10 @@ export function ProjectDetail({
                 {project.has_installation ? 'مع تركيب' : 'بدون تركيب'}
               </span>
               {project.start_date && (
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  {formatDateShort(project.start_date)}
-                  {project.expected_end_date && ` — ${formatDateShort(project.expected_end_date)}`}
+                <span className="flex items-center gap-1.5 font-bold text-brand-800">
+                  <Calendar className="h-4 w-4 text-brand-400" />
+                  <span dir="ltr">{formatDateShort(project.start_date)}</span>
+                  {project.expected_end_date && <span dir="ltr"> — {formatDateShort(project.expected_end_date)}</span>}
                 </span>
               )}
               <span className="flex items-center gap-1.5 font-semibold text-gray-700">

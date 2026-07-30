@@ -269,7 +269,7 @@ export function CoordinatorDashboard({
                       <p className="truncate text-sm font-semibold text-gray-900">{payment.project.project_name}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {PAYMENT_TYPE_LABELS[payment.type]}
-                        {payment.due_date && ` — استحق ${formatDateShort(payment.due_date)}`}
+                        {payment.due_date && <> — استحق <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(payment.due_date)}</span></>}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">

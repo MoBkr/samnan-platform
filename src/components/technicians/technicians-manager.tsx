@@ -129,7 +129,7 @@ export function TechniciansManager({ technicians, canManage }: { technicians: Te
                           <Clock className="h-3 w-3" /> محجوز
                         </span>
                         <span className="text-gray-500">
-                          {formatDateShort(t.current.start_date)} — {formatDateShort(t.current.end_date)}
+                          <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(t.current.start_date)} — {formatDateShort(t.current.end_date)}</span>
                         </span>
                         {t.current.project && (
                           <span className="inline-flex items-center gap-1 text-gray-500">
@@ -260,7 +260,7 @@ function HistoryDialog({ tech, onClose }: { tech: TechnicianWithStatus | null; o
                   }`}>{STATUS_LABEL[a.status]}</span>
                 </div>
                 {a.project?.client_name && <p className="text-xs text-gray-400">{a.project.client_name}</p>}
-                <p className="text-xs text-gray-500 mt-1">{formatDateShort(a.start_date)} — {formatDateShort(a.end_date)}</p>
+                <p className="text-xs mt-1 font-bold text-brand-800" dir="ltr">{formatDateShort(a.start_date)} — {formatDateShort(a.end_date)}</p>
               </div>
             ))}
           </div>

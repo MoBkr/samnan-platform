@@ -505,13 +505,13 @@ function ProjectCard({
             <span className="text-xs text-gray-400 italic">القيمة غير محددة</span>
           )}
           {project.start_date && (
-            <span className="flex items-center gap-1 text-xs text-gray-400">
-              <Calendar className="h-3 w-3 shrink-0" />
-              {formatDateShort(project.start_date)}
+            <span className="flex items-center gap-1 text-xs font-bold text-brand-800">
+              <Calendar className="h-3 w-3 shrink-0 text-brand-400" />
+              <span dir="ltr">{formatDateShort(project.start_date)}</span>
               {project.expected_end_date && (
                 <>
                   <span className="text-gray-300 mx-0.5">—</span>
-                  {formatDateShort(project.expected_end_date)}
+                  <span dir="ltr">{formatDateShort(project.expected_end_date)}</span>
                 </>
               )}
             </span>

@@ -74,7 +74,7 @@ function DocRow({ doc, onDelete }: { doc: Document; onDelete?: (id: string) => v
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{doc.description || 'ملف'}</p>
         <p className="text-xs text-gray-400">
-          {doc.uploader?.full_name && `${doc.uploader.full_name} • `}{formatDate(doc.uploaded_at)}
+          {doc.uploader?.full_name && `${doc.uploader.full_name} • `}<span className="font-bold text-brand-800" dir="ltr">{formatDate(doc.uploaded_at)}</span>
         </p>
       </div>
       <a href={doc.url} target="_blank" rel="noopener noreferrer"
@@ -1174,7 +1174,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               <div className="flex-1">
                 <p className="text-sm font-semibold text-emerald-800">تم استلام المواد بنجاح</p>
                 {material?.ready_at && (
-                  <p className="text-xs text-emerald-600 mt-0.5">بتاريخ: {formatDate(material.ready_at)}</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">بتاريخ: <span className="font-bold text-brand-800" dir="ltr">{formatDate(material.ready_at)}</span></p>
                 )}
               </div>
               {/* Undo a mistaken delivery confirmation */}

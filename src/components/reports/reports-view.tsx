@@ -133,7 +133,7 @@ function ProjectsReport({ projects }: { projects: ProjectReport[] }) {
           p.total_amount ? formatCurrency(p.total_amount) : '—',
           p.coordinator?.full_name ?? '—',
           p.sales_engineer?.full_name ?? '—',
-          p.start_date ? formatDateShort(p.start_date) : '—',
+          p.start_date ? <span key="d" className="font-bold text-brand-800" dir="ltr">{formatDateShort(p.start_date)}</span> : '—',
         ])}
         empty="لا توجد مشاريع"
       />
@@ -178,7 +178,7 @@ function PaymentsReport({ payments }: { payments: PaymentReport[] }) {
             {formatCurrency(Math.max(0, p.amount - p.paid_amount))}
           </span>,
           <StatusPill key="status" label={PAYMENT_STATUS_LABELS[p.status] ?? p.status} colorClass={PAYMENT_STATUS_COLORS[p.status]} />,
-          p.due_date ? formatDateShort(p.due_date) : '—',
+          p.due_date ? <span key="d" className="font-bold text-brand-800" dir="ltr">{formatDateShort(p.due_date)}</span> : '—',
         ])}
         empty="لا توجد دفعات"
       />
@@ -225,7 +225,7 @@ function TeamReport({ team }: { team: Profile[] }) {
           <span key="name" className="font-medium text-gray-900">{u.full_name}</span>,
           <StatusPill key="role" label={ROLE_LABELS[u.role] ?? u.role} colorClass={ROLE_COLORS[u.role] ?? 'text-gray-700 bg-gray-100'} />,
           <StatusPill key="active" label={u.is_active ? 'نشط' : 'غير نشط'} colorClass={u.is_active ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'} />,
-          formatDateShort(u.created_at),
+          <span key="d" className="font-bold text-brand-800" dir="ltr">{formatDateShort(u.created_at)}</span>,
         ])}
         empty="لا يوجد أعضاء فريق"
       />

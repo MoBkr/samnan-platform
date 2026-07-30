@@ -193,7 +193,7 @@ export function AuditLogView({ logs, brs }: Props) {
                       {e.user?.role && <span className="text-gray-300">·</span>}
                       {e.user?.role && <span>{ROLE_LABELS[e.user.role as keyof typeof ROLE_LABELS] ?? e.user.role}</span>}
                       <span className="text-gray-300">·</span>
-                      <span>{formatDateTime(e.created_at)}</span>
+                      <span className="font-bold text-brand-800" dir="ltr">{formatDateTime(e.created_at)}</span>
                     </div>
                   </div>
                   <span className={cn('shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium max-w-[45%] truncate',

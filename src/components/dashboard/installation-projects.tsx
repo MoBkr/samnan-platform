@@ -52,7 +52,7 @@ export function InstallationProjects({
                       {p.start_date && (
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-gray-400" />
-                          {formatDateShort(p.start_date)}{p.expected_end_date && ` — ${formatDateShort(p.expected_end_date)}`}
+                          <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(p.start_date)}{p.expected_end_date && ` — ${formatDateShort(p.expected_end_date)}`}</span>
                         </span>
                       )}
                     </div>

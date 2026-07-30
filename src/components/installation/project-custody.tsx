@@ -262,7 +262,7 @@ export function ProjectCustody({
                             )}
                           </div>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {e.entry_date ? formatDateShort(e.entry_date) : ''}
+                            {e.entry_date ? <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(e.entry_date)}</span> : ''}
                             {e.recipient ? ` · ${e.recipient}` : ''}
                             {e.invoice_number ? ` · فاتورة ${e.invoice_number}` : ''}
                             {e.creator?.full_name ? ` · بواسطة ${e.creator.full_name}` : ''}

@@ -100,7 +100,7 @@ export function ProjectTechnicians({
                     {a.technician?.employee_no && <span className="text-[10px] rounded bg-gray-100 text-gray-500 px-1.5 py-0.5" dir="ltr">#{a.technician.employee_no}</span>}
                   </div>
                   <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                    <Clock className="h-3 w-3" /> {formatDateShort(a.start_date)} — {formatDateShort(a.end_date)}
+                    <Clock className="h-3 w-3" /> <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(a.start_date)} — {formatDateShort(a.end_date)}</span>
                   </p>
                 </div>
               </div>

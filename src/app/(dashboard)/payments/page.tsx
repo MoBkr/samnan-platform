@@ -57,7 +57,7 @@ export default async function PaymentsPage() {
                   <TableCell>{PAYMENT_TYPE_LABELS[payment.type]}</TableCell>
                   <TableCell>{formatCurrency(payment.amount)}</TableCell>
                   <TableCell>{formatCurrency(payment.paid_amount)}</TableCell>
-                  <TableCell className="text-red-600">{formatDateShort(payment.due_date)}</TableCell>
+                  <TableCell className="font-bold text-red-600" dir="ltr">{formatDateShort(payment.due_date)}</TableCell>
                   <TableCell><PaymentStatusBadge status="overdue" /></TableCell>
                   <TableCell>
                     <Link href={`/projects/${payment.project.id}`}>

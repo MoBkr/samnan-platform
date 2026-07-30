@@ -83,6 +83,12 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
       if (!hay.includes(q)) return false
     }
     return true
+  }).sort((a, b) => {
+    // Nearest expected-arrival date first; requests without a date go last.
+    if (!a.due_date && !b.due_date) return 0
+    if (!a.due_date) return 1
+    if (!b.due_date) return -1
+    return a.due_date.localeCompare(b.due_date)
   })
   const mineCount = requests.filter(isMine).length
   const overdueCount = scoped.filter((r) => r.stage !== 'completed' && r.due_date && r.due_date < today).length
@@ -270,7 +276,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
                 {detail.location && <Chip icon={<MapPin className="h-3.5 w-3.5" />} text={detail.location} />}
                 {detail.due_date && (
                   <Chip icon={<Calendar className="h-3.5 w-3.5" />} text={`الاستحقاق: ${formatDateShort(detail.due_date)}`}
-                    tone={detail.stage !== 'completed' && detail.due_date < today ? 'red' : 'gray'} />
+                    tone={detail.stage !== 'completed' && detail.due_date < today ? 'red' : 'date'} />
                 )}
               </div>
 
@@ -446,7 +452,7 @@ function Stepper({ r, isPending, onAdvance, onMoveTo, readOnly = false }: {
                   {BR_STAGE_LABELS[stage]}
                 </p>
                 <div className="flex items-center gap-2">
-                  {when && <span className="text-[11px] text-gray-400">{formatDateShort(when)}</span>}
+                  {when && <span className="text-[11px] font-bold text-brand-800" dir="ltr">{formatDateShort(when)}</span>}
                   {/* Reopen a completed stage to fix a mistake — same as materials/installation */}
                   {done && !readOnly && (
                     <button
@@ -467,7 +473,7 @@ function Stepper({ r, isPending, onAdvance, onMoveTo, readOnly = false }: {
               {stage === 'logistics' && (done || isCurrent) && (
                 <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-purple-50 border border-purple-100 px-2.5 py-1 text-xs text-purple-700">
                   <Calendar className="h-3.5 w-3.5" />
-                  موعد التسليم المتوقع: {r.due_date ? formatDateShort(r.due_date) : 'غير محدد'}
+                  موعد التسليم المتوقع: <span className="font-bold text-brand-800" dir="ltr">{r.due_date ? formatDateShort(r.due_date) : 'غير محدد'}</span>
                 </div>
               )}
 
@@ -651,11 +657,13 @@ function FilterChip({ active, onClick, label, count }: { active: boolean; onClic
   )
 }
 
-function Chip({ icon, text, tone = 'gray', on }: { icon: React.ReactNode; text: string; tone?: 'gray' | 'red'; on?: boolean }) {
+function Chip({ icon, text, tone = 'gray', on }: { icon: React.ReactNode; text: string; tone?: 'gray' | 'red' | 'date'; on?: boolean }) {
   return (
     <span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium',
-      tone === 'red' ? 'bg-red-50 border-red-100 text-red-700' : on ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-600')}>
-      <span className="text-gray-400">{icon}</span>{text}
+      tone === 'red' ? 'bg-red-50 border-red-100 text-red-700 font-bold'
+        : tone === 'date' ? 'bg-brand-50 border-brand-100 text-brand-800 font-bold'
+        : on ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-600')}>
+      <span className={tone === 'date' ? 'text-brand-500' : 'text-gray-400'}>{icon}</span>{text}
     </span>
   )
 }
@@ -699,8 +707,8 @@ function RequestCard({ r, today, engineer, onOpen }: {
           {r.materials?.length > 0 && <span className="inline-flex items-center gap-0.5"><Package className="h-3 w-3" />{r.materials.length}</span>}
           {r.attachments?.length > 0 && <span className="inline-flex items-center gap-0.5"><Paperclip className="h-3 w-3" />{r.attachments.length}</span>}
           {r.due_date && (
-            <span className={cn('inline-flex items-center gap-0.5', overdue ? 'text-red-500 font-medium' : '')}>
-              <Calendar className="h-3 w-3" />{formatDateShort(r.due_date)}
+            <span className={cn('inline-flex items-center gap-1 text-xs font-bold', overdue ? 'text-red-600' : 'text-brand-800')}>
+              <Calendar className="h-3.5 w-3.5" />{formatDateShort(r.due_date)}
             </span>
           )}
         </div>

@@ -148,7 +148,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
                   <p className="text-xs text-gray-500 truncate">
-                    {ROLE_LABELS[u.role]} • {formatDateShort(u.created_at)}
+                    {ROLE_LABELS[u.role]} • <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(u.created_at)}</span>
                     {emails[u.id] && <span dir="ltr"> • {emails[u.id]}</span>}
                   </p>
                 </div>
@@ -208,7 +208,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
                       {user.is_active ? 'نشط' : 'غير نشط'}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDateShort(user.created_at)}</TableCell>
+                  <TableCell className="font-bold text-brand-800" dir="ltr">{formatDateShort(user.created_at)}</TableCell>
                   <TableCell>
                     <Select
                       value={user.role}

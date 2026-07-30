@@ -150,7 +150,7 @@ function EditableDocRow({ doc, onDelete, isPending, canDelete }: {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-gray-900 truncate">{doc.description || 'ملف بدون اسم'}</p>
         <p className="text-xs text-gray-500">
-          {doc.uploader?.full_name} • {formatDate(doc.uploaded_at)}
+          {doc.uploader?.full_name} • <span className="font-bold text-brand-800" dir="ltr">{formatDate(doc.uploaded_at)}</span>
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0 ms-3">

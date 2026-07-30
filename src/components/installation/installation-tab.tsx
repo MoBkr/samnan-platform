@@ -282,9 +282,9 @@ function InstallationCard({
             {installation.scheduled_date && (
               <p className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 mt-0.5">
                 <Clock className="h-3 w-3" />
-                <span>البدء: {formatDateShort(installation.scheduled_date)}</span>
+                <span>البدء: <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(installation.scheduled_date)}</span></span>
                 {installation.expected_end_date && (
-                  <span className="text-gray-400">· الانتهاء المتوقع: {formatDateShort(installation.expected_end_date)}</span>
+                  <span className="text-gray-400">· الانتهاء المتوقع: <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(installation.expected_end_date)}</span></span>
                 )}
               </p>
             )}
@@ -316,8 +316,8 @@ function InstallationCard({
           </div>
         ) : (
           <div className="flex items-center gap-3 text-xs">
-            <span className="flex items-center gap-1.5 text-gray-600"><Calendar className="h-3.5 w-3.5 text-gray-400" /> البدء: <strong className="text-gray-800">{installation.scheduled_date ? formatDateShort(installation.scheduled_date) : '—'}</strong></span>
-            <span className="text-gray-600">الانتهاء المتوقع: <strong className="text-gray-800">{installation.expected_end_date ? formatDateShort(installation.expected_end_date) : '—'}</strong></span>
+            <span className="flex items-center gap-1.5 text-gray-600"><Calendar className="h-3.5 w-3.5 text-gray-400" /> البدء: <strong className="font-bold text-brand-800" dir="ltr">{installation.scheduled_date ? formatDateShort(installation.scheduled_date) : '—'}</strong></span>
+            <span className="text-gray-600">الانتهاء المتوقع: <strong className="font-bold text-brand-800" dir="ltr">{installation.expected_end_date ? formatDateShort(installation.expected_end_date) : '—'}</strong></span>
             {canEdit && (
               <button onClick={() => setEditingDates(true)} className="ms-auto text-gray-400 hover:text-brand-600 transition-colors" title="تعديل التواريخ">
                 <Pencil className="h-3.5 w-3.5" />
@@ -474,7 +474,7 @@ function InstallationCard({
           <CheckCircle2 className="h-4 w-4" />
           <span className="font-medium">اكتمل التركيب بنجاح</span>
           {installation.completed_at && (
-            <span className="text-green-500 text-xs">— {formatDateShort(installation.completed_at)}</span>
+            <span className="text-xs font-bold text-brand-800" dir="ltr">— {formatDateShort(installation.completed_at)}</span>
           )}
           {canEdit && (
             <Button size="sm" variant="ghost" loading={isPending} onClick={() => onStatusUpdate(installation.id, 'in_progress')}

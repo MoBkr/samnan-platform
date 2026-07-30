@@ -39,7 +39,7 @@ export function ActivityTab({ activityLog }: ActivityTabProps) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-gray-900">{log.action}</p>
               <p className="mt-0.5 text-xs text-gray-500">
-                {log.user?.full_name ?? 'مجهول'} — {formatDateTime(log.created_at)}
+                {log.user?.full_name ?? 'مجهول'} — <span className="font-bold text-brand-800" dir="ltr">{formatDateTime(log.created_at)}</span>
               </p>
 
               {/* Old → New audit diff */}
