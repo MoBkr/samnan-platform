@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
-  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer, ArrowRight,
+  Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer, ArrowRight, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -300,6 +300,13 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const excelInputRef = useRef<HTMLInputElement>(null)
 
+  // ── Item search & filters (view aid — never touches the data) ──
+  const [itemSearch, setItemSearch] = useState('')
+  const [itemStateFilter, setItemStateFilter] = useState<'all' | ItemState>('all')
+  const [itemUnitFilter, setItemUnitFilter] = useState('')
+  const [qtyOp, setQtyOp] = useState<'eq' | 'gte' | 'lte'>('eq')
+  const [qtyVal, setQtyVal] = useState('')
+
   function rowEmpty(it: MaterialItem) {
     return !(it.description?.trim() || it.name?.trim() || it.sap_no?.trim() || it.sto_no?.trim() || it.unit?.trim() || it.quantity)
   }
@@ -350,6 +357,37 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
         if (result?.error) toast.error(result.error)
       } catch { toast.error('حدث خطأ غير متوقع') }
     })
+  }
+
+  // Filtered rows keep their ORIGINAL index so edits/deletes/state changes
+  // land on the right item even while a filter is active.
+  const itemQ = itemSearch.trim().toLowerCase()
+  const itemUnits = [...new Set(draftItems.map((it) => (it.unit ?? '').trim()).filter(Boolean))].sort()
+  function itemMatches(it: MaterialItem): boolean {
+    if (itemQ) {
+      const hay = `${it.description ?? it.name ?? ''} ${it.sap_no ?? ''} ${it.sto_no ?? ''}`.toLowerCase()
+      if (!hay.includes(itemQ)) return false
+    }
+    if (itemStateFilter !== 'all' && itemState(it) !== itemStateFilter) return false
+    if (itemUnitFilter && (it.unit ?? '').trim() !== itemUnitFilter) return false
+    if (qtyVal !== '') {
+      const n = parseFloat(qtyVal)
+      if (!isNaN(n)) {
+        const q = it.quantity
+        if (q == null) return false
+        if (qtyOp === 'eq' && q !== n) return false
+        if (qtyOp === 'gte' && q < n) return false
+        if (qtyOp === 'lte' && q > n) return false
+      }
+    }
+    return true
+  }
+  const filteredPairs = draftItems.map((it, i) => ({ it, i })).filter((p) => itemMatches(p.it))
+  const itemFiltersActive = !!itemQ || itemStateFilter !== 'all' || !!itemUnitFilter || qtyVal !== ''
+  const stateCounts: Record<'all' | ItemState, number> = { all: draftItems.length, completed: 0, in_progress: 0, not_requested: 0 }
+  draftItems.forEach((it) => { stateCounts[itemState(it)]++ })
+  function clearItemFilters() {
+    setItemSearch(''); setItemStateFilter('all'); setItemUnitFilter(''); setQtyVal(''); setQtyOp('eq')
   }
 
   function handleRemoveItem(idx: number) {
@@ -873,6 +911,65 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               </div>
             </div>
 
+            {/* ── Search & filters — works in view and edit modes ── */}
+            {draftItems.length > 0 && (
+              <div className="no-print rounded-xl border border-gray-100 bg-white p-3 space-y-2.5 shadow-sm">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-gray-400" />
+                  <input
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    placeholder="ابحث بالوصف أو رقم المادة (Material) أو مستند الشراء..."
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50/50 ps-9 pe-9 text-sm placeholder:text-gray-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/15 transition-colors"
+                  />
+                  {itemSearch && (
+                    <button onClick={() => setItemSearch('')}
+                      className="absolute top-1/2 -translate-y-1/2 end-3 text-gray-400 hover:text-gray-600">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {([
+                    ['all', 'الكل', 'border-gray-200 bg-white text-gray-600', 'bg-brand-600 border-brand-600 text-white'],
+                    ['completed', 'مكتمل', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'bg-emerald-600 border-emerald-600 text-white'],
+                    ['in_progress', 'قيد الإجراء', 'border-amber-200 bg-amber-50 text-amber-700', 'bg-amber-500 border-amber-500 text-white'],
+                    ['not_requested', 'لم يطلب', 'border-red-200 bg-red-50 text-red-600', 'bg-red-600 border-red-600 text-white'],
+                  ] as [('all' | ItemState), string, string, string][]).map(([key, label, idle, active]) => (
+                    <button key={key} onClick={() => setItemStateFilter(key)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition-all ${itemStateFilter === key ? active : `${idle} hover:opacity-80`}`}>
+                      {label} <span className="opacity-70 font-bold">{stateCounts[key]}</span>
+                    </button>
+                  ))}
+                  <span className="h-5 w-px bg-gray-200 mx-1 hidden sm:block" />
+                  <select value={itemUnitFilter} onChange={(e) => setItemUnitFilter(e.target.value)}
+                    className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-600 focus:border-brand-500 focus:outline-none cursor-pointer">
+                    <option value="">كل الوحدات</option>
+                    {itemUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <select value={qtyOp} onChange={(e) => setQtyOp(e.target.value as 'eq' | 'gte' | 'lte')}
+                      className="h-8 rounded-lg border border-gray-200 bg-white px-1.5 text-xs font-bold text-gray-600 focus:border-brand-500 focus:outline-none cursor-pointer" dir="ltr">
+                      <option value="eq">=</option>
+                      <option value="gte">≥</option>
+                      <option value="lte">≤</option>
+                    </select>
+                    <input type="number" min="0" value={qtyVal} onChange={(e) => setQtyVal(e.target.value)} placeholder="الكمية"
+                      className="h-8 w-20 rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold placeholder:text-gray-400 focus:border-brand-500 focus:outline-none" dir="ltr" />
+                  </div>
+                  <span className="ms-auto text-xs font-semibold text-gray-500">
+                    عرض <b className="text-brand-700">{filteredPairs.length}</b> من {draftItems.length} صنف
+                  </span>
+                  {itemFiltersActive && (
+                    <button onClick={clearItemFilters}
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-500 hover:text-red-600 hover:border-red-200 transition-colors">
+                      <X className="h-3 w-3" /> مسح الفلاتر
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {editingItems ? (
               <div className="space-y-3 rounded-xl border border-brand-100 bg-white p-4">
                 {draftItems.length > 0 ? (
@@ -896,7 +993,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-50">
-                        {draftItems.map((item, i) => (
+                        {filteredPairs.length === 0 && (
+                          <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-gray-400">لا توجد أصناف مطابقة للفلاتر</td></tr>
+                        )}
+                        {filteredPairs.map(({ it: item, i }) => (
                           <tr key={i} className={selectedRows.has(i) ? 'bg-brand-50/40' : ''}>
                             <td className="px-2 py-1.5 text-center">
                               <input type="checkbox" className="h-4 w-4 accent-brand-600 align-middle"
@@ -1019,12 +1119,18 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
             ) : (
               <div id="materials-print">
                 <PrintHeader title="قائمة المواد" subtitle={projectName} />
-                <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} />
+                <ItemsTable
+                  items={filteredPairs.map((p) => p.it)}
+                  onStateChange={canManage ? (vis, st) => handleItemState(filteredPairs[vis].i, st) : undefined}
+                />
               </div>
             )}
 
             {!editingItems && draftItems.length === 0 && (
               <p className="text-xs text-gray-400 text-center py-1">لم تُدخَل مواد يدوياً</p>
+            )}
+            {!editingItems && draftItems.length > 0 && filteredPairs.length === 0 && (
+              <p className="text-xs text-gray-400 text-center py-3">لا توجد أصناف مطابقة للفلاتر</p>
             )}
           </div>
 
