@@ -42,21 +42,27 @@ export function RevenueBreakdownCard({ projects, label = 'إجمالي القي�
   }).filter((b) => b.count > 0)
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+    <div className={`rounded-2xl border bg-white shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-brand-300 ${open ? 'border-brand-200' : 'border-gray-100'}`}>
+      {/* Same visual language as the other KPI cards: icon, value, label —
+          plus an explicit "التفاصيل ▾" affordance so it reads as clickable. */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between p-5 text-start hover:bg-gray-50/50 transition-colors"
+        className="group relative w-full p-5 text-start cursor-pointer"
       >
-        <div className="flex items-center gap-4">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-xl shrink-0 ${iconBg}`}>
-            <TrendingUp className="h-6 w-6" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{formatCurrency(total)}</p>
-            <p className="text-sm font-medium text-gray-500 mt-1">{label}</p>
-          </div>
+        <span className="absolute top-3 left-3 flex items-center gap-0.5 text-[10px] font-medium text-gray-300 transition-colors group-hover:text-brand-600">
+          التفاصيل
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? 'rotate-180 text-brand-600' : ''}`} />
+        </span>
+        <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}>
+          <TrendingUp className="h-6 w-6" />
         </div>
-        <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <p className="text-2xl font-bold text-gray-900 leading-tight">
+          <span dir="ltr" className="inline-block">{formatCurrency(total)}</span>
+        </p>
+        <p className="text-sm font-medium text-gray-500 mt-0.5">{label}</p>
+        <p className="text-xs mt-1 font-medium text-gray-400 group-hover:text-brand-600 transition-colors">
+          اضغط لعرض التفصيل حسب الحالة
+        </p>
       </button>
 
       {open && (
