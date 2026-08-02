@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Package, Upload, FileText, CheckCircle2, Truck, Plus, Trash2, Save, Clock, Paperclip, X, Printer, ArrowRight, Search,
@@ -148,11 +148,27 @@ const ITEM_STATE_STYLE: Record<ItemState, string> = {
 }
 const itemState = (item: MaterialItem): ItemState => item.item_state ?? 'completed'
 
+// Inline per-item note — saves on blur, resyncs if the row changes under a filter.
+function NotesCell({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [v, setV] = useState(value)
+  useEffect(() => setV(value), [value])
+  return (
+    <input
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => { if (v.trim() !== value.trim()) onSave(v.trim()) }}
+      placeholder="أضف ملاحظة..."
+      className="h-8 w-40 rounded-lg border border-gray-200 bg-gray-50/40 px-2 text-xs placeholder:text-gray-300 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/10 transition-colors"
+    />
+  )
+}
+
 // Columns mirror the client's SAP export:
 // Purchasing Document · Material · Short Text · Order Quantity · Order Unit (+ مرفقات)
-function ItemsTable({ items, onStateChange }: {
+function ItemsTable({ items, onStateChange, onNotesChange }: {
   items: MaterialItem[]
   onStateChange?: (idx: number, state: ItemState) => void
+  onNotesChange?: (idx: number, notes: string) => void
 }) {
   if (items.length === 0) return null
   return (
@@ -168,6 +184,7 @@ function ItemsTable({ items, onStateChange }: {
             <th className="px-3 py-2.5 text-start font-medium">الوحدة</th>
             {/* Site-only — never printed */}
             <th className="px-3 py-2.5 text-start font-medium print:hidden">حالة الصنف</th>
+            <th className="px-3 py-2.5 text-start font-medium">ملاحظات</th>
             <th className="px-3 py-2.5 text-start font-medium">مرفقات</th>
             {/* Hand-check column — print only */}
             <th className="hidden print:table-cell px-3 py-2.5 text-center font-medium" dir="ltr">MARK ✓</th>
@@ -198,6 +215,15 @@ function ItemsTable({ items, onStateChange }: {
                     {ITEM_STATE_LABEL[itemState(item)]}
                   </span>
                 )}
+              </td>
+              <td className="px-3 py-2.5">
+                {onNotesChange ? (
+                  <span className="print:hidden"><NotesCell value={item.notes ?? ''} onSave={(v) => onNotesChange(i, v)} /></span>
+                ) : null}
+                {/* plain text for read-only view and for print */}
+                <span className={`whitespace-normal text-xs text-gray-600 ${onNotesChange ? 'hidden print:inline' : ''}`}>
+                  {item.notes?.trim() || (onNotesChange ? '' : '—')}
+                </span>
               </td>
               <td className="px-3 py-2.5">
                 {item.attachments && item.attachments.length > 0 ? (
@@ -359,13 +385,26 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     })
   }
 
+  // Per-item note from the view table — persists immediately (like state).
+  function handleItemNotes(idx: number, notes: string) {
+    const next = draftItems.map((it, i) => (i === idx ? { ...it, notes: notes || undefined } : it))
+    setDraftItems(next)
+    startTransition(async () => {
+      try {
+        const result = await updateMaterialsItems(projectId, next)
+        if (result?.error) toast.error(result.error)
+        else toast.success('تم حفظ الملاحظة')
+      } catch { toast.error('حدث خطأ غير متوقع') }
+    })
+  }
+
   // Filtered rows keep their ORIGINAL index so edits/deletes/state changes
   // land on the right item even while a filter is active.
   const itemQ = itemSearch.trim().toLowerCase()
   const itemUnits = [...new Set(draftItems.map((it) => (it.unit ?? '').trim()).filter(Boolean))].sort()
   function itemMatches(it: MaterialItem): boolean {
     if (itemQ) {
-      const hay = `${it.description ?? it.name ?? ''} ${it.sap_no ?? ''} ${it.sto_no ?? ''}`.toLowerCase()
+      const hay = `${it.description ?? it.name ?? ''} ${it.sap_no ?? ''} ${it.sto_no ?? ''} ${it.notes ?? ''}`.toLowerCase()
       if (!hay.includes(itemQ)) return false
     }
     if (itemStateFilter !== 'all' && itemState(it) !== itemStateFilter) return false
@@ -988,13 +1027,14 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                           <th className="px-2 py-2 text-start font-medium">الكمية</th>
                           <th className="px-2 py-2 text-start font-medium">الوحدة</th>
                           <th className="px-2 py-2 text-start font-medium">حالة الصنف</th>
+                          <th className="px-2 py-2 text-start font-medium">ملاحظات</th>
                           <th className="px-2 py-2 text-start font-medium">مرفقات</th>
                           <th className="px-2 py-2" />
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-50">
                         {filteredPairs.length === 0 && (
-                          <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-gray-400">لا توجد أصناف مطابقة للفلاتر</td></tr>
+                          <tr><td colSpan={10} className="px-3 py-6 text-center text-sm text-gray-400">لا توجد أصناف مطابقة للفلاتر</td></tr>
                         )}
                         {filteredPairs.map(({ it: item, i }) => (
                           <tr key={i} className={selectedRows.has(i) ? 'bg-brand-50/40' : ''}>
@@ -1037,6 +1077,10 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                 <option value="in_progress">قيد الإجراء</option>
                                 <option value="not_requested">لم يطلب</option>
                               </select>
+                            </td>
+                            <td className="px-2 py-1.5 w-40">
+                              <Input className="h-9" placeholder="أضف ملاحظة..." value={item.notes ?? ''}
+                                onChange={(e) => updateDraftItem(i, { notes: e.target.value })} />
                             </td>
                             <td className="px-2 py-1.5 min-w-[120px]">
                               <div className="flex flex-wrap items-center gap-1">
@@ -1122,6 +1166,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 <ItemsTable
                   items={filteredPairs.map((p) => p.it)}
                   onStateChange={canManage ? (vis, st) => handleItemState(filteredPairs[vis].i, st) : undefined}
+                  onNotesChange={canManage ? (vis, v) => handleItemNotes(filteredPairs[vis].i, v) : undefined}
                 />
               </div>
             )}

@@ -1384,6 +1384,8 @@ export const AR_PHRASES: Record<string, string> = {
   'عرض المتأخر فقط': 'Show overdue only',
   'ابحث بالوصف أو رقم المادة (Material) أو مستند الشراء...': 'Search by description, Material no., or Purchasing Document…',
   'كل الوحدات': 'All units',
+  'أضف ملاحظة...': 'Add a note…',
+  'تم حفظ الملاحظة': 'Note saved',
   'لا توجد أصناف مطابقة للفلاتر': 'No items match the filters',
   'حالة الصنف': 'Item status',
   'قيد الإجراء': 'In progress',
