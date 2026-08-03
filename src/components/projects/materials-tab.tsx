@@ -148,6 +148,35 @@ const ITEM_STATE_STYLE: Record<ItemState, string> = {
 }
 const itemState = (item: MaterialItem): ItemState => item.item_state ?? 'completed'
 
+// Purchasing Documents that appear on more than one item get a distinct,
+// stable color — one glance shows which items belong to the same order.
+const STO_PALETTE = [
+  'bg-blue-50 text-blue-700 border-blue-200',
+  'bg-violet-50 text-violet-700 border-violet-200',
+  'bg-teal-50 text-teal-700 border-teal-200',
+  'bg-amber-50 text-amber-800 border-amber-200',
+  'bg-rose-50 text-rose-700 border-rose-200',
+  'bg-cyan-50 text-cyan-700 border-cyan-200',
+  'bg-lime-50 text-lime-700 border-lime-200',
+  'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+]
+function buildStoColors(items: MaterialItem[]): Map<string, string> {
+  const counts = new Map<string, number>()
+  for (const it of items) {
+    const s = it.sto_no?.trim()
+    if (s) counts.set(s, (counts.get(s) ?? 0) + 1)
+  }
+  const colors = new Map<string, string>()
+  let next = 0
+  for (const it of items) {
+    const s = it.sto_no?.trim()
+    if (s && (counts.get(s) ?? 0) > 1 && !colors.has(s)) {
+      colors.set(s, STO_PALETTE[next++ % STO_PALETTE.length])
+    }
+  }
+  return colors
+}
+
 // Inline per-item note — saves on blur, resyncs if the row changes under a filter.
 function NotesCell({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [v, setV] = useState(value)
@@ -165,10 +194,12 @@ function NotesCell({ value, onSave }: { value: string; onSave: (v: string) => vo
 
 // Columns mirror the client's SAP export:
 // Purchasing Document · Material · Short Text · Order Quantity · Order Unit (+ مرفقات)
-function ItemsTable({ items, onStateChange, onNotesChange }: {
+function ItemsTable({ items, onStateChange, onNotesChange, stoColors }: {
   items: MaterialItem[]
   onStateChange?: (idx: number, state: ItemState) => void
   onNotesChange?: (idx: number, notes: string) => void
+  /** color per duplicated Purchasing Document — computed from the FULL list so filters don't shift colors */
+  stoColors?: Map<string, string>
 }) {
   if (items.length === 0) return null
   return (
@@ -194,7 +225,17 @@ function ItemsTable({ items, onStateChange, onNotesChange }: {
           {items.map((item, i) => (
             <tr key={i}>
               <td className="px-3 py-2.5 text-gray-400">{i + 1}</td>
-              <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sto_no || '—'}</td>
+              <td className="px-3 py-2.5" dir="ltr">
+                {item.sto_no ? (
+                  stoColors?.get(item.sto_no.trim()) ? (
+                    <span className={`inline-block rounded-lg border px-2 py-0.5 text-xs font-bold ${stoColors.get(item.sto_no.trim())}`}>
+                      {item.sto_no}
+                    </span>
+                  ) : (
+                    <span className="text-gray-700">{item.sto_no}</span>
+                  )
+                ) : '—'}
+              </td>
               <td className="px-3 py-2.5 text-gray-700" dir="ltr">{item.sap_no || '—'}</td>
               <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-normal">{item.description || item.name || '—'}</td>
               <td className="px-3 py-2.5 text-gray-700">{item.quantity ?? '—'}</td>
@@ -422,6 +463,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
     return true
   }
   const filteredPairs = draftItems.map((it, i) => ({ it, i })).filter((p) => itemMatches(p.it))
+  const stoColors = buildStoColors(draftItems)
   const itemFiltersActive = !!itemQ || itemStateFilter !== 'all' || !!itemUnitFilter || qtyVal !== ''
   const stateCounts: Record<'all' | ItemState, number> = { all: draftItems.length, completed: 0, in_progress: 0, not_requested: 0 }
   draftItems.forEach((it) => { stateCounts[itemState(it)]++ })
@@ -1043,7 +1085,9 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                 checked={selectedRows.has(i)} onChange={() => toggleRow(i)} />
                             </td>
                             <td className="px-2 py-1.5 w-32">
-                              <Input className="h-9" dir="ltr" placeholder="9200043607" value={item.sto_no ?? ''}
+                              <Input
+                                className={`h-9 font-semibold ${item.sto_no?.trim() ? stoColors.get(item.sto_no.trim()) ?? '' : ''}`}
+                                dir="ltr" placeholder="9200043607" value={item.sto_no ?? ''}
                                 onPaste={(e) => handlePasteRows(e, i)}
                                 onChange={(e) => updateDraftItem(i, { sto_no: e.target.value })} />
                             </td>
@@ -1167,6 +1211,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                   items={filteredPairs.map((p) => p.it)}
                   onStateChange={canManage ? (vis, st) => handleItemState(filteredPairs[vis].i, st) : undefined}
                   onNotesChange={canManage ? (vis, v) => handleItemNotes(filteredPairs[vis].i, v) : undefined}
+                  stoColors={stoColors}
                 />
               </div>
             )}
@@ -1276,7 +1321,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 </div>
               </div>
 
-              <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} />
+              <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} stoColors={stoColors} />
 
               {itemsTotal > 0 && (
                 <div className="flex items-center justify-between rounded-xl bg-brand-50 border border-brand-100 px-4 py-3">
@@ -1360,7 +1405,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
           {draftItems.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">قائمة المواد</p>
-              <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} />
+              <ItemsTable items={draftItems} onStateChange={canManage ? handleItemState : undefined} stoColors={stoColors} />
             </div>
           )}
 
