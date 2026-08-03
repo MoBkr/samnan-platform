@@ -628,8 +628,8 @@ export function ProjectDetail({
             )}
           </div>
 
-          {/* Financial summary */}
-          <div className="flex gap-3 shrink-0">
+          {/* Financial summary — wraps into a 2-col grid on phones so nothing clips */}
+          <div className="grid grid-cols-2 gap-2.5 sm:flex sm:gap-3 sm:shrink-0">
             <div className={`rounded-xl px-4 py-3 text-center min-w-[100px] ${isFullyPaid ? 'bg-emerald-50' : 'bg-blue-50'}`}>
               <p className={`text-xs font-medium ${isFullyPaid ? 'text-emerald-600' : 'text-blue-600'}`}>المحصّل</p>
               <p className={`text-lg font-bold mt-0.5 ${isFullyPaid ? 'text-emerald-700' : 'text-blue-700'}`}>{formatCurrency(totalPaid)}</p>
