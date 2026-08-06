@@ -699,6 +699,7 @@ function RequestCard({ r, today, engineer, onOpen }: {
 
       <div className="mt-2 space-y-1 text-xs text-gray-500">
         {r.br_number && <p className="flex items-center gap-1.5"><Hash className="h-3 w-3 shrink-0" /> BR: <span dir="ltr" className="font-medium text-gray-700">{r.br_number}</span></p>}
+        {r.release_number && <p className="flex items-center gap-1.5"><Flag className="h-3 w-3 shrink-0" /> PO (تعميد): <span dir="ltr" className="font-medium text-gray-700">{r.release_number}</span></p>}
         {r.supplier_name && <p className="flex items-center gap-1.5"><Truck className="h-3 w-3 shrink-0" /> {r.supplier_name}</p>}
         {engineer && <p className="flex items-center gap-1.5"><User className="h-3 w-3 shrink-0" /> {engineer.full_name}</p>}
       </div>
