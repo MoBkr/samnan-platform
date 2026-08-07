@@ -1,20 +1,14 @@
 // Client-side direct upload to Supabase Storage.
 // The file goes: Browser → Supabase (signed URL), never through Vercel.
 // This bypasses Vercel's 4.5 MB serverless body limit entirely.
+//
+// This file's checks exist only to fail fast with a friendly message. The
+// authoritative validation (extension ↔ MIME agreement, folder allowlist,
+// stored content type) lives server-side in lib/actions/upload.ts.
 
 import { createUploadSignedUrl } from '@/lib/actions/upload'
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '@/lib/config'
 
-const MAX_SIZE = 50 * 1024 * 1024 // 50 MB — Supabase Storage's default per-file cap
-const ALLOWED_MIMES = [
-  'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-  'application/vnd.ms-excel', // .xls / some .csv
-  'text/csv',
-  // AutoCAD — browsers report these inconsistently, extension check below is the real gate
-  'application/acad', 'application/x-dwg', 'image/vnd.dwg', 'application/dxf', 'image/vnd.dxf',
-]
-// Browsers often give AutoCAD files an empty/octet-stream MIME type, so the
-// file extension is the reliable check.
 const ALLOWED_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'xlsx', 'xls', 'csv', 'dwg', 'dxf']
 
 const extOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? ''
@@ -23,11 +17,10 @@ export async function uploadFileDirect(
   file: File,
   folder: string,
 ): Promise<{ url: string } | { error: string }> {
-  // Client-side validation first — gives instant feedback before any network call
-  if (file.size > MAX_SIZE) {
-    return { error: `حجم الملف (${(file.size / 1024 / 1024).toFixed(1)} MB) يتجاوز الحد المسموح به (50 MB)` }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { error: `حجم الملف (${(file.size / 1024 / 1024).toFixed(1)} MB) يتجاوز الحد المسموح به (${MAX_UPLOAD_LABEL} MB)` }
   }
-  if (!ALLOWED_MIMES.includes(file.type) && !ALLOWED_EXTS.includes(extOf(file.name))) {
+  if (!ALLOWED_EXTS.includes(extOf(file.name))) {
     return { error: 'صيغة الملف غير مدعومة. يُسمح بـ PDF، صور JPG / PNG / WebP، Excel، أو أوتوكاد DWG / DXF' }
   }
 
@@ -35,13 +28,14 @@ export async function uploadFileDirect(
   const signed = await createUploadSignedUrl(file.name, folder, file.type, file.size)
   if ('error' in signed) return signed
 
-  // 2. Upload the file directly from the browser to Supabase Storage
+  // 2. Upload the file directly from the browser to Supabase Storage.
+  //    The content type is the one the SERVER resolved from the extension —
+  //    never the browser-declared type, which a caller can set to anything.
   try {
     const res = await fetch(signed.signedUrl, {
       method: 'PUT',
       body: file,
-      // CAD files often have an empty type — storage needs something valid
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      headers: { 'Content-Type': signed.contentType },
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')

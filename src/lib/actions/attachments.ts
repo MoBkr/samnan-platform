@@ -6,10 +6,21 @@ import { createClient } from '@/lib/supabase/server'
 import { detachFromJsonb, removeDocumentRows, removeStorageFiles } from '@/lib/file-cleanup'
 import type { Document } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+import { requireProjectAccess, requireManager } from '@/lib/auth/guards'
+import { STORAGE_BUCKET } from '@/lib/config'
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB — matches the client-side limit
+// Document URLs arrive from the client and are later rendered as links — to
+// staff and, via the share page, to the customer. Anything not inside our own
+// storage bucket is rejected so a caller can't plant an external link.
+function isOurStorageUrl(url: string): boolean {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!base || !url) return false
+  return url.startsWith(`${base}/storage/v1/object/public/${STORAGE_BUCKET}/`)
+}
 
 export async function getProjectAttachments(projectId: string) {
+  const guard = await requireProjectAccess(projectId)
+  if ('error' in guard) return []
   try {
     const supabase = await createClient()
     const result = (await supabase
@@ -17,8 +28,12 @@ export async function getProjectAttachments(projectId: string) {
       .select('*, uploader:profiles!uploaded_by(id,full_name,role)')
       .eq('project_id', projectId)
       .order('uploaded_at', { ascending: false })) as QueryResultMany<Document>
+    // A query failure is not "no attachments" — surface it in the logs rather
+    // than silently rendering an empty state over a broken database.
+    if (result.error) console.error('[getProjectAttachments]', result.error)
     return result.data ?? []
-  } catch {
+  } catch (e) {
+    console.error('[getProjectAttachments]', e)
     return []
   }
 }
@@ -32,9 +47,10 @@ export async function saveDocumentRecord(
   description: string,
 ): Promise<{ success: true } | { error: string }> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireProjectAccess(projectId)
+    if ('error' in guard) return { error: guard.error }
+    if (!isOurStorageUrl(publicUrl)) return { error: 'رابط الملف غير صالح' }
+    const user = { id: guard.ctx.userId }
 
     const service = createServiceClient()
     const { error } = (await service
@@ -73,9 +89,10 @@ export async function savePaymentAttachment(
   description: string,
 ): Promise<{ success: true } | { error: string }> {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireProjectAccess(projectId)
+    if ('error' in guard) return { error: guard.error }
+    if (!isOurStorageUrl(publicUrl)) return { error: 'رابط الملف غير صالح' }
+    const user = { id: guard.ctx.userId }
 
     const service = createServiceClient()
     const { error } = (await service
@@ -106,81 +123,20 @@ export async function savePaymentAttachment(
   }
 }
 
-export async function uploadAttachment(formData: FormData) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
-
-    const file = formData.get('file') as File
-    const projectId = formData.get('project_id') as string
-    const docType = formData.get('type') as string
-
-    if (!file) return { error: 'لم يتم اختيار ملف' }
-    if (!projectId || !docType) return { error: 'بيانات المشروع مفقودة' }
-    if (file.size > MAX_FILE_SIZE) return { error: 'حجم الملف يتجاوز 50 ميجابايت' }
-
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'dwg', 'dxf']
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-    if (!allowedMimes.includes(file.type) && !allowedExts.includes(ext)) {
-      return { error: 'صيغة الملف غير مدعومة. يُسمح بـ JPG / PNG / WebP / PDF أو أوتوكاد DWG / DXF' }
-    }
-
-    const timestamp = Date.now()
-    const randomStr = Math.random().toString(36).slice(2)
-    const fileName = `${timestamp}-${randomStr}.${ext || 'bin'}`
-    const filePath = `${docType}/${fileName}`
-
-    const service = createServiceClient()
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const { error: uploadError } = await service.storage
-      .from('documents')
-      .upload(filePath, buffer, { contentType: file.type, upsert: false })
-
-    if (uploadError) {
-      if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('bucket')) {
-        return { error: 'خطأ في الإعدادات: يجب إنشاء Storage bucket باسم "documents" في Supabase' }
-      }
-      return { error: 'فشل رفع الملف. حاول مرة أخرى' }
-    }
-
-    const { data: urlData } = service.storage.from('documents').getPublicUrl(filePath)
-
-    const customDescription = formData.get('description') as string | null
-    const { data, error } = (await service
-      .from('documents')
-      .insert({
-        project_id: projectId,
-        type: docType,
-        url: urlData?.publicUrl || '',
-        uploaded_by: user.id,
-        description: customDescription || file.name,
-      } as never)
-      .select()
-      .single()) as unknown as { data: Document | null; error: Error | null }
-
-    if (error) return { error: 'فشل حفظ بيانات الملف في قاعدة البيانات' }
-
-    revalidatePath(`/projects/${projectId}`)
-    return { success: true, data }
-  } catch (e) {
-    console.error('[uploadAttachment]', e)
-    return { error: 'حدث خطأ غير متوقع أثناء رفع الملف' }
-  }
-}
-
 export async function deleteAttachment(documentId: string, projectId: string) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireProjectAccess(projectId, { write: true })
+    if ('error' in guard) return { error: guard.error }
+    const user = { id: guard.ctx.userId }
 
+    const supabase = await createClient()
+    // Scope the lookup to the project the caller was authorized for — without
+    // this, any document id could be deleted by passing a project you can access.
     const docResult = (await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
+      .eq('project_id', projectId)
       .single()) as QueryResult<Document>
 
     if (!docResult.data) return { error: 'الملف غير موجود' }
@@ -217,9 +173,9 @@ export async function deleteAttachment(documentId: string, projectId: string) {
 
 export async function deleteContractUrl(projectId: string) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireManager()
+    if ('error' in guard) return { error: guard.error }
+    const user = { id: guard.ctx.userId }
 
     const service = createServiceClient()
     const cur = (await service
@@ -255,13 +211,14 @@ export async function deleteContractUrl(projectId: string) {
 // Receives the public URL (file already uploaded by client directly to Supabase).
 export async function uploadContractUrl(formData: FormData) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireManager()
+    if ('error' in guard) return { error: guard.error }
+    const user = { id: guard.ctx.userId }
 
     const publicUrl = formData.get('url') as string
     const projectId = formData.get('project_id') as string
     if (!publicUrl || !projectId) return { error: 'بيانات مفقودة' }
+    if (!isOurStorageUrl(publicUrl)) return { error: 'رابط الملف غير صالح' }
 
     const service = createServiceClient()
     const { error } = (await service
@@ -298,9 +255,10 @@ const CLIENT_DOC_LABELS: Record<ClientDocField, string> = {
 export async function setClientDoc(projectId: string, field: ClientDocField, url: string) {
   if (!CLIENT_DOC_FIELDS.includes(field)) return { error: 'حقل غير صالح' }
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireManager()
+    if ('error' in guard) return { error: guard.error }
+    if (!isOurStorageUrl(url)) return { error: 'رابط الملف غير صالح' }
+    const user = { id: guard.ctx.userId }
 
     const service = createServiceClient()
     const { error } = (await service
@@ -323,9 +281,9 @@ export async function setClientDoc(projectId: string, field: ClientDocField, url
 export async function clearClientDoc(projectId: string, field: ClientDocField) {
   if (!CLIENT_DOC_FIELDS.includes(field)) return { error: 'حقل غير صالح' }
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireManager()
+    if ('error' in guard) return { error: guard.error }
+    const user = { id: guard.ctx.userId }
 
     const service = createServiceClient()
     const cur = (await service
@@ -356,18 +314,21 @@ export async function clearClientDoc(projectId: string, field: ClientDocField) {
 
 export async function deletePaymentReceipt(paymentId: string, projectId: string) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'غير مصرح' }
+    const guard = await requireManager()
+    if ('error' in guard) return { error: guard.error }
+    const user = { id: guard.ctx.userId }
 
     const service = createServiceClient()
+    // Scope by project too, so a payment id from another project can't be hit.
     const cur = (await service
-      .from('payments').select('receipt_url').eq('id', paymentId).single()) as QueryResult<{ receipt_url: string | null }>
+      .from('payments').select('receipt_url').eq('id', paymentId).eq('project_id', projectId).single()) as QueryResult<{ receipt_url: string | null }>
+    if (!cur.data) return { error: 'الدفعة غير موجودة' }
 
     const { error } = (await service
       .from('payments')
       .update({ receipt_url: null } as never)
-      .eq('id', paymentId)) as unknown as { error: Error | null }
+      .eq('id', paymentId)
+      .eq('project_id', projectId)) as unknown as { error: Error | null }
 
     if (error) return { error: 'فشل حذف الإيصال' }
 

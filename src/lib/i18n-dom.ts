@@ -16,6 +16,29 @@ const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA'])
 // These print roots carry their own AR/EN language choice — never rewritten.
 const SKIP_IDS = new Set(['materials-print', 'project-summary-print'])
 const TRANSLATABLE_ATTRS = ['placeholder', 'title', 'aria-label', 'alt']
+// React unmounts nodes constantly; originals kept for detached nodes are dead
+// weight, so they are swept out at most this often (ms).
+const PRUNE_INTERVAL_MS = 5000
+
+// ── Idle scheduling (throttles the observer off React's commit path) ──
+type IdleWindow = Window & {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+  cancelIdleCallback?: (handle: number) => void
+}
+
+function scheduleIdle(cb: () => void): number {
+  const w = window as IdleWindow
+  if (typeof w.requestIdleCallback === 'function') {
+    return w.requestIdleCallback(cb, { timeout: 200 })
+  }
+  return window.setTimeout(cb, 0)
+}
+
+function cancelIdle(handle: number) {
+  const w = window as IdleWindow
+  if (typeof w.cancelIdleCallback === 'function') w.cancelIdleCallback(handle)
+  else window.clearTimeout(handle)
+}
 
 let phraseRe: RegExp | null = null
 function getPhraseRe(): RegExp {
@@ -141,9 +164,28 @@ export function startDomTranslation(): () => void {
     }
   }
 
-  // Our own writes produce Arabic-free values, so re-entrant mutation records
-  // no-op immediately — no loop guard needed.
-  const observer = new MutationObserver((records) => {
+  // Drop originals for nodes React has already unmounted — without this the
+  // two maps pin every node ever translated for the whole English session.
+  let lastPrune = Date.now()
+  function prune() {
+    const now = Date.now()
+    if (now - lastPrune < PRUNE_INTERVAL_MS) return
+    lastPrune = now
+    for (const node of textOrig.keys()) if (!node.isConnected) textOrig.delete(node)
+    for (const el of attrOrig.keys()) if (!el.isConnected) attrOrig.delete(el)
+  }
+
+  // Mutation records are batched and drained when the browser is idle rather
+  // than synchronously on every React commit.
+  let pending: MutationRecord[] = []
+  let idleHandle: number | null = null
+  let stopped = false
+
+  function flush() {
+    idleHandle = null
+    if (stopped) return
+    const records = pending
+    pending = []
     for (const r of records) {
       if (r.type === 'characterData') {
         const t = r.target
@@ -156,6 +198,14 @@ export function startDomTranslation(): () => void {
         if (!isSkipped(r.target)) translateAttrs(r.target)
       }
     }
+    prune()
+  }
+
+  // Our own writes produce Arabic-free values, so re-entrant mutation records
+  // no-op immediately — no loop guard needed.
+  const observer = new MutationObserver((records) => {
+    for (const r of records) pending.push(r)
+    if (idleHandle === null) idleHandle = scheduleIdle(flush)
   })
 
   processTree(document.body)
@@ -168,7 +218,13 @@ export function startDomTranslation(): () => void {
   })
 
   return () => {
+    stopped = true
     observer.disconnect()
+    if (idleHandle !== null) {
+      cancelIdle(idleHandle)
+      idleHandle = null
+    }
+    pending = []
     for (const [node, orig] of textOrig) node.data = orig
     for (const [el, attrs] of attrOrig) {
       for (const [attr, orig] of attrs) el.setAttribute(attr, orig)

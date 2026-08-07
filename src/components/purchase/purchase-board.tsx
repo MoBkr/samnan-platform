@@ -259,7 +259,7 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
           <>
             <DialogHeader>
               <div className="min-w-0">
-                <DialogTitle>{detail.project_name || 'طلب شراء — بدون مشروع'}</DialogTitle>
+                <DialogTitle>{detail.project_name ? <span data-no-i18n>{detail.project_name}</span> : 'طلب شراء — بدون مشروع'}</DialogTitle>
                 <p className="mt-0.5 text-xs text-gray-500">
                   {detail.br_number ? `BR: ${detail.br_number}` : 'بدون رقم BR'}
                   {detail.release_number ? ` · تعميد: ${detail.release_number}` : ''}
@@ -279,8 +279,8 @@ export function PurchaseBoard({ requests, users, projectNames, myProjectNames = 
               {/* Info chips */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <Chip on={detail.priority === 'important'} icon={<Flag className="h-3.5 w-3.5" />} text={`الأولوية: ${BR_PRIORITY_LABELS[detail.priority]}`} tone={detail.priority === 'important' ? 'red' : 'gray'} />
-                {detail.supplier_name && <Chip icon={<Truck className="h-3.5 w-3.5" />} text={detail.supplier_name} />}
-                {detail.engineer && <Chip icon={<User className="h-3.5 w-3.5" />} text={detail.engineer.full_name} />}
+                {detail.supplier_name && <Chip raw icon={<Truck className="h-3.5 w-3.5" />} text={detail.supplier_name} />}
+                {detail.engineer && <Chip raw icon={<User className="h-3.5 w-3.5" />} text={detail.engineer.full_name} />}
                 {detail.location && <Chip icon={<MapPin className="h-3.5 w-3.5" />} text={detail.location} />}
                 {detail.due_date && (
                   <Chip icon={<Calendar className="h-3.5 w-3.5" />} text={`الاستحقاق: ${formatDateShort(detail.due_date)}`}
@@ -671,13 +671,16 @@ function FilterChip({ active, onClick, label, count, tone = 'brand' }: {
   )
 }
 
-function Chip({ icon, text, tone = 'gray', on }: { icon: React.ReactNode; text: string; tone?: 'gray' | 'red' | 'date'; on?: boolean }) {
+/** `raw` marks the text as entered data (supplier / person names) so the
+ *  AR→EN DOM translator never rewrites it. */
+function Chip({ icon, text, tone = 'gray', on, raw }: { icon: React.ReactNode; text: string; tone?: 'gray' | 'red' | 'date'; on?: boolean; raw?: boolean }) {
   return (
     <span className={cn('inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium',
       tone === 'red' ? 'bg-red-50 border-red-100 text-red-700 font-bold'
         : tone === 'date' ? 'bg-brand-50 border-brand-100 text-brand-800 font-bold'
         : on ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-gray-50 border-gray-100 text-gray-600')}>
-      <span className={tone === 'date' ? 'text-brand-500' : 'text-gray-400'}>{icon}</span>{text}
+      <span className={tone === 'date' ? 'text-brand-500' : 'text-gray-400'}>{icon}</span>
+      {raw ? <span data-no-i18n>{text}</span> : text}
     </span>
   )
 }
@@ -691,7 +694,7 @@ function RequestCard({ r, today, engineer, onOpen }: {
     <button onClick={onOpen} className={cn('group block w-full text-start rounded-2xl border bg-white p-4 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5',
       overdue ? 'border-red-200' : 'border-gray-100 hover:border-brand-200')}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{r.project_name || <span className="text-gray-400">بدون مشروع</span>}</p>
+        <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{r.project_name ? <span data-no-i18n>{r.project_name}</span> : <span className="text-gray-400">بدون مشروع</span>}</p>
         <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold', r.priority === 'important' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500')}>
           {BR_PRIORITY_LABELS[r.priority]}
         </span>
@@ -700,8 +703,8 @@ function RequestCard({ r, today, engineer, onOpen }: {
       <div className="mt-2 space-y-1 text-xs text-gray-500">
         {r.br_number && <p className="flex items-center gap-1.5"><Hash className="h-3 w-3 shrink-0" /> BR: <span dir="ltr" className="font-medium text-gray-700">{r.br_number}</span></p>}
         {r.release_number && <p className="flex items-center gap-1.5"><Flag className="h-3 w-3 shrink-0" /> PO (تعميد): <span dir="ltr" className="font-medium text-gray-700">{r.release_number}</span></p>}
-        {r.supplier_name && <p className="flex items-center gap-1.5"><Truck className="h-3 w-3 shrink-0" /> {r.supplier_name}</p>}
-        {engineer && <p className="flex items-center gap-1.5"><User className="h-3 w-3 shrink-0" /> {engineer.full_name}</p>}
+        {r.supplier_name && <p className="flex items-center gap-1.5"><Truck className="h-3 w-3 shrink-0" /> <span data-no-i18n>{r.supplier_name}</span></p>}
+        {engineer && <p className="flex items-center gap-1.5"><User className="h-3 w-3 shrink-0" /> <span data-no-i18n>{engineer.full_name}</span></p>}
       </div>
 
       {/* stage indicator */}

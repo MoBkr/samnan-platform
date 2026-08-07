@@ -6,7 +6,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { Installation, InstallationStatus, InstallationStages, InstallAttachment } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import { INSTALL_STAGES } from '@/lib/constants'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
+import { requireInstallAccess, requireManager, requireProjectAccess, requireAuth } from '@/lib/auth/guards'
 import { purgeFiles } from '@/lib/file-cleanup'
 
 function stageLabel(stageKey: string) {
@@ -25,16 +26,9 @@ async function projectManager(service: ReturnType<typeof createServiceClient>, p
 // Installation stage data is editable by the installation manager (primary)
 // and the coordinator/admin (follow-up) — shared permission.
 async function requireInstallEditor() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' as const }
-  const profileResult = (await supabase
-    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
-  const role = profileResult.data?.role
-  if (role !== 'installation' && role !== 'coordinator' && role !== 'admin') {
-    return { error: 'متاح لمدير التركيبات ومهندس إدارة المشاريع فقط' as const }
-  }
-  return { user }
+  const guard = await requireInstallAccess()
+  if ('error' in guard) return { error: 'متاح لمدير التركيبات ومهندس إدارة المشاريع فقط' as const }
+  return { user: { id: guard.ctx.userId } }
 }
 
 // Every file uploaded anywhere in the installation section is also registered in
@@ -64,6 +58,8 @@ async function getStages(service: ReturnType<typeof createServiceClient>, instal
 }
 
 export async function getProjectInstallations(projectId: string) {
+  const guard = await requireProjectAccess(projectId)
+  if ('error' in guard) return []
   const supabase = await createClient()
   const result = (await supabase
     .from('installations')
@@ -74,6 +70,8 @@ export async function getProjectInstallations(projectId: string) {
 }
 
 export async function getAllInstallations() {
+  const guard = await requireAuth()
+  if ('error' in guard) return []
   const supabase = await createClient()
   // Completed rows are included so the dashboard's "مكتمل" counter is real;
   // the schedule list filters them out client-side.
@@ -129,9 +127,11 @@ export async function getInstallationProjects(): Promise<{ mine: MyInstallProjec
 }
 
 export async function scheduleInstallation(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  // Scheduling is a manager action — the other 11 installation writers already
+  // went through requireInstallEditor; these three did not.
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'جدولة التركيب متاحة لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const projectId = formData.get('project_id') as string
   const scheduledDate = formData.get('scheduled_date') as string
@@ -517,9 +517,9 @@ export async function updateInstallStageFlags(
 }
 
 export async function markClientNotified(installationId: string, projectId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const user = auth.user
 
   const service = createServiceClient()
   const { error } = (await service
@@ -547,9 +547,9 @@ export async function updateInstallationStatus(
   status: InstallationStatus,
   extras?: { delayReason?: string; photos?: string[] }
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const auth = await requireInstallEditor()
+  if ('error' in auth) return { error: auth.error }
+  const user = auth.user
 
   const service = createServiceClient()
   const updateData: Record<string, unknown> = { status }

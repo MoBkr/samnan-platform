@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
+import { requireAuth, requireProjectAccess } from '@/lib/auth/guards'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import type { ProjectNote, PersonalNote, NoteKind, Profile } from '@/types/database'
 
@@ -31,6 +32,8 @@ async function me() {
  * every admin — per the client's rule "المسؤولين عن المشروع، ومهندسو إدارة المشاريع كلهم".
  */
 export async function getBoardMembers(projectId: string): Promise<Pick<Profile, 'id' | 'full_name' | 'role'>[]> {
+  const guard = await requireAuth()
+  if ('error' in guard) return []
   const service = createServiceClient()
   const proj = (await service
     .from('projects').select('coordinator_id, sales_engineer_id, installation_id').eq('id', projectId).single()) as QueryResult<{
@@ -58,6 +61,8 @@ async function isMember(projectId: string, userId: string) {
 }
 
 export async function getProjectNotes(projectId: string): Promise<ProjectNote[]> {
+  const guard = await requireProjectAccess(projectId)
+  if ('error' in guard) return []
   const service = createServiceClient()
   const r = (await service
     .from('project_notes')

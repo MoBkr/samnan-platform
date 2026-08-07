@@ -360,7 +360,7 @@ export function ProjectDetail({
               <Hammer className="h-6 w-6 text-gray-400" />
             </div>
             <div className="flex items-center justify-center gap-2 mb-1">
-              <h1 className="text-lg font-bold text-gray-900">{project.project_name}</h1>
+              <h1 data-no-i18n className="text-lg font-bold text-gray-900">{project.project_name}</h1>
               <ProjectStatusBadge status={project.status} />
             </div>
             <p className="text-sm font-semibold text-red-600 mb-1">ما عندك صلاحية للدخول لهذا المشروع</p>
@@ -383,14 +383,14 @@ export function ProjectDetail({
             </Button>
           </Link>
           <span className="text-gray-300">/</span>
-          <span className="text-sm text-gray-600 font-medium">{project.project_name}</span>
+          <span data-no-i18n className="text-sm text-gray-600 font-medium">{project.project_name}</span>
         </div>
 
         {/* Project header — the installation manager needs the full picture:
             client, team, dates and the money collected (client request). */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-3 mb-2">
-            <h1 className="text-xl font-bold text-gray-900">{project.project_name}</h1>
+            <h1 data-no-i18n className="text-xl font-bold text-gray-900">{project.project_name}</h1>
             <ProjectStatusBadge status={project.status} />
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-gray-500">
@@ -525,7 +525,7 @@ export function ProjectDetail({
           </Button>
         </Link>
         <span className="text-gray-300">/</span>
-        <span className="text-sm text-gray-600 font-medium">{project.project_name}</span>
+        <span data-no-i18n className="text-sm text-gray-600 font-medium">{project.project_name}</span>
       </div>
 
       {/* Project Header */}
@@ -533,7 +533,7 @@ export function ProjectDetail({
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-3 mb-3">
-              <h1 className="text-2xl font-bold text-gray-900">{project.project_name}</h1>
+              <h1 data-no-i18n className="text-2xl font-bold text-gray-900">{project.project_name}</h1>
               <ProjectStatusBadge status={project.status} />
               {isFullyPaid && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -1000,7 +1000,7 @@ export function ProjectDetail({
             </div>
           ) : (
             <p className="text-sm text-gray-600">
-              هل أنت متأكد من إغلاق المشروع <strong>{project.project_name}</strong> وتحديد حالته إلى &ldquo;مكتمل&rdquo;؟
+              هل أنت متأكد من إغلاق المشروع <strong data-no-i18n>{project.project_name}</strong> وتحديد حالته إلى &ldquo;مكتمل&rdquo;؟
               لن تتمكن من إجراء تغييرات بعد الإغلاق.
             </p>
           )}
@@ -1022,7 +1022,7 @@ export function ProjectDetail({
         </DialogHeader>
         <DialogContent>
           <p className="text-sm text-gray-600">
-            سيتم تعليق مشروع <strong>{project.project_name}</strong> مؤقتاً. يمكنك إعادة تفعيله في أي وقت.
+            سيتم تعليق مشروع <strong data-no-i18n>{project.project_name}</strong> مؤقتاً. يمكنك إعادة تفعيله في أي وقت.
           </p>
         </DialogContent>
         <DialogFooter>
@@ -1042,7 +1042,7 @@ export function ProjectDetail({
         </DialogHeader>
         <DialogContent>
           <p className="text-sm text-gray-600">
-            هل تريد إعادة تفعيل مشروع <strong>{project.project_name}</strong> والعودة لحالة &ldquo;نشط&rdquo;؟
+            هل تريد إعادة تفعيل مشروع <strong data-no-i18n>{project.project_name}</strong> والعودة لحالة &ldquo;نشط&rdquo;؟
           </p>
         </DialogContent>
         <DialogFooter>
@@ -1150,7 +1150,7 @@ export function ProjectDetail({
             <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
               <Trash2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
-                سيتم حذف مشروع <strong>{project.project_name}</strong> بشكل نهائي وكامل — الدفعات، الملفات، سجل النشاطات.
+                سيتم حذف مشروع <strong data-no-i18n>{project.project_name}</strong> بشكل نهائي وكامل — الدفعات، الملفات، سجل النشاطات.
                 <br /><strong>لا يمكن التراجع عن هذا الإجراء.</strong>
               </span>
             </div>

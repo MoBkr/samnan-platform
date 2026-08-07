@@ -274,7 +274,7 @@ export function ProjectBoard({
                     <Square className="h-4 w-4" />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-800 leading-snug line-clamp-2">
+                    <p data-no-i18n className="text-sm text-gray-800 leading-snug line-clamp-2">
                       <Body text={n.body} members={members} />
                     </p>
                     <p className={cn('mt-1 flex items-center gap-1.5 text-[11px] font-medium',
@@ -366,7 +366,9 @@ export function ProjectBoard({
 
                   <div className={cn('max-w-[80%] min-w-0', mine && 'text-end')}>
                     <div className={cn('mb-0.5 flex items-center gap-2 text-[11px] text-gray-500', mine && 'flex-row-reverse')}>
-                      <span className="font-semibold text-gray-700">{mine ? 'أنت' : n.author?.full_name}</span>
+                      <span className="font-semibold text-gray-700">
+                        {mine ? 'أنت' : <span data-no-i18n>{n.author?.full_name}</span>}
+                      </span>
                       {!mine && n.author?.role && <span>{ROLE_LABELS[n.author.role]}</span>}
                       <span>{fmtTime(n.created_at)}</span>
                     </div>
@@ -415,7 +417,7 @@ export function ProjectBoard({
                               {n.done ? <CheckSquare className="h-4 w-4 text-emerald-600" /> : <Square className="h-4 w-4" />}
                             </button>
                           )}
-                          <p className={cn(
+                          <p data-no-i18n className={cn(
                             'whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed',
                             n.done && 'line-through',
                           )}>
@@ -468,7 +470,7 @@ export function ProjectBoard({
               {picked.map((m) => (
                 <span key={m.id} className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
                   <AtSign className="h-2.5 w-2.5" />
-                  {m.full_name}
+                  <span data-no-i18n>{m.full_name}</span>
                   <button onClick={() => unpick(m.id)} className="text-brand-400 hover:text-brand-700">
                     <X className="h-3 w-3" />
                   </button>
@@ -511,7 +513,7 @@ export function ProjectBoard({
                     <span className={cn('flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white', ROLE_COLOR[m.role] ?? 'bg-gray-400')}>
                       {initials(m.full_name)}
                     </span>
-                    <span className="text-sm text-gray-800">{m.full_name}</span>
+                    <span data-no-i18n className="text-sm text-gray-800">{m.full_name}</span>
                     <span className="ms-auto text-[11px] text-gray-400">{ROLE_LABELS[m.role]}</span>
                   </button>
                 ))}

@@ -5,10 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatCurrency } from '@/lib/utils'
 import { PAYMENT_STATUS_LABELS } from '@/lib/constants'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
 import { removeStorageFiles } from '@/lib/file-cleanup'
 import type { Payment, PaymentType } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+import { requireManager, requireProjectAccess, requireAuth } from '@/lib/auth/guards'
 
 // Project team + name, for routing notifications
 async function projectTeam(service: ReturnType<typeof createServiceClient>, projectId: string) {
@@ -20,6 +21,8 @@ async function projectTeam(service: ReturnType<typeof createServiceClient>, proj
 }
 
 export async function getProjectPayments(projectId: string) {
+  const guard = await requireProjectAccess(projectId)
+  if ('error' in guard) return []
   const supabase = await createClient()
   const result = (await supabase
     .from('payments')
@@ -31,6 +34,9 @@ export async function getProjectPayments(projectId: string) {
 }
 
 export async function getAllOverduePayments() {
+  // Portfolio-wide financials — managers only.
+  const guard = await requireManager()
+  if ('error' in guard) return []
   const supabase = await createClient()
   const today = new Date().toISOString().split('T')[0]
   const result = (await supabase
@@ -43,9 +49,9 @@ export async function getAllOverduePayments() {
 }
 
 export async function createPayment(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'إنشاء الدفعات متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const projectId = formData.get('project_id') as string
   const type = formData.get('type') as PaymentType
@@ -110,9 +116,9 @@ export async function createPayment(formData: FormData) {
 }
 
 export async function recordPayment(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'تسجيل الدفعات متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const paymentId = formData.get('payment_id') as string
   const paidAmount = parseFloat(formData.get('paid_amount') as string)
@@ -152,7 +158,11 @@ export async function recordPayment(formData: FormData) {
     ? [payment.notes, `دفعة زائدة (+${formatCurrency(newPaidAmount - payment.amount)}): ${overpayNote}`].filter(Boolean).join(' | ')
     : payment.notes
 
-  const { error } = (await service
+  // Optimistic lock: the update only applies if paid_amount is still what we
+  // read. Two people recording a collection at the same moment both used to
+  // read 0, both wrote the same total, and one collection silently vanished —
+  // now the loser matches zero rows and is told to retry.
+  const { data: updated, error } = (await service
     .from('payments')
     .update({
       amount: newAmount,
@@ -163,9 +173,14 @@ export async function recordPayment(formData: FormData) {
       receipt_url: receiptUrl || null,
       ...(billingStatus ? { billing_status: billingStatus } : {}),
     } as never)
-    .eq('id', paymentId)) as unknown as { error: Error | null }
+    .eq('id', paymentId)
+    .eq('paid_amount', payment.paid_amount)
+    .select('id')) as unknown as { data: { id: string }[] | null; error: Error | null }
 
   if (error) return { error: 'فشل تسجيل الدفعة' }
+  if (!updated || updated.length === 0) {
+    return { error: 'تم تحديث هذه الدفعة من مكان آخر — أعد تحميل الصفحة وحاول مرة أخرى' }
+  }
 
   await service.from('activity_log').insert({
     project_id: projectId,
@@ -193,9 +208,9 @@ export async function recordPayment(formData: FormData) {
 }
 
 export async function deletePayment(paymentId: string, projectId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'حذف الدفعات متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const service = createServiceClient()
 
@@ -243,9 +258,9 @@ const PAYMENT_TYPES_SET = new Set(['upfront', 'materials', 'installation', 'fina
 const PAYMENT_STATUS_SET = new Set(['pending', 'partial', 'paid', 'overdue', 'cancelled'])
 
 export async function editPayment(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'تعديل الدفعات متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const paymentId = formData.get('payment_id') as string
   const projectId = formData.get('project_id') as string
@@ -338,6 +353,13 @@ export async function editPayment(formData: FormData) {
       billing_status: billingStatus,
       status: finalStatus,
       paid_at: paidAt,
+      // Moving a due date must re-arm its reminder. The dispatcher only picks
+      // rows whose reminded_at is null, so without this a renegotiated payment
+      // that already fired once would never be announced again.
+      ...((payment.due_date ?? '') !== (dueDate || '') ? { due_reminded_at: null } : {}),
+      ...((payment.lc_date ?? '') !== (lcEnabled ? lcDate ?? '' : '')
+        || (payment.lc_days ?? null) !== (lcEnabled ? lcDays : null)
+        ? { lc_reminded_at: null } : {}),
     } as never)
     .eq('id', paymentId)) as unknown as { error: Error | null }
 
@@ -524,15 +546,16 @@ export async function setSalesConfirmation(
 }
 
 export async function cancelPayment(paymentId: string, projectId: string) {
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'إلغاء الدفعات متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
   const service = createServiceClient()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
 
   const { error } = (await service
     .from('payments')
     .update({ status: 'cancelled' } as never)
-    .eq('id', paymentId)) as unknown as { error: Error | null }
+    .eq('id', paymentId)
+    .eq('project_id', projectId)) as unknown as { error: Error | null }
 
   if (error) return { error: 'فشل إلغاء الدفعة' }
 

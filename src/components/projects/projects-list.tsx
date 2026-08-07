@@ -470,12 +470,12 @@ function ProjectCard({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-[15px] font-bold text-gray-900 leading-snug group-hover:text-brand-700 transition-colors line-clamp-2">
+            <h3 data-no-i18n className="text-[15px] font-bold text-gray-900 leading-snug group-hover:text-brand-700 transition-colors line-clamp-2">
               {project.project_name}
             </h3>
             <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
               <Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-              <span className="truncate">{project.client_name}</span>
+              <span data-no-i18n className="truncate">{project.client_name}</span>
             </p>
             {project.location && (
               <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">

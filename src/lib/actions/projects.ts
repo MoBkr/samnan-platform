@@ -4,10 +4,11 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatCurrency } from '@/lib/utils'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
 import { removeStorageFiles } from '@/lib/file-cleanup'
 import type { Project, ProjectStatus } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+import { requireManager, requireProjectAccess, requireAuth } from '@/lib/auth/guards'
 
 export async function getProjects(filters?: { status?: ProjectStatus; search?: string }) {
   const supabase = await createClient()
@@ -37,7 +38,12 @@ export async function getProjects(filters?: { status?: ProjectStatus; search?: s
   }
 
   if (filters?.search) {
-    query = query.or(`client_name.ilike.%${filters.search}%,project_name.ilike.%${filters.search}%`) as typeof query
+    // PostgREST parses , ( ) . as filter grammar — a raw value would let the
+    // caller append arbitrary OR conditions. Strip them before interpolating.
+    const safe = filters.search.replace(/[,()."\%]/g, ' ').trim()
+    if (safe) {
+      query = query.or(`client_name.ilike.%${safe}%,project_name.ilike.%${safe}%`) as typeof query
+    }
   }
 
   const result = (await query) as QueryResultMany<Project>
@@ -45,6 +51,8 @@ export async function getProjects(filters?: { status?: ProjectStatus; search?: s
 }
 
 export async function getProject(id: string) {
+  const guard = await requireProjectAccess(id)
+  if ('error' in guard) return null
   const supabase = await createClient()
   const result = (await supabase
     .from('projects')
@@ -55,9 +63,9 @@ export async function getProject(id: string) {
 }
 
 export async function createProject(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'إنشاء المشاريع متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const clientName = formData.get('client_name') as string
   const projectName = formData.get('project_name') as string
@@ -106,9 +114,9 @@ export async function updateProjectStatus(
   status: ProjectStatus,
   cancellationReason?: string
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'تغيير حالة المشروع متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   if (status === 'cancelled' && !cancellationReason) {
     return { error: 'يجب إدخال سبب الإلغاء' }
@@ -151,9 +159,12 @@ export async function updateProjectTeam(
   salesEngineerId: string | null,
   installationId: string | null
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  // Manager-only. This was the escalation pivot: any employee could assign
+  // THEMSELVES as the project's sales engineer or installation manager and
+  // thereby unlock every ownership-gated action on it.
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'تعديل فريق المشروع متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const service = createServiceClient()
   // Previous installation manager — to detect a new assignment
@@ -205,9 +216,9 @@ export async function updateProjectInfo(
     expected_end_date: string | null
   }
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'تعديل بيانات المشروع متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   if (!data.project_name.trim() || !data.client_name.trim()) {
     return { error: 'اسم المشروع واسم العميل مطلوبان' }
@@ -240,9 +251,9 @@ export async function updateProjectInfo(
 }
 
 export async function updateProjectAmount(projectId: string, totalAmount: number) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'تعديل قيمة المشروع متاح لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const service = createServiceClient()
 

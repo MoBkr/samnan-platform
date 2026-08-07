@@ -24,6 +24,9 @@ async function requireCustodyEditor() {
 }
 
 export async function getProjectCustody(projectId: string): Promise<CustodyEntry[]> {
+  // Financial records — the writes were guarded but this read was wide open.
+  const guard = await requireCustodyEditor()
+  if ('error' in guard) return []
   const service = createServiceClient()
   const result = (await service
     .from('custody_entries')

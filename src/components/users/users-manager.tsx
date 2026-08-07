@@ -146,7 +146,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
             {pendingUsers.map((u) => (
               <div key={u.id} className="flex items-center gap-3 rounded-xl border border-blue-100 bg-white p-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
+                  <p data-no-i18n className="text-sm font-semibold text-gray-900 truncate">{u.full_name}</p>
                   <p className="text-xs text-gray-500 truncate">
                     {ROLE_LABELS[u.role]} • <span className="font-bold text-brand-800" dir="ltr">{formatDateShort(u.created_at)}</span>
                     {emails[u.id] && <span dir="ltr"> • {emails[u.id]}</span>}
@@ -196,7 +196,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
             ) : (
               users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.full_name}</TableCell>
+                  <TableCell data-no-i18n className="font-medium">{user.full_name}</TableCell>
                   <TableCell dir="ltr" className="text-start text-xs text-gray-500">{emails[user.id] ?? '—'}</TableCell>
                   <TableCell>
                     <Badge variant={ROLE_BADGE_VARIANTS[user.role]}>
@@ -261,7 +261,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
               <div className="flex items-start gap-2.5 rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-800">
                 <Check className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>
-                  تم تعيين كلمة مرور جديدة لحساب <strong>{resetTarget?.full_name}</strong>.
+                  تم تعيين كلمة مرور جديدة لحساب <strong data-no-i18n>{resetTarget?.full_name}</strong>.
                   <br />انسخ كلمة المرور وسلّمها للموظف — لن تظهر مرة أخرى.
                 </span>
               </div>
@@ -280,7 +280,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                سيتم تعيين كلمة مرور جديدة لحساب <strong className="text-gray-900">{resetTarget?.full_name}</strong> فوراً.
+                سيتم تعيين كلمة مرور جديدة لحساب <strong data-no-i18n className="text-gray-900">{resetTarget?.full_name}</strong> فوراً.
                 يمكنك استخدام المولّدة تلقائياً أو كتابة واحدة.
               </p>
               <div className="space-y-1.5">
@@ -325,7 +325,7 @@ export function UsersManager({ users, currentUserId, emails = {} }: UsersManager
           <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
             <Trash2 className="h-4 w-4 shrink-0 mt-0.5" />
             <span>
-              سيتم حذف حساب <strong>{deleteTarget?.full_name}</strong> نهائياً ولن يتمكن من الدخول للمنصة.
+              سيتم حذف حساب <strong data-no-i18n>{deleteTarget?.full_name}</strong> نهائياً ولن يتمكن من الدخول للمنصة.
               <br /><strong>لا يمكن التراجع عن هذا الإجراء.</strong>
             </span>
           </div>

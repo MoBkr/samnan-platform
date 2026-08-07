@@ -114,7 +114,7 @@ export function TechniciansManager({ technicians, canManage }: { technicians: Te
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
+                      <p data-no-i18n className="font-semibold text-gray-900 text-sm">{t.name}</p>
                       {t.employee_no && <span className="text-[10px] rounded bg-gray-100 text-gray-500 px-1.5 py-0.5" dir="ltr">#{t.employee_no}</span>}
                       {!t.is_active && <span className="text-[10px] rounded bg-gray-200 text-gray-600 px-1.5 py-0.5">موقوف</span>}
                     </div>
@@ -239,7 +239,7 @@ function HistoryDialog({ tech, onClose }: { tech: TechnicianWithStatus | null; o
   return (
     <Dialog open={!!tech} onClose={() => { onClose(); setHistory(null); setLoadedFor(null) }}>
       <DialogHeader>
-        <DialogTitle>سجل الفني {tech?.name ? `— ${tech.name}` : ''}</DialogTitle>
+        <DialogTitle>سجل الفني {tech?.name ? <>— <span data-no-i18n>{tech.name}</span></> : ''}</DialogTitle>
         <DialogClose onClose={() => { onClose(); setHistory(null); setLoadedFor(null) }} />
       </DialogHeader>
       <DialogContent>

@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatDateShort } from '@/lib/utils'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
+import { requireAuth, requireProjectAccess } from '@/lib/auth/guards'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import type { Technician, TechnicianAssignment, TechnicianWithStatus } from '@/types/database'
 
@@ -24,6 +25,8 @@ async function requireTechManager() {
 
 // ── Pool with availability (current active assignment per technician) ──
 export async function getTechnicians(): Promise<TechnicianWithStatus[]> {
+  const guard = await requireAuth()
+  if ('error' in guard) return []
   const service = createServiceClient()
   const techResult = (await service
     .from('technicians').select('*').order('name', { ascending: true })) as QueryResultMany<Technician>
@@ -42,6 +45,8 @@ export async function getTechnicians(): Promise<TechnicianWithStatus[]> {
 }
 
 export async function getProjectTechnicians(projectId: string) {
+  const guard = await requireProjectAccess(projectId)
+  if ('error' in guard) return []
   const service = createServiceClient()
   const result = (await service
     .from('technician_assignments')
@@ -52,6 +57,8 @@ export async function getProjectTechnicians(projectId: string) {
 }
 
 export async function getTechnicianHistory(technicianId: string) {
+  const guard = await requireAuth()
+  if ('error' in guard) return []
   const service = createServiceClient()
   const result = (await service
     .from('technician_assignments')

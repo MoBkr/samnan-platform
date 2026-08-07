@@ -6,19 +6,16 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { INSTALL_STAGES, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
 import type { QueryResult } from '@/lib/supabase/typed'
 import type { Project, Payment, Installation, Material, Document } from '@/types/database'
+import { requireRole, requireProjectAccess } from '@/lib/auth/guards'
 
 // ── Generate / fetch the client share token (coordinator, sales, admin) ──
 export async function getOrCreateShareToken(projectId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
-
-  const profileResult = (await supabase
-    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
-  const role = profileResult.data?.role
-  if (role !== 'coordinator' && role !== 'admin' && role !== 'sales_engineer') {
-    return { error: 'متاح لمهندس إدارة المشاريع والمبيعات والإدارة فقط' }
-  }
+  // Role AND project access: a sales engineer could previously mint a permanent
+  // public link for ANY project, not just their own.
+  const guard = await requireRole('coordinator', 'admin', 'sales_engineer')
+  if ('error' in guard) return { error: 'متاح لمهندس إدارة المشاريع والمبيعات والإدارة فقط' }
+  const access = await requireProjectAccess(projectId)
+  if ('error' in access) return { error: 'غير مصرح لك بمشاركة هذا المشروع' }
 
   const service = createServiceClient()
   const existing = (await service
@@ -27,17 +24,42 @@ export async function getOrCreateShareToken(projectId: string) {
   let token = existing.data?.public_token
   if (!token) {
     token = randomUUID()
-    const { error } = (await service
-      .from('projects').update({ public_token: token } as never).eq('id', projectId)) as unknown as { error: { message?: string } | null }
+    // Guard on public_token still being null so two people clicking "share" at
+    // once can't mint two tokens and leave one of them dead.
+    const { data: claimed, error } = (await service
+      .from('projects').update({ public_token: token } as never)
+      .eq('id', projectId).is('public_token', null)
+      .select('public_token')) as unknown as { data: { public_token: string }[] | null; error: { message?: string } | null }
     if (error) {
       console.error('[getOrCreateShareToken] update failed:', error)
-      const detail = error.message?.includes('public_token')
-        ? 'عمود public_token غير موجود — يرجى تشغيل الـSQL (بند 0b) في Supabase'
-        : (error.message ?? 'خطأ غير معروف')
-      return { error: `فشل إنشاء الرابط: ${detail}` }
+      return { error: 'فشل إنشاء الرابط — حاول مرة أخرى' }
+    }
+    if (!claimed || claimed.length === 0) {
+      const again = (await service
+        .from('projects').select('public_token').eq('id', projectId).single()) as QueryResult<{ public_token: string | null }>
+      token = again.data?.public_token ?? token
     }
   }
   return { token }
+}
+
+/** Revoke the public link. A leaked link otherwise stays live forever. */
+export async function revokeShareToken(projectId: string) {
+  const guard = await requireRole('coordinator', 'admin', 'sales_engineer')
+  if ('error' in guard) return { error: 'متاح لمهندس إدارة المشاريع والمبيعات والإدارة فقط' }
+  const access = await requireProjectAccess(projectId)
+  if ('error' in access) return { error: 'غير مصرح' }
+
+  const service = createServiceClient()
+  const { error } = (await service
+    .from('projects').update({ public_token: null } as never).eq('id', projectId)) as unknown as { error: Error | null }
+  if (error) return { error: 'فشل إلغاء الرابط' }
+
+  await service.from('activity_log').insert({
+    project_id: projectId, user_id: guard.ctx.userId,
+    action: 'إلغاء رابط مشاركة العميل', details: {},
+  } as never)
+  return { success: true }
 }
 
 export interface PublicProjectView {

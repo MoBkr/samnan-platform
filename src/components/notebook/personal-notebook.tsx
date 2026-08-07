@@ -151,7 +151,7 @@ export function PersonalNotebook({
             </div>
           ) : (
             <>
-              <p className={cn('whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed', n.done && 'line-through text-gray-400')}>
+              <p data-no-i18n className={cn('whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed', n.done && 'line-through text-gray-400')}>
                 {n.body}
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -220,7 +220,7 @@ export function PersonalNotebook({
                 )}>
                   {u.full_name.split(' ').slice(0, 2).map((n) => n[0]).join('')}
                 </span>
-                {u.full_name}
+                <span data-no-i18n>{u.full_name}</span>
                 <span className={cn('text-[10px]', viewingId === u.id ? 'text-rose-100' : 'text-gray-400')}>
                   {ROLE_LABELS[u.role]}
                 </span>
@@ -281,7 +281,7 @@ export function PersonalNotebook({
       )}
 
       {!isOwnNotebook && viewingUser && (
-        <h2 className="text-sm font-bold text-gray-700">مدونة {viewingUser.full_name}</h2>
+        <h2 className="text-sm font-bold text-gray-700">مدونة <span data-no-i18n>{viewingUser.full_name}</span></h2>
       )}
 
       {/* Open items */}

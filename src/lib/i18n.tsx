@@ -7,7 +7,6 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { DICT, type DictKey } from '@/lib/i18n-dict'
-import { startDomTranslation } from '@/lib/i18n-dom'
 
 export type Lang = 'ar' | 'en'
 
@@ -39,9 +38,27 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
   // Whole-app phrase translation: in English mode, every known Arabic UI
   // phrase in the DOM is swapped for English and kept in sync as React
   // re-renders. Switching back restores the authored Arabic exactly.
+  //
+  // The engine pulls in the ~94KB phrase dictionary, so it is imported
+  // dynamically — Arabic (the default) never pays for it. Because the import
+  // resolves asynchronously, the stop function is stored on a ref-like local
+  // and the cleanup guards against being torn down before it arrives.
   useEffect(() => {
     if (lang !== 'en') return
-    return startDomTranslation()
+
+    let stop: (() => void) | null = null
+    let cancelled = false
+
+    void import('@/lib/i18n-dom').then(({ startDomTranslation }) => {
+      if (cancelled) return
+      stop = startDomTranslation()
+    })
+
+    return () => {
+      cancelled = true
+      stop?.()
+      stop = null
+    }
   }, [lang])
 
   function setLang(l: Lang) {

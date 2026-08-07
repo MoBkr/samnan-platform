@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Profile, Project, Payment, ActivityLog } from '@/types/database'
 import type { QueryResultMany } from '@/lib/supabase/typed'
+import { requireManager } from '@/lib/auth/guards'
 
 export type ProjectReport = Project & {
   coordinator?: Pick<Profile, 'full_name'> | null
@@ -20,6 +21,8 @@ export type ActivityLogReport = ActivityLog & {
 }
 
 export async function getProjectsReport(): Promise<ProjectReport[]> {
+  const guard = await requireManager()
+  if ('error' in guard) return []
   const supabase = await createClient()
   const result = (await supabase
     .from('projects')
@@ -29,6 +32,8 @@ export async function getProjectsReport(): Promise<ProjectReport[]> {
 }
 
 export async function getPaymentsReport(): Promise<PaymentReport[]> {
+  const guard = await requireManager()
+  if ('error' in guard) return []
   const supabase = await createClient()
   const result = (await supabase
     .from('payments')
@@ -38,6 +43,8 @@ export async function getPaymentsReport(): Promise<PaymentReport[]> {
 }
 
 export async function getTeamReport(): Promise<Profile[]> {
+  const guard = await requireManager()
+  if ('error' in guard) return []
   const supabase = await createClient()
   const result = (await supabase
     .from('profiles')
@@ -71,15 +78,46 @@ const yearOf = (iso: string | null): number | null => {
   return Number(y)
 }
 
+/**
+ * PostgREST silently caps a plain select at 1,000 rows. The annual summary
+ * aggregates whole tables, so an uncapped read would quietly under-report
+ * revenue the moment the platform passes a thousand payments — with no error
+ * anywhere. Page through explicitly instead.
+ */
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => Promise<{ data: T[] | null; error?: unknown }>,
+): Promise<T[]> {
+  const PAGE = 1000
+  const out: T[] = []
+  for (let page = 0; page < 100; page++) {
+    const from = page * PAGE
+    const { data } = await build(from, from + PAGE - 1)
+    const rows = data ?? []
+    out.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return out
+}
+
 export async function getAnnualSummary(): Promise<AnnualSummary> {
+  const guard = await requireManager()
+  if ('error' in guard) return { years: [], byYear: {}, currentActive: 0 }
   const supabase = await createClient()
 
-  const [projRes, payRes, docRes, instRes] = await Promise.all([
-    supabase.from('projects').select('status, total_amount, created_at, updated_at') as unknown as Promise<QueryResultMany<Pick<Project, 'status' | 'total_amount' | 'created_at' | 'updated_at'>>>,
-    supabase.from('payments').select('paid_amount, paid_at, status') as unknown as Promise<QueryResultMany<Pick<Payment, 'paid_amount' | 'paid_at' | 'status'>>>,
-    supabase.from('documents').select('type, uploaded_at').eq('type', 'delivery_note') as unknown as Promise<QueryResultMany<{ type: string; uploaded_at: string }>>,
-    supabase.from('installations').select('status, completed_at') as unknown as Promise<QueryResultMany<{ status: string; completed_at: string | null }>>,
+  const [projects, payments, deliveryDocs, installs] = await Promise.all([
+    fetchAllRows<Pick<Project, 'status' | 'total_amount' | 'created_at' | 'updated_at'>>((f, t) =>
+      supabase.from('projects').select('status, total_amount, created_at, updated_at').range(f, t) as never),
+    fetchAllRows<Pick<Payment, 'paid_amount' | 'paid_at' | 'status'>>((f, t) =>
+      supabase.from('payments').select('paid_amount, paid_at, status').range(f, t) as never),
+    fetchAllRows<{ type: string; uploaded_at: string }>((f, t) =>
+      supabase.from('documents').select('type, uploaded_at').eq('type', 'delivery_note').range(f, t) as never),
+    fetchAllRows<{ status: string; completed_at: string | null }>((f, t) =>
+      supabase.from('installations').select('status, completed_at').range(f, t) as never),
   ])
+  const projRes = { data: projects }
+  const payRes = { data: payments }
+  const docRes = { data: deliveryDocs }
+  const instRes = { data: installs }
 
   const byYear: Record<number, AnnualYearStats> = {}
   const ensure = (y: number): AnnualYearStats => (byYear[y] ??= {
@@ -126,6 +164,8 @@ export async function getAnnualSummary(): Promise<AnnualSummary> {
 }
 
 export async function getActivityLogReport(): Promise<ActivityLogReport[]> {
+  const guard = await requireManager()
+  if ('error' in guard) return []
   const supabase = await createClient()
   const result = (await supabase
     .from('activity_log')

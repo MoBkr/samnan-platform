@@ -7,20 +7,20 @@ import { BR_STAGES, BR_STAGE_LABELS } from '@/lib/constants'
 import { purgeFiles } from '@/lib/file-cleanup'
 import type { PurchaseRequest, BrStage, BrAttachment, BrMaterial } from '@/types/database'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
+import { requireManager as requireManagerGuard, requireAuth } from '@/lib/auth/guards'
 
 async function requireManager() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' as const }
-  const profileResult = (await supabase
-    .from('profiles').select('role').eq('id', user.id).single()) as QueryResult<{ role: string }>
-  const role = profileResult.data?.role
-  if (role !== 'coordinator' && role !== 'admin') return { error: 'متاح لمهندس إدارة المشاريع والإدارة فقط' as const }
-  return { user }
+  const guard = await requireManagerGuard()
+  if ('error' in guard) return { error: 'متاح لمهندس إدارة المشاريع والإدارة فقط' as const }
+  return { user: { id: guard.ctx.userId } }
 }
 
-// Reads use the service client (table has RLS enabled with no policies)
+// Reads use the service client (table has RLS enabled with no policies), so
+// the guard here is the only thing standing between a caller and every
+// purchase request in the company.
 export async function getPurchaseRequests() {
+  const guard = await requireAuth()
+  if ('error' in guard) return []
   const service = createServiceClient()
   const result = (await service
     .from('purchase_requests')
@@ -89,9 +89,18 @@ export async function updatePurchaseRequest(id: string, fields: Partial<BrInput>
   const auth = await requireManager()
   if ('error' in auth) return { error: auth.error }
 
+  // Only these columns may be written. Copying every key the caller sent let a
+  // manager forge id / created_by / stage_history by adding them to the payload.
+  const EDITABLE = [
+    'br_number', 'release_number', 'project_name', 'supplier_name', 'engineer_id',
+    'location', 'due_date', 'started_at', 'priority', 'status', 'progress',
+    'notes', 'materials',
+  ] as const
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  for (const [k, v] of Object.entries(fields)) {
-    patch[k] = v === '' ? null : v
+  for (const key of EDITABLE) {
+    if (!(key in fields)) continue
+    const v = (fields as Record<string, unknown>)[key]
+    patch[key] = v === '' ? null : v
   }
   if (fields.project_name !== undefined) patch.project_name = fields.project_name?.trim() || null
 

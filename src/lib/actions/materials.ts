@@ -3,11 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
 import type { Material, MaterialItem } from '@/types/database'
 import type { QueryResult } from '@/lib/supabase/typed'
+import { requireManager, requireProjectAccess } from '@/lib/auth/guards'
 
 export async function getProjectMaterials(projectId: string): Promise<Material | null> {
+  const guard = await requireProjectAccess(projectId)
+  if ('error' in guard) return null
   const supabase = await createClient()
   const result = (await supabase
     .from('materials')
@@ -19,9 +22,9 @@ export async function getProjectMaterials(projectId: string): Promise<Material |
 }
 
 export async function updateMaterialsItems(projectId: string, items: MaterialItem[]) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'إدارة المواد متاحة لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const service = createServiceClient()
   const existing = await getProjectMaterials(projectId)
@@ -59,9 +62,9 @@ export async function updateMaterialsStatus(
   projectId: string,
   status: 'pending' | 'ready' | 'delivered'
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'غير مصرح' }
+  const guard = await requireManager()
+  if ('error' in guard) return { error: 'إدارة المواد متاحة لمهندس إدارة المشاريع والإدارة فقط' }
+  const user = { id: guard.ctx.userId }
 
   const service = createServiceClient()
   const existing = await getProjectMaterials(projectId)

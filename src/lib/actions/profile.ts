@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { notify } from '@/lib/actions/notifications'
+import { notify } from '@/lib/notify'
 import { removeStorageFiles } from '@/lib/file-cleanup'
 import type { QueryResult, QueryResultMany } from '@/lib/supabase/typed'
 import type { Profile } from '@/types/database'

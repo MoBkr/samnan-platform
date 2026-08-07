@@ -9,8 +9,15 @@ import type { UserRole } from '@/types/database'
 import { ROLE_REDIRECTS } from '@/lib/constants'
 import type { QueryResult } from '@/lib/supabase/typed'
 import type { Profile } from '@/types/database'
+import { requireAdmin, isValidRole } from '@/lib/auth/guards'
+import { MIN_PASSWORD_LENGTH, SITE_URL } from '@/lib/config'
 
+// Password-reset links must never be built from request headers — `Origin` and
+// `x-forwarded-host` are attacker-controllable, which is the classic
+// reset-poisoning vector. Prefer the configured site URL and only fall back to
+// headers when it is unset (local development).
 async function getOrigin() {
+  if (SITE_URL) return SITE_URL
   const h = await headers()
   const origin = h.get('origin')
   if (origin) return origin
@@ -52,7 +59,11 @@ export async function signIn(formData: FormData) {
     return { error: 'حسابك قيد المراجعة من الإدارة. سيتم تفعيله بعد الموافقة عليه.' }
   }
 
-  const role = result.data?.role ?? 'coordinator'
+  const role = result.data?.role
+  if (!role) {
+    await supabase.auth.signOut()
+    return { error: 'حسابك غير مكتمل — تواصل مع الإدارة' }
+  }
   revalidatePath('/', 'layout')
   return { redirectTo: ROLE_REDIRECTS[role] ?? '/dashboard' }
 }
@@ -89,7 +100,7 @@ export async function requestPasswordReset(formData: FormData) {
 // token_hash also needs no PKCE verifier, so it works from any device/browser.
 export async function completePasswordReset(tokenHash: string, password: string) {
   if (!tokenHash) return { error: 'رابط غير صالح' }
-  if (!password || password.length < 6) return { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }
+  if (!password || password.length < MIN_PASSWORD_LENGTH) return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` }
 
   const supabase = await createClient()
   const { error: verifyError } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
@@ -108,13 +119,23 @@ export async function completePasswordReset(tokenHash: string, password: string)
 }
 
 export async function createUser(formData: FormData) {
+  // Admin-only: this creates a pre-approved, email-confirmed account with the
+  // requested role. Without this gate the action was an unauthenticated
+  // "make me an admin" endpoint.
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: 'إنشاء المستخدمين متاح للإدارة فقط' }
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const fullName = formData.get('full_name') as string
-  const role = formData.get('role') as UserRole
+  const role = formData.get('role')
 
   if (!email || !password || !fullName || !role) {
     return { error: 'يرجى ملء جميع الحقول المطلوبة' }
+  }
+  if (!isValidRole(role)) return { error: 'الدور الوظيفي غير صالح' }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` }
   }
 
   const service = createServiceClient()
@@ -140,11 +161,10 @@ export async function createUser(formData: FormData) {
       .upsert({ id: data.user.id, full_name: fullName, role, is_active: true } as never) as unknown as Promise<{ error: Error | null }>)
   }
 
-  {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: `إنشاء مستخدم: ${fullName}`, details: { role } } as never)
-  }
+  await service.from('activity_log').insert({
+    project_id: null, user_id: guard.ctx.userId,
+    action: `إنشاء مستخدم: ${fullName}`, details: { role },
+  } as never)
 
   revalidatePath('/users')
   return { success: true }
@@ -173,10 +193,14 @@ export async function approveUser(userId: string) {
 }
 
 export async function updateUserRole(userId: string, role: UserRole) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const service = createServiceClient()
+  // Admin-only. Previously getUser() was called but its result never checked,
+  // so anyone could promote any account (including their own) to admin — and
+  // with no session the audit line was skipped, leaving no trace.
+  const guard = await requireAdmin()
+  if ('error' in guard) return { error: 'تعديل الأدوار متاح للإدارة فقط' }
+  if (!isValidRole(role)) return { error: 'الدور الوظيفي غير صالح' }
 
+  const service = createServiceClient()
   const { error } = (await service
     .from('profiles')
     .update({ role } as never)
@@ -184,7 +208,10 @@ export async function updateUserRole(userId: string, role: UserRole) {
 
   if (error) return { error: 'فشل تحديث الدور' }
 
-  if (user) await service.from('activity_log').insert({ project_id: null, user_id: user.id, action: 'تغيير دور مستخدم', details: { target: userId, role } } as never)
+  await service.from('activity_log').insert({
+    project_id: null, user_id: guard.ctx.userId,
+    action: 'تغيير دور مستخدم', details: { target: userId, role },
+  } as never)
   revalidatePath('/users')
   return { success: true }
 }
@@ -199,16 +226,20 @@ export async function signUp(formData: FormData) {
     return { error: 'يرجى ملء جميع الحقول المطلوبة' }
   }
 
-  if (password.length < 6) {
-    return { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` }
   }
+  // A self-signup may never claim 'admin'. The requested role is recorded for
+  // the approving admin to see, but the account is always created at the
+  // lowest privilege until an admin assigns the real one.
+  const requestedRole: UserRole = isValidRole(role) && role !== 'admin' ? role : 'sales_engineer'
 
   const service = createServiceClient()
 
   const { data, error } = await service.auth.admin.createUser({
     email,
     password,
-    user_metadata: { full_name: fullName, role },
+    user_metadata: { full_name: fullName, role: requestedRole },
     email_confirm: true,
   })
 
@@ -221,10 +252,16 @@ export async function signUp(formData: FormData) {
 
   if (data.user) {
     // New self-signups start INACTIVE — an admin must approve them before they
-    // can log in. This ensures only real company members get platform access.
-    await (service
+    // can log in. The DB trigger inserts the profile with is_active defaulting
+    // to true, so this upsert must succeed; if it fails we delete the auth user
+    // rather than leave an approved account behind.
+    const { error: profileError } = (await (service
       .from('profiles')
-      .upsert({ id: data.user.id, full_name: fullName, role, is_active: false } as never) as unknown as Promise<{ error: Error | null }>)
+      .upsert({ id: data.user.id, full_name: fullName, role: requestedRole, is_active: false } as never) as unknown as Promise<{ error: Error | null }>))
+    if (profileError) {
+      await service.auth.admin.deleteUser(data.user.id)
+      return { error: 'فشل إنشاء الحساب. حاول مرة أخرى' }
+    }
   }
 
   // Do NOT sign the user in — the account is pending admin approval.
@@ -243,8 +280,8 @@ export async function adminResetUserPassword(targetUserId: string, newPassword: 
     .single()) as QueryResult<{ role: string }>
 
   if (profileResult.data?.role !== 'admin') return { error: 'إعادة التعيين متاحة للإدارة فقط' }
-  if (!newPassword || newPassword.length < 6) {
-    return { error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }
+  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+    return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` }
   }
 
   const service = createServiceClient()
