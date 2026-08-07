@@ -6,16 +6,46 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { QueryResultMany } from '@/lib/supabase/typed'
 import type { AppNotification } from '@/types/database'
 
+// Reminders have two triggers:
+//  1. /api/cron/reminders — the guaranteed baseline. It runs even when nobody
+//     has the app open, which the old design could not do. The Vercel Hobby
+//     plan allows one scheduled run per day, so it fires at 06:00 Riyadh.
+//  2. This throttled fallback — so an item that becomes due during the working
+//     day is still announced without waiting for tomorrow's run.
+//
+// The fallback used to run on EVERY 30-second poll from EVERY open tab: ~700
+// sequential queries per request, and reminders permanently lost when the
+// function was killed mid-loop (rows are claimed before they are sent). The
+// throttle below collapses that to at most one dispatch per instance per
+// window, and the existing claim-based idempotency keeps concurrent instances
+// from double-sending.
+const DISPATCH_WINDOW_MS = 10 * 60 * 1000
+let lastDispatchAt = 0
+
+async function dispatchRemindersThrottled() {
+  const now = Date.now()
+  if (now - lastDispatchAt < DISPATCH_WINDOW_MS) return
+  lastDispatchAt = now
+  try {
+    const { dispatchDueReminders } = await import('@/lib/actions/notes')
+    await dispatchDueReminders()
+  } catch (e) {
+    console.error('[reminders] notes', e)
+  }
+  try {
+    const { dispatchDuePaymentReminders } = await import('@/lib/actions/payments')
+    await dispatchDuePaymentReminders()
+  } catch (e) {
+    console.error('[reminders] payments', e)
+  }
+}
+
 export async function getMyNotifications(): Promise<{ items: AppNotification[]; unread: number }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { items: [], unread: 0 }
 
-  // Reminders are dispatched by the scheduled job at /api/cron/reminders —
-  // they used to run inline here on every 30s poll from every open tab, which
-  // meant hundreds of sequential queries per request, reminders lost whenever
-  // the function timed out mid-loop, and nothing sent at all when no one had
-  // the app open.
+  await dispatchRemindersThrottled()
 
   const service = createServiceClient()
   const result = (await service
