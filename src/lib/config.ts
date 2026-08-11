@@ -20,24 +20,28 @@ export const MIN_PASSWORD_LENGTH = 8
 /** Saudi timezone — every "today" and every displayed date resolves here. */
 export const SA_TIMEZONE = 'Asia/Riyadh'
 
-/** Folders a client may target when requesting a signed upload URL.
- *  Anything else is rejected, so callers can't write outside their area. */
-export const UPLOAD_FOLDERS = [
-  'contract', 'invoice', 'receipt', 'delivery_note', 'completion_photo',
-  'materials_request', 'other', 'purchase', 'custody', 'installation',
-  'avatars', 'client-docs', 'misc',
-] as const
-
-/** `custody/<projectId>` style prefixes are allowed for these folders. */
-const SCOPED_FOLDERS = new Set(['custody', 'installation', 'purchase'])
+/**
+ * Validates the storage folder a client asks to upload into.
+ *
+ * This checks the SHAPE of the path, not a list of names. Folder names in this
+ * app come from document types, client-doc fields and per-project scopes
+ * (`custody/<id>`, `materials/<id>`, …) — an exact-name allowlist silently
+ * broke real uploads whenever a caller used a name the list hadn't anticipated.
+ *
+ * Shape rules are what actually carry the security weight: the stored file name
+ * is a server-generated UUID, so the folder cannot be used to overwrite an
+ * existing object, and the only real risk is escaping the bucket — which is
+ * exactly what these rules prevent.
+ */
+const FOLDER_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/
 
 export function isAllowedUploadFolder(folder: string): boolean {
-  if (!folder || folder.includes('..') || folder.includes('\\')) return false
-  const [head, ...rest] = folder.split('/')
-  if (!(UPLOAD_FOLDERS as readonly string[]).includes(head)) return false
-  if (rest.length === 0) return true
-  // Scoped folders may carry exactly one id segment, e.g. custody/<uuid>
-  return SCOPED_FOLDERS.has(head) && rest.length === 1 && /^[\w-]{1,64}$/.test(rest[0])
+  if (!folder || folder.length > 130) return false
+  if (folder.includes('\\') || folder.includes('..')) return false
+  const segments = folder.split('/')
+  // At most `<area>/<id>` — nothing deeper, nothing absolute, no empty parts.
+  if (segments.length < 1 || segments.length > 2) return false
+  return segments.every((s) => FOLDER_SEGMENT.test(s))
 }
 
 /** Materials workflow → completion percentage. Single source of truth;
