@@ -714,7 +714,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <Upload className="h-4 w-4" /> رفع المرفق الأساسي
                 </button>
               )}
-              <input ref={primaryInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+              <input ref={primaryInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.csv" className="hidden"
                 onChange={(e) => { setPrimaryFile(e.target.files?.[0] ?? null); e.target.value = '' }} />
             </div>
 
@@ -740,7 +740,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <Upload className="h-4 w-4" /> إضافة ملفات
                   {otherFiles.length > 0 && <span className="rounded-full bg-brand-100 px-1.5 text-[10px] font-bold text-brand-700">{otherFiles.length}</span>}
                 </button>
-                <input ref={otherInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+                <input ref={otherInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.csv" className="hidden"
                   onChange={(e) => {
                     const picked = Array.from(e.target.files ?? [])
                     e.target.value = ''
@@ -984,10 +984,10 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-6 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
                     <Upload className="h-6 w-6 text-gray-400" />
                     <p className="text-sm font-medium text-gray-600">اضغط لرفع الإيصال</p>
-                    <p className="text-xs text-gray-400">JPG، PNG، PDF — حتى 50 ميجابايت</p>
+                    <p className="text-xs text-gray-400">JPG، PNG، PDF، Excel — حتى 50 ميجابايت</p>
                   </button>
                 )}
-                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.csv" className="hidden" onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)} />
                 <p className="text-xs text-gray-400">يمكنك إضافة مرفقات أخرى (فاتورة، ضمان...) من زر «المرفقات» بعد التسجيل.</p>
               </div>
             </form>
@@ -1069,7 +1069,7 @@ export function PaymentsTab({ payments, projectId, canManage, projectTotal, atta
                     {uploadingAttachment ? <Upload className="h-4 w-4 animate-pulse" /> : <Paperclip className="h-4 w-4" />}
                     {uploadingAttachment ? 'جاري الرفع...' : 'إضافة مرفقات (إيصال، فاتورة، ضمان...)'}
                   </button>
-                  <input ref={attachInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleAttachmentUpload} />
+                  <input ref={attachInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.csv" className="hidden" onChange={handleAttachmentUpload} />
                   <p className="text-xs text-gray-400 text-center">يمكنك رفع أكثر من ملف — بدون اسم إلزامي</p>
                 </>
               )}

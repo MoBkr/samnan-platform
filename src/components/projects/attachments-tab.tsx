@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { Trash2, FileText, ImageIcon, Upload, Lock, RefreshCw } from 'lucide-react'
+import { Trash2, FileText, FileSpreadsheet, ImageIcon, Upload, Lock, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -31,9 +31,12 @@ const UPLOADABLE_TYPES = ['contract', 'receipt', 'other'] as const
 const READONLY_MATERIAL_TYPES = ['materials_request', 'delivery_note'] as const
 
 function getDocumentIcon(url: string) {
-  const lower = url.toLowerCase()
-  const isPdf = lower.endsWith('.pdf') || lower.includes('application/pdf')
-  return isPdf ? <FileText className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />
+  // Anything that isn't an image gets a document icon — the old check only
+  // recognised PDFs, so a spreadsheet or a CAD drawing was drawn as a photo.
+  const lower = url.split('?')[0].toLowerCase()
+  if (/\.(xlsx|xls|csv)$/.test(lower)) return <FileSpreadsheet className="h-4 w-4" />
+  if (/\.(jpe?g|png|webp|gif)$/.test(lower)) return <ImageIcon className="h-4 w-4" />
+  return <FileText className="h-4 w-4" />
 }
 
 function formatDate(dateStr: string) {
@@ -74,7 +77,7 @@ function ClientDocSlot({ field, label, url, canManage, isPending, onUpload, onDe
           )}
         </div>
       )}
-      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.dwg,.dxf" className="hidden"
+      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.dwg,.dxf,.xlsx,.xls,.csv" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onUpload(field, f) }} />
     </div>
   )
@@ -462,12 +465,12 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
               <input
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.dwg,.dxf,image/jpeg,image/png,image/webp,application/pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.dwg,.dxf,image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.csv"
                 required
                 className="w-full text-sm"
                 onChange={handleFilesChange}
               />
-              <p className="text-xs text-gray-500">الحد الأقصى: 50 ميجابايت لكل ملف • PDF / صورة / أوتوكاد DWG</p>
+              <p className="text-xs text-gray-500">الحد الأقصى: 50 ميجابايت لكل ملف • PDF / صورة / Excel / أوتوكاد DWG</p>
               {selectedFiles.length > 1 && (
                 <p className="text-xs text-brand-600 font-medium">تم اختيار {selectedFiles.length} ملفات</p>
               )}
@@ -501,7 +504,7 @@ export function AttachmentsTab({ attachments, projectId, project, payments, canM
               <input
                 ref={contractInputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.dwg,.dxf,image/jpeg,image/png,image/webp,application/pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.dwg,.dxf,image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.csv"
                 required
                 className="w-full text-sm"
                 onChange={(e) => setContractFile(e.target.files?.[0] ?? null)}

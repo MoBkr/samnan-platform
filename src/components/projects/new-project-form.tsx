@@ -238,7 +238,7 @@ export function NewProjectForm({
             <Paperclip className="h-4 w-4" />
             إضافة مرفق
           </button>
-          <input ref={extraFilesRef} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,.dwg,.dxf" className="hidden"
+          <input ref={extraFilesRef} type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,.dwg,.dxf,.xlsx,.xls,.csv" className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files ?? [])
               setExtraFiles(prev => [...prev, ...files.map(f => ({ file: f, label: '' }))])

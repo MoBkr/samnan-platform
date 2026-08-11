@@ -1138,7 +1138,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                                 ))}
                                 <label className="cursor-pointer inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] text-gray-500 hover:border-brand-300 hover:text-brand-600">
                                   {rowUploading === i ? <Clock className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
-                                  <input type="file" multiple accept="image/*,application/pdf,.dwg,.dxf" className="hidden"
+                                  <input type="file" multiple accept="image/*,application/pdf,.dwg,.dxf,.xlsx,.xls,.csv" className="hidden"
                                     disabled={rowUploading !== null} onChange={(e) => handleRowAttach(i, e)} />
                                 </label>
                               </div>
@@ -1415,7 +1415,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
               {canManage && (
                 <label className="cursor-pointer">
                   <UploadChip loading={deliveryNoteUploading} label="رفع الوصل" />
-                  <input type="file" accept=".pdf,image/*,application/pdf" className="hidden"
+                  <input type="file" accept=".pdf,image/*,application/pdf,.xlsx,.xls,.csv" className="hidden"
                     disabled={isPending} onChange={handleDeliveryNoteUpload} />
                 </label>
               )}
@@ -1573,7 +1573,7 @@ export function MaterialsTab({ material, attachments, projectId, canManage, paym
                 <label className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-5 text-center cursor-pointer hover:border-brand-300 hover:bg-brand-50/30 transition-colors">
                   <Upload className="h-5 w-5 text-gray-400" />
                   <p className="text-sm text-gray-500">اضغط لاختيار ملف</p>
-                  <input type="file" accept=".pdf,image/*,application/pdf" className="hidden"
+                  <input type="file" accept=".pdf,image/*,application/pdf,.xlsx,.xls,.csv" className="hidden"
                     onChange={(e) => setReadyFile(e.target.files?.[0] ?? null)} />
                 </label>
               )}
