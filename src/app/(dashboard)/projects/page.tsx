@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/shared/page-header'
 import { ProjectsList, type ProjectProgress } from '@/components/projects/projects-list'
 import type { QueryResultMany } from '@/lib/supabase/typed'
+import { materialsPercent } from '@/lib/config'
 
-const MAT_PCT: Record<string, number> = { delivered: 100, ready: 60, partial: 50, preparing: 30, pending: 10 }
 const REQ_STAGE_KEYS = INSTALL_STAGES.filter((s) => !s.optional).map((s) => s.key)
 
 export default async function ProjectsPage() {
@@ -21,11 +21,11 @@ export default async function ProjectsPage() {
   const service = createServiceClient()
   const [paysRes, matsRes, instRes] = await Promise.all([
     service.from('payments').select('project_id, amount, paid_amount, status'),
-    service.from('materials').select('project_id, status, items, requested_at').order('requested_at', { ascending: false }),
+    service.from('materials').select('project_id, status, requested_at').order('requested_at', { ascending: false }),
     service.from('installations').select('project_id, stages, created_at').order('created_at', { ascending: false }),
   ]) as unknown as [
     { data: { project_id: string; amount: number; paid_amount: number; status: string }[] | null },
-    { data: { project_id: string; status: string; items: { status?: string }[] }[] | null },
+    { data: { project_id: string; status: string }[] | null },
     { data: { project_id: string; stages: Record<string, { done?: boolean }> | null }[] | null },
   ]
 
@@ -36,7 +36,7 @@ export default async function ProjectsPage() {
     a.paid += p.paid_amount ?? 0; a.amount += p.amount ?? 0
     payAgg.set(p.project_id, a)
   }
-  const matByProj = new Map<string, { status: string; items: { status?: string }[] }>()
+  const matByProj = new Map<string, { status: string }>()
   for (const m of matsRes.data ?? []) if (!matByProj.has(m.project_id)) matByProj.set(m.project_id, m)
   const instByProj = new Map<string, Record<string, { done?: boolean }>>()
   for (const i of instRes.data ?? []) if (!instByProj.has(i.project_id)) instByProj.set(i.project_id, i.stages ?? {})
@@ -48,11 +48,13 @@ export default async function ProjectsPage() {
     const total = proj.total_amount && proj.total_amount > 0 ? proj.total_amount : (agg?.amount ?? 0)
     const collection = total > 0 ? round(((agg?.paid ?? 0) / total) * 100) : 0
 
+    // Materials completion is stage-based, exactly like the project page, the
+    // summary and the client share page. This screen was still counting items
+    // whose per-item `status` equalled 'مكتمل' — a field that was removed when
+    // materials moved to the SAP columns, so the count was always zero and a
+    // fully delivered project reported 0%.
     const m = matByProj.get(proj.id)
-    const items = m?.items ?? []
-    const materials = items.length > 0
-      ? round((items.filter((it) => it.status === 'مكتمل').length / items.length) * 100)
-      : m ? (MAT_PCT[m.status] ?? 0) : 0
+    const materials = m ? materialsPercent(m.status) : 0
 
     let installation: number | null = null
     if (proj.has_installation) {
